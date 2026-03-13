@@ -32,7 +32,7 @@ export default function AnalysisPage() {
     ]).finally(() => setLoading(false));
   }, []);
 
-  const availableYears = [...new Set(projects.map(p => p.startDate?.substring(0,4)).filter(Boolean))].sort().reverse() as string[];
+  const availableYears = Array.from(new Set(projects.map(p => p.startDate?.substring(0,4)).filter(Boolean))).sort().reverse() as string[];
 
   if (loading) return (
     <DashboardLayout><Header title="Analiz" />
