@@ -1,6 +1,6 @@
+import 'dotenv/config';
 import { DataSource } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
-import { join } from 'path';
 import { User } from './entities/user.entity';
 import { Role } from './entities/role.entity';
 import { Permission } from './entities/permission.entity';
@@ -15,10 +15,6 @@ import { ReportType } from './entities/report-type.entity';
 import { ProjectReport } from './entities/project-report.entity';
 import { DynamicProjectField } from './entities/dynamic-project-field.entity';
 import { ProjectPartner } from './entities/project-partner.entity';
-
-// .env dosyasından DATABASE_URL okur
-import * as dotenv from 'dotenv';
-dotenv.config();
 
 const AppDataSource = new DataSource({
   type: 'postgres',
@@ -117,18 +113,8 @@ async function seed() {
     const exists = await projectRepo.findOne({ where: { title: pd.title } });
     if (!exists) {
       const proj = new Project();
-      proj.title = pd.title;
-      proj.description = pd.description;
-      proj.type = pd.type;
-      proj.status = pd.status;
-      proj.faculty = pd.faculty;
-      proj.department = pd.department;
-      proj.budget = pd.budget;
-      proj.fundingSource = pd.fundingSource;
-      proj.startDate = pd.startDate;
-      proj.endDate = pd.endDate;
+      Object.assign(proj, pd);
       proj.ownerId = ahmet.id;
-      proj.tags = pd.tags;
       await projectRepo.save(proj);
     }
   }
@@ -147,7 +133,6 @@ async function seed() {
   }
   console.log('✅ Sistem ayarları oluşturuldu');
 
-  // Project Types
   const projectTypeRepo = AppDataSource.getRepository(ProjectType);
   const typeDefaults = [
     { key: 'tubitak', label: 'TÜBİTAK', color: '#1d4ed8', isSystem: true },
@@ -167,7 +152,6 @@ async function seed() {
   }
   console.log('✅ Proje türleri oluşturuldu');
 
-  // Faculties
   const facultyRepo = AppDataSource.getRepository(Faculty);
   const facultyDefaults = [
     { name: 'Mühendislik Fakültesi', shortName: 'MÜH', color: '#1d4ed8' },
@@ -192,22 +176,21 @@ async function seed() {
   }
   console.log('✅ Fakülteler oluşturuldu');
 
-  // Report Types
   const reportTypeRepo = AppDataSource.getRepository(ReportType);
   const reportTypeDefaults = [
-    { key:'progress', label:'İlerleme Raporu', color:'#1a3a6b', showProgress:1, isSystem:1, description:'Genel proje ilerlemesini belgeler', sortOrder:0 },
-    { key:'milestone', label:'Kilometre Taşı', color:'#c8a45a', showProgress:1, isSystem:1, description:'Önemli proje dönüm noktaları', sortOrder:1 },
-    { key:'financial', label:'Finansal Rapor', color:'#059669', showProgress:0, isSystem:1, description:'Bütçe ve harcama durumu', sortOrder:2 },
-    { key:'technical', label:'Teknik Rapor', color:'#7c3aed', showProgress:0, isSystem:1, description:'Teknik çalışmalar ve bulgular', sortOrder:3 },
-    { key:'risk', label:'Risk Raporu', color:'#dc2626', showProgress:0, isSystem:1, description:'Proje riskleri ve önlemleri', sortOrder:4 },
-    { key:'final', label:'Final Rapor', color:'#0891b2', showProgress:1, isSystem:1, description:'Proje kapanış ve sonuç raporu', sortOrder:5 },
+    { key:'progress',  label:'İlerleme Raporu', color:'#1a3a6b', showProgress:1, isSystem:true, description:'Genel proje ilerlemesini belgeler', sortOrder:0 },
+    { key:'milestone', label:'Kilometre Taşı',  color:'#c8a45a', showProgress:1, isSystem:true, description:'Önemli proje dönüm noktaları',   sortOrder:1 },
+    { key:'financial', label:'Finansal Rapor',  color:'#059669', showProgress:0, isSystem:true, description:'Bütçe ve harcama durumu',          sortOrder:2 },
+    { key:'technical', label:'Teknik Rapor',    color:'#7c3aed', showProgress:0, isSystem:true, description:'Teknik çalışmalar ve bulgular',    sortOrder:3 },
+    { key:'risk',      label:'Risk Raporu',     color:'#dc2626', showProgress:0, isSystem:true, description:'Proje riskleri ve önlemleri',       sortOrder:4 },
+    { key:'final',     label:'Final Rapor',     color:'#0891b2', showProgress:1, isSystem:true, description:'Proje kapanış ve sonuç raporu',     sortOrder:5 },
   ];
   for (const d of reportTypeDefaults) {
     const ex = await reportTypeRepo.findOne({ where: { key: d.key } });
     if (!ex) {
       const t = new ReportType();
       Object.assign(t, d);
-      (t as any).isActive = true;
+      t.isActive = true;
       await reportTypeRepo.save(t);
     }
   }
@@ -215,10 +198,8 @@ async function seed() {
 
   await AppDataSource.destroy();
   console.log('\n🎉 Seed tamamlandı!');
-  console.log('──────────────────────────────────────');
   console.log('Admin:       admin@mku.edu.tr  /  Admin123!');
   console.log('Akademisyen: ahmet.yilmaz@mku.edu.tr  /  Demo123!');
-  console.log('──────────────────────────────────────');
 }
 
 seed().catch(err => { console.error('Seed hatası:', err); process.exit(1); });
