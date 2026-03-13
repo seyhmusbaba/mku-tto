@@ -377,11 +377,11 @@ export default function ProjectDetailPage() {
               </div>
             </div>
             {/* Kurum Dışı Ortaklar Özeti */}
-            {project.partners && project.partners.length > 0 && (
+            {(project as any).partners && (project as any).partners.length > 0 && (
               <div className="card mt-4">
                 <h3 className="font-display text-sm font-semibold text-navy mb-3">🏛 Kurum Dışı Ortaklar</h3>
                 <div className="space-y-2">
-                  {project.partners.map((p: any) => (
+                  {(project as any).partners.map((p: any) => (
                     <div key={p.id} className="flex items-center justify-between text-xs py-1.5 border-b last:border-0" style={{ borderColor: '#f5f2ee' }}>
                       <div className="flex items-center gap-2">
                         <span>{p.type === 'university' ? '🎓' : p.type === 'industry' ? '🏭' : p.type === 'government' ? '🏛' : '🌐'}</span>
