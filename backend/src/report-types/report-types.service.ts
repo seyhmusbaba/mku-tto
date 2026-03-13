@@ -28,7 +28,7 @@ export class ReportTypesService {
     if (dto.description !== undefined) t.description = dto.description;
     if (dto.color !== undefined) t.color = dto.color;
     if (dto.showProgress !== undefined) t.showProgress = dto.showProgress ? 1 : 0;
-    if (dto.isActive !== undefined) t.isActive = dto.isActive ? 1 : 0;
+    if (dto.isActive !== undefined) t.isActive = !!dto.isActive;
     if (dto.sortOrder !== undefined) t.sortOrder = dto.sortOrder;
     return this.repo.save(t);
   }
@@ -54,7 +54,7 @@ export class ReportTypesService {
       if (!ex) {
         const t = new ReportType();
         Object.assign(t, d);
-        t.isActive = 1;
+        t.isActive = true;
         await this.repo.save(t);
       }
     }

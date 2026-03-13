@@ -17,7 +17,7 @@ export class DynamicFieldsService {
     field.label = dto.label || dto.name;
     field.type = dto.type || 'text';
     field.required = dto.required ? 1 : 0;
-    field.isActive = 1;
+    field.isActive = true;
     field.sortOrder = dto.sortOrder || 0;
     if (dto.options) field.options = dto.options;
     return this.fieldRepo.save(field);

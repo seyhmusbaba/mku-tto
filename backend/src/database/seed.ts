@@ -69,7 +69,7 @@ async function seed() {
   for (const rd of roleDefs) {
     let role = await roleRepo.findOne({ where: { name: rd.name } });
     if (!role) {
-      role = roleRepo.create({ name: rd.name, description: rd.description, isSystem: 1 });
+      role = roleRepo.create({ name: rd.name, description: rd.description, isSystem: true });
       role.permissions = savedPerms.filter(p => rd.permNames.includes(p.name));
       role = await roleRepo.save(role);
     }
@@ -97,7 +97,7 @@ async function seed() {
       nu.faculty = ud.faculty;
       nu.department = ud.department;
       nu.roleId = savedRoles[ud.roleName].id;
-      nu.isActive = 1;
+      nu.isActive = true;
       u = await userRepo.save(nu);
     }
     savedUsers[ud.email] = u;
@@ -150,18 +150,18 @@ async function seed() {
   // Project Types
   const projectTypeRepo = AppDataSource.getRepository(ProjectType);
   const typeDefaults = [
-    { key: 'tubitak', label: 'TÜBİTAK', color: '#1d4ed8', isSystem: 1 },
-    { key: 'bap', label: 'BAP', color: '#7c3aed', isSystem: 1 },
-    { key: 'eu', label: 'AB Projesi', color: '#d97706', isSystem: 1 },
-    { key: 'industry', label: 'Sanayi Projesi', color: '#ea580c', isSystem: 1 },
-    { key: 'other', label: 'Diğer', color: '#64748b', isSystem: 1 },
+    { key: 'tubitak', label: 'TÜBİTAK', color: '#1d4ed8', isSystem: true },
+    { key: 'bap', label: 'BAP', color: '#7c3aed', isSystem: true },
+    { key: 'eu', label: 'AB Projesi', color: '#d97706', isSystem: true },
+    { key: 'industry', label: 'Sanayi Projesi', color: '#ea580c', isSystem: true },
+    { key: 'other', label: 'Diğer', color: '#64748b', isSystem: true },
   ];
   for (const td of typeDefaults) {
     const ex = await projectTypeRepo.findOne({ where: { key: td.key } });
     if (!ex) {
       const t = new ProjectType();
       Object.assign(t, td);
-      t.isActive = 1;
+      t.isActive = true;
       await projectTypeRepo.save(t);
     }
   }
@@ -186,7 +186,7 @@ async function seed() {
     if (!ex) {
       const f = new Faculty();
       Object.assign(f, fd);
-      f.isActive = 1;
+      f.isActive = true;
       await facultyRepo.save(f);
     }
   }
@@ -207,7 +207,7 @@ async function seed() {
     if (!ex) {
       const t = new ReportType();
       Object.assign(t, d);
-      (t as any).isActive = 1;
+      (t as any).isActive = true;
       await reportTypeRepo.save(t);
     }
   }
