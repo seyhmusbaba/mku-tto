@@ -1,0 +1,23 @@
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards, Request } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ProjectsService } from './projects.service';
+
+@ApiTags('projects')
+@Controller('projects')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
+export class ProjectsController {
+  constructor(private projectsService: ProjectsService) {}
+
+  @Get('budget-estimate') budgetEstimate(@Query() q: any) { return this.projectsService.estimateBudget(q); }
+  @Get() findAll(@Query() query: any, @Request() req: any) { return this.projectsService.findAll(query, req.user); }
+  @Get(':id/similar') similar(@Param('id') id: string) { return this.projectsService.findSimilar(id); }
+  @Get(':id') findOne(@Param('id') id: string) { return this.projectsService.findOne(id); }
+  @Post() create(@Body() dto: any, @Request() req: any) { return this.projectsService.create(dto, req.user.userId); }
+  @Put(':id') update(@Param('id') id: string, @Body() dto: any, @Request() req: any) { return this.projectsService.update(id, dto, req.user); }
+  @Delete(':id') remove(@Param('id') id: string) { return this.projectsService.remove(id); }
+  @Post(':id/members') addMember(@Param('id') id: string, @Body() dto: any, @Request() req: any) { return this.projectsService.addMember(id, dto, req.user); }
+  @Put(':id/members/:userId') updateMember(@Param('id') id: string, @Param('userId') userId: string, @Body() dto: any) { return this.projectsService.updateMember(id, userId, dto); }
+  @Delete(':id/members/:userId') removeMember(@Param('id') id: string, @Param('userId') userId: string) { return this.projectsService.removeMember(id, userId); }
+}
