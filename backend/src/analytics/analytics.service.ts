@@ -28,7 +28,6 @@ export class AnalyticsService {
     const activeBudget = projects.filter(p => p.status === 'active').reduce((s, p) => s + (p.budget || 0), 0);
     const successRate = total > 0 ? Math.round((projects.filter(p => p.status === 'completed').length / total) * 100) : 0;
     const avgBudget = total > 0 ? Math.round(totalBudget / total) : 0;
-
     return { total, byStatus, totalBudget, activeBudget, successRate, avgBudget };
   }
 
@@ -37,10 +36,10 @@ export class AnalyticsService {
       .select([
         'p.faculty as faculty',
         'COUNT(*) as total',
-        'COUNT(CASE WHEN p.status = 'completed' THEN 1 ELSE NULL END) as completed',
-        'COUNT(CASE WHEN p.status = 'active' THEN 1 ELSE NULL END) as active',
-        'AVG(p.budget) as avgBudget',
-        'SUM(p.budget) as totalBudget',
+        `SUM(CASE WHEN p.status = 'completed' THEN 1 ELSE 0 END) as completed`,
+        `SUM(CASE WHEN p.status = 'active' THEN 1 ELSE 0 END) as active`,
+        'AVG(p.budget) as "avgBudget"',
+        'SUM(p.budget) as "totalBudget"',
       ])
       .where('p.faculty IS NOT NULL')
       .groupBy('p.faculty')
@@ -64,9 +63,9 @@ export class AnalyticsService {
       .select([
         'p."ownerId" as "ownerId"',
         'COUNT(*) as total',
-        'COUNT(CASE WHEN p.status = 'completed' THEN 1 ELSE NULL END) as completed',
-        'COUNT(CASE WHEN p.status = 'active' THEN 1 ELSE NULL END) as active',
-        'SUM(p.budget) as totalBudget',
+        `SUM(CASE WHEN p.status = 'completed' THEN 1 ELSE 0 END) as completed`,
+        `SUM(CASE WHEN p.status = 'active' THEN 1 ELSE 0 END) as active`,
+        'SUM(p.budget) as "totalBudget"',
       ])
       .where('p."ownerId" IS NOT NULL')
       .groupBy('p."ownerId"')
@@ -100,11 +99,11 @@ export class AnalyticsService {
       .select([
         'p.type as type',
         'COUNT(*) as total',
-        'COUNT(CASE WHEN p.status = 'completed' THEN 1 ELSE NULL END) as completed',
-        'COUNT(CASE WHEN p.status = 'active' THEN 1 ELSE NULL END) as active',
-        'COUNT(CASE WHEN p.status IN (\'application\',\'pending\') THEN 1 END) as pending',
-        'AVG(p.budget) as avgBudget',
-        'SUM(p.budget) as totalBudget',
+        `SUM(CASE WHEN p.status = 'completed' THEN 1 ELSE 0 END) as completed`,
+        `SUM(CASE WHEN p.status = 'active' THEN 1 ELSE 0 END) as active`,
+        `SUM(CASE WHEN p.status IN ('application','pending') THEN 1 ELSE 0 END) as pending`,
+        'AVG(p.budget) as "avgBudget"',
+        'SUM(p.budget) as "totalBudget"',
       ])
       .groupBy('p.type')
       .orderBy('total', 'DESC')
@@ -137,7 +136,6 @@ export class AnalyticsService {
       .where('r.type = :type', { type: 'financial' })
       .groupBy('p.id, p.title, p.budget, p.faculty, p.type, p.status')
       .getRawMany();
-
     return raw;
   }
 
@@ -152,7 +150,6 @@ export class AnalyticsService {
       .groupBy(`SUBSTRING(p."startDate", 1, 7)`)
       .orderBy('month', 'ASC')
       .getRawMany();
-
     return raw;
   }
 
@@ -161,18 +158,10 @@ export class AnalyticsService {
       relations: ['owner', 'members', 'members.user', 'reports', 'partners'],
       order: { createdAt: 'DESC' },
     });
-
     return projects.map(p => ({
-      id: p.id,
-      title: p.title,
-      status: p.status,
-      type: p.type,
-      faculty: p.faculty,
-      department: p.department,
-      budget: p.budget,
-      fundingSource: p.fundingSource,
-      startDate: p.startDate,
-      endDate: p.endDate,
+      id: p.id, title: p.title, status: p.status, type: p.type,
+      faculty: p.faculty, department: p.department, budget: p.budget,
+      fundingSource: p.fundingSource, startDate: p.startDate, endDate: p.endDate,
       owner: p.owner ? `${p.owner.firstName} ${p.owner.lastName}` : '—',
       ownerEmail: p.owner?.email || '—',
       memberCount: p.members?.length || 0,
