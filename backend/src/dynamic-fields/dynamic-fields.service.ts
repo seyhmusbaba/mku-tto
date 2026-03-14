@@ -7,7 +7,7 @@ import { DynamicProjectField } from '../database/entities/dynamic-project-field.
 export class DynamicFieldsService {
   constructor(@InjectRepository(DynamicProjectField) private fieldRepo: Repository<DynamicProjectField>) {}
 
-  findAll() { return this.fieldRepo.find({ where: { isActive: true }, order: { sortOrder: 'ASC' } }); }
+  findAll() { return this.fieldRepo.find({ where: { isActive: 1 as any }, order: { sortOrder: 'ASC' } }); }
   findAllAdmin() { return this.fieldRepo.find({ order: { sortOrder: 'ASC' } }); }
 
   async create(dto: any) {

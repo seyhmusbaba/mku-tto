@@ -8,7 +8,7 @@ export class ReportTypesService {
   constructor(@InjectRepository(ReportType) private repo: Repository<ReportType>) {}
 
   findAll() { return this.repo.find({ order: { sortOrder: 'ASC', label: 'ASC' } }); }
-  findActive() { return this.repo.find({ where: { isActive: true }, order: { sortOrder: 'ASC' } }); }
+  findActive() { return this.repo.find({ where: { isActive: 1 as any }, order: { sortOrder: 'ASC' } }); }
 
   async create(dto: any) {
     const t = new ReportType();
@@ -42,12 +42,12 @@ export class ReportTypesService {
 
   async seed() {
     const defaults = [
-      { key:'progress',  label:'İlerleme Raporu', color:'#1a3a6b', showProgress:1, isSystem:true, description:'Genel proje ilerlemesini belgeler', sortOrder:0 },
-      { key:'milestone', label:'Kilometre Taşı',  color:'#c8a45a', showProgress:1, isSystem:true, description:'Önemli proje dönüm noktaları',   sortOrder:1 },
-      { key:'financial', label:'Finansal Rapor',  color:'#059669', showProgress:0, isSystem:true, description:'Bütçe ve harcama durumu',          sortOrder:2 },
-      { key:'technical', label:'Teknik Rapor',    color:'#7c3aed', showProgress:0, isSystem:true, description:'Teknik çalışmalar ve bulgular',    sortOrder:3 },
-      { key:'risk',      label:'Risk Raporu',     color:'#dc2626', showProgress:0, isSystem:true, description:'Proje riskleri ve önlemleri',       sortOrder:4 },
-      { key:'final',     label:'Final Rapor',     color:'#0891b2', showProgress:1, isSystem:true, description:'Proje kapanış ve sonuç raporu',     sortOrder:5 },
+      { key:'progress', label:'İlerleme Raporu', color:'#1a3a6b', showProgress:1, isSystem:1, description:'Genel proje ilerlemesini belgeler', sortOrder:0 },
+      { key:'milestone', label:'Kilometre Taşı', color:'#c8a45a', showProgress:1, isSystem:1, description:'Önemli proje dönüm noktaları', sortOrder:1 },
+      { key:'financial', label:'Finansal Rapor', color:'#059669', showProgress:0, isSystem:1, description:'Bütçe ve harcama durumu', sortOrder:2 },
+      { key:'technical', label:'Teknik Rapor', color:'#7c3aed', showProgress:0, isSystem:1, description:'Teknik çalışmalar ve bulgular', sortOrder:3 },
+      { key:'risk', label:'Risk Raporu', color:'#dc2626', showProgress:0, isSystem:1, description:'Proje riskleri ve önlemleri', sortOrder:4 },
+      { key:'final', label:'Final Rapor', color:'#0891b2', showProgress:1, isSystem:1, description:'Proje kapanış ve sonuç raporu', sortOrder:5 },
     ];
     for (const d of defaults) {
       const ex = await this.repo.findOne({ where: { key: d.key } });

@@ -256,7 +256,7 @@ export default function ProjectPrintPage() {
             <div className="section-title">Raporlar ({reports.length})</div>
             {reports.map((r, idx) => {
               let meta: Record<string, any> = {};
-              try { meta = JSON.parse((r as any).metadata || '{}'); } catch {}
+              try { meta = JSON.parse(r.metadata || '{}'); } catch {}
               const rtLabel = TYPE_LABELS[r.type] || r.type;
               const TYPE_COLORS: Record<string, string> = {
                 progress: '#1a3a6b', milestone: '#92651a', financial: '#059669',

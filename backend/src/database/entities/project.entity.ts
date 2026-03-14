@@ -98,16 +98,16 @@ export class Project {
   @Column()
   ownerId: string;
 
-  @OneToMany(() => ProjectMember, member => member.project)
+  @OneToMany(() => ProjectMember, member => member.project, { cascade: true, onDelete: 'CASCADE' })
   members: ProjectMember[];
 
-  @OneToMany(() => ProjectDocument, doc => doc.project)
+  @OneToMany(() => ProjectDocument, doc => doc.project, { cascade: true, onDelete: 'CASCADE' })
   documents: ProjectDocument[];
 
-  @OneToMany(() => ProjectReport, report => report.project)
+  @OneToMany(() => ProjectReport, report => report.project, { cascade: true, onDelete: 'CASCADE' })
   reports: ProjectReport[];
 
-  @OneToMany(() => ProjectPartner, partner => partner.project)
+  @OneToMany(() => ProjectPartner, partner => partner.project, { cascade: true, onDelete: 'CASCADE' })
   partners: ProjectPartner[];
 
   @CreateDateColumn()

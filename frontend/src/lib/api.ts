@@ -147,3 +147,22 @@ export const aiApi = {
   getBudgetStats: (type?: string, faculty?: string) =>
     api.get('/projects/budget-stats', { params: { type, faculty } }),
 };
+
+export const analyticsApi = {
+  getOverview: (params?: any) => api.get('/analytics/overview', { params }),
+  getFacultyPerformance: () => api.get('/analytics/faculty-performance'),
+  getResearcherProductivity: (params?: any) => api.get('/analytics/researcher-productivity', { params }),
+  getFundingSuccess: () => api.get('/analytics/funding-success'),
+  getBudgetUtilization: () => api.get('/analytics/budget-utilization'),
+  getTimeline: (params?: any) => api.get('/analytics/timeline', { params }),
+};
+
+export const exportApi = {
+  downloadCsv: async (params?: any) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('tto_token') : '';
+    const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    const res = await fetch(`${base}/export/projects/csv${qs}`, { headers: { Authorization: `Bearer ${token}` } });
+    return res.blob();
+  },
+};

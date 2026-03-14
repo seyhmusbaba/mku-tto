@@ -23,7 +23,7 @@ export default function UsersPage() {
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
-  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', title: '', faculty: '', department: '', roleId: '', phone: '' });
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', title: '', faculty: '', department: '', roleId: '', phone: '', orcidId: '', googleScholarId: '', expertiseArea: '', bio: '' });
 
   // Onay modal
   const [approveModal, setApproveModal] = useState<User | null>(null);
@@ -41,7 +41,7 @@ export default function UsersPage() {
   useEffect(() => { setLoading(true); load().finally(() => setLoading(false)); }, [search]);
 
   const openAdd = () => { setEditUser(null); setForm({ firstName: '', lastName: '', email: '', password: '', title: '', faculty: '', department: '', roleId: roles[0]?.id || '', phone: '' }); setShowModal(true); };
-  const openEdit = (u: User) => { setEditUser(u); setForm({ firstName: u.firstName, lastName: u.lastName, email: u.email, password: '', title: u.title || '', faculty: u.faculty || '', department: u.department || '', roleId: u.roleId || '', phone: u.phone || '' }); setShowModal(true); };
+  const openEdit = (u: User) => { setEditUser(u); setForm({ firstName: u.firstName, lastName: u.lastName, email: u.email, password: '', title: u.title || '', faculty: u.faculty || '', department: u.department || '', roleId: u.roleId || '', phone: u.phone || '', orcidId: (u as any).orcidId || '', googleScholarId: (u as any).googleScholarId || '', expertiseArea: (u as any).expertiseArea || '', bio: (u as any).bio || '' }); setShowModal(true); };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -260,6 +260,14 @@ export default function UsersPage() {
                 </select>
               </div>
               <div className="flex gap-3 pt-2">
+                <div className="col-span-2 border-t pt-3 mt-1" style={{ borderColor: '#f0ede8' }}>
+                  <p className="text-xs font-semibold text-muted mb-3">Akademik Profil (isteğe bağlı)</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className="label">ORCID ID</label><input className="input" placeholder="0000-0000-0000-0000" value={form.orcidId} onChange={e => set('orcidId', e.target.value)} /></div>
+                    <div><label className="label">Google Scholar ID</label><input className="input" placeholder="kullanici_id" value={form.googleScholarId} onChange={e => set('googleScholarId', e.target.value)} /></div>
+                    <div className="col-span-2"><label className="label">Uzmanlık Alanı</label><input className="input" placeholder="Makine öğrenmesi, IoT..." value={form.expertiseArea} onChange={e => set('expertiseArea', e.target.value)} /></div>
+                  </div>
+                </div>
                 <button type="submit" className="btn-primary flex-1">{editUser ? 'Güncelle' : 'Oluştur'}</button>
                 <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1">İptal</button>
               </div>

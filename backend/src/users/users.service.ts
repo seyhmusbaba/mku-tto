@@ -72,6 +72,10 @@ export class UsersService {
 
   async remove(id: string) {
     const user = await this.findOne(id);
+    // Owned projects — set ownerId to null (orphan koruması)
+    await this.userRepo.manager.query(
+      `UPDATE projects SET "ownerId" = NULL WHERE "ownerId" = $1`, [id]
+    );
     await this.userRepo.delete(id);
     return { deleted: true, id };
   }

@@ -1,4 +1,5 @@
 'use client';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { notificationsApi } from '@/lib/api';
@@ -32,8 +33,8 @@ function NotificationBell() {
   const handleOpen = () => { setOpen(o => !o); if (!open) load(); };
 
   const markRead = async (n: Notification) => {
-    if (!n.isRead) { await notificationsApi.markRead(n.id); setUnread(u => Math.max(0, u - 1)); setNotifications(ns => ns.map(x => x.id === n.id ? {...x, isRead: 1} : x)); }
-    if (n.link) window.location.href = n.link;
+    if (!n.isRead) { await notificationsApi.markRead(n.id); setUnread(u => Math.max(0, u - 1)); setNotifications(ns => ns.map(x => x.id === n.id ? {...x, isRead: true as any} : x)); }
+    if (n.link) { try { window.location.href = n.link; } catch {} }
   };
 
   const markAll = async () => { await notificationsApi.markAllRead(); setNotifications(ns => ns.map(n => ({...n, isRead: 1}))); setUnread(0); };

@@ -1,7 +1,7 @@
 {
   "name": "tto-backend",
   "version": "1.0.0",
-  "description": "MKÜ TTO Proje Yönetim Sistemi - Backend",
+  "description": "MK\u00dc TTO Proje Y\u00f6netim Sistemi - Backend",
   "scripts": {
     "build": "nest build",
     "start": "node dist/main",
@@ -28,7 +28,8 @@
     "typeorm": "^0.3.20",
     "uuid": "^9.0.1",
     "pg": "^8.11.3",
-    "@types/pg": "^8.10.9"
+    "@types/pg": "^8.10.9",
+    "@nestjs/throttler": "^5.1.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.3.0",

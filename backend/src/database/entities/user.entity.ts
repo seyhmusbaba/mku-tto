@@ -35,6 +35,28 @@ export class User {
   @Column({ nullable: true })
   avatar: string;
 
+  // Akademik profil
+  @Column({ nullable: true })
+  orcidId: string;
+
+  @Column({ nullable: true })
+  googleScholarId: string;
+
+  @Column({ nullable: true })
+  researchGateUrl: string;
+
+  @Column({ nullable: true })
+  academiaUrl: string;
+
+  @Column({ type: 'text', nullable: true })
+  bio: string;
+
+  @Column({ nullable: true })
+  expertiseArea: string;
+
+  @Column({ type: 'text', nullable: true })
+  publicationsJson: string;
+
   @Column({ default: 1 })
   isActive: boolean;
 

@@ -102,7 +102,7 @@ export default function NewProjectPage() {
         <label className="label">Proje Adı *</label>
         <input className="input text-base" value={form.title} onChange={e => set('title', e.target.value)} placeholder="Projenin tam adını girin" autoFocus />
       </div>
-      <SimilarProjectsAlert title={form.title} description={form.description} />
+      <SimilarProjectsAlert title={form.title} description={form.description} type={form.type} />
       <div>
         <label className="label">Proje Özeti</label>
         <textarea className="input" style={{ minHeight: 120 }} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Projeyi kısaca tanımlayın..." />

@@ -1,9 +1,40 @@
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('ai')
 @UseGuards(JwtAuthGuard)
 export class AiController {
+
+  @Get('orcid/:orcidId')
+  async lookupOrcid(@Param('orcidId') orcidId: string) {
+    try {
+      const res = await fetch(`https://pub.orcid.org/v3.0/${orcidId}/record`, {
+        headers: { 'Accept': 'application/json' },
+      });
+      if (!res.ok) return { error: 'ORCID bulunamadı' };
+      const data = await res.json();
+      const person = data?.person;
+      const works = data?.['activities-summary']?.works?.group || [];
+      const name = person?.name;
+      return {
+        name: name ? `${name['given-names']?.value || ''} ${name['family-name']?.value || ''}`.trim() : null,
+        bio: person?.biography?.content || null,
+        keywords: person?.keywords?.keyword?.map((k: any) => k.content) || [],
+        publicationCount: works.length,
+        recentWorks: works.slice(0, 5).map((g: any) => {
+          const ws = g['work-summary']?.[0];
+          return {
+            title: ws?.title?.title?.value,
+            year: ws?.['publication-date']?.year?.value,
+            type: ws?.type,
+            journal: ws?.['journal-title']?.value,
+          };
+        }).filter((w: any) => w.title),
+      };
+    } catch {
+      return { error: 'ORCID sorgusu başarısız' };
+    }
+  }
 
   @Post('generate')
   async generate(@Body() dto: { system: string; userContent: string; maxTokens?: number }) {

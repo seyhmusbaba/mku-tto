@@ -13,6 +13,10 @@ import { SettingsModule } from './settings/settings.module';
 import { DynamicFieldsModule } from './dynamic-fields/dynamic-fields.module';
 import { PartnersModule } from './partners/partners.module';
 import { AiModule } from './ai/ai.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { ExportModule } from './export/export.module';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ProjectTypesModule } from './project-types/project-types.module';
@@ -35,8 +39,10 @@ import { ProjectPartner } from './database/entities/project-partner.entity';
 
 @Module({
   controllers: [AppController],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 60 }]),
     TypeOrmModule.forRoot({
       type: 'postgres',
       url: process.env.DATABASE_URL,
@@ -50,7 +56,7 @@ import { ProjectPartner } from './database/entities/project-partner.entity';
     }),
     AuthModule, UsersModule, RolesModule, ProjectsModule,
     DocumentsModule, ReportsModule, DashboardModule, SettingsModule,
-    DynamicFieldsModule, NotificationsModule, ProjectTypesModule, FacultiesModule, ReportTypesModule, PartnersModule, AiModule,
+    DynamicFieldsModule, NotificationsModule, ProjectTypesModule, FacultiesModule, ReportTypesModule, PartnersModule, AiModule, AnalyticsModule, ExportModule,
   ],
 })
 export class AppModule {}

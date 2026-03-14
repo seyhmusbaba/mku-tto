@@ -46,7 +46,7 @@ export class AuthService {
       ...dto,
       password: hashed,
       roleId: defaultRole?.id,
-      isActive: 0 as any,
+      isActive: false as any,
       approvalStatus: 'pending',
     });
     const saved = await this.userRepo.save(user);
