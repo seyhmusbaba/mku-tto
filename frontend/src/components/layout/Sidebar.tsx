@@ -6,7 +6,19 @@ import { useAuth } from '@/lib/auth-context';
 import { settingsApi } from '@/lib/api';
 import { getInitials } from '@/lib/utils';
 
-const navGroups = [
+interface NavItem {
+  href: string;
+  label: string;
+  icon: string;
+  adminOnly?: boolean;
+}
+
+interface NavGroup {
+  label: string | null;
+  items: NavItem[];
+}
+
+const navGroups: NavGroup[] = [
   {
     label: null,
     items: [
@@ -64,7 +76,7 @@ export function Sidebar() {
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
         {navGroups.map((group, gi) => {
-          const visible = group.items.filter(i => !i.adminOnly || isAdmin);
+          const visible = group.items.filter((i: NavItem) => !i.adminOnly || isAdmin);
           if (!visible.length) return null;
           return (
             <div key={gi}>
@@ -79,7 +91,7 @@ export function Sidebar() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={active ? 2 : 1.5} d={item.icon} />
                       </svg>
                       {item.label}
-                      {active && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-gold-400" style={{background:'#c8a45a'}} />}
+                      {active && <div className="ml-auto w-1.5 h-1.5 rounded-full" style={{background:'#c8a45a'}} />}
                     </Link>
                   );
                 })}
@@ -93,7 +105,7 @@ export function Sidebar() {
       <div className="px-3 pb-4 border-t border-white/10 pt-4">
         <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{background:'rgba(255,255,255,0.05)'}}>
           <Link href={`/users/${user?.id}`} className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity">
-            <div className="avatar avatar-gold w-8 h-8 text-xs flex-shrink-0" style={{width:32,height:32,minWidth:32,background:'linear-gradient(135deg,#c8a45a,#e8c97a)',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:'700',fontSize:'11px'}}>
+            <div style={{width:32,height:32,minWidth:32,background:'linear-gradient(135deg,#c8a45a,#e8c97a)',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:'700',fontSize:'11px'}}>
               {getInitials(user?.firstName || '', user?.lastName || '')}
             </div>
             <div className="flex-1 min-w-0">
