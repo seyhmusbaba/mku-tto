@@ -64,7 +64,7 @@ export function Sidebar() {
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
         {navGroups.map((group, gi) => {
-          const visible = group.items.filter(i => !i.adminOnly || isAdmin);
+          const visible = group.items.filter((i: any) => !i.adminOnly || isAdmin);
           if (!visible.length) return null;
           return (
             <div key={gi}>
