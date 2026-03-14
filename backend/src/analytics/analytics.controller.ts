@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, Request } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AnalyticsService } from './analytics.service';
@@ -10,23 +10,37 @@ export class AnalyticsController {
   constructor(private svc: AnalyticsService) {}
 
   @Get('overview')
-  overview(@Query() q: any) { return this.svc.getOverview(q); }
+  overview(@Query() q: any, @Request() req: any) {
+    return this.svc.getOverview(q, req.user.userId, req.user.roleName);
+  }
 
   @Get('faculty-performance')
-  facultyPerformance() { return this.svc.getFacultyPerformance(); }
+  facultyPerformance(@Request() req: any) {
+    return this.svc.getFacultyPerformance(req.user.userId, req.user.roleName);
+  }
 
   @Get('researcher-productivity')
-  researcherProductivity(@Query() q: any) { return this.svc.getResearcherProductivity(q); }
+  researcherProductivity(@Query() q: any, @Request() req: any) {
+    return this.svc.getResearcherProductivity(q, req.user.userId, req.user.roleName);
+  }
 
   @Get('funding-success')
-  fundingSuccess() { return this.svc.getFundingSuccess(); }
+  fundingSuccess(@Request() req: any) {
+    return this.svc.getFundingSuccess(req.user.userId, req.user.roleName);
+  }
 
   @Get('budget-utilization')
-  budgetUtilization() { return this.svc.getBudgetUtilization(); }
+  budgetUtilization(@Request() req: any) {
+    return this.svc.getBudgetUtilization(req.user.userId, req.user.roleName);
+  }
 
   @Get('timeline')
-  timeline(@Query() q: any) { return this.svc.getTimeline(q); }
+  timeline(@Query() q: any, @Request() req: any) {
+    return this.svc.getTimeline(q, req.user.userId, req.user.roleName);
+  }
 
   @Get('export')
-  exportData(@Query() q: any) { return this.svc.getExportData(q); }
+  exportData(@Query() q: any, @Request() req: any) {
+    return this.svc.getExportData(q, req.user.userId, req.user.roleName);
+  }
 }
