@@ -64,7 +64,7 @@ export function Sidebar() {
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
         {navGroups.map((group, gi) => {
-          const visible = group.items.filter((i: any) => !i.adminOnly || isAdmin);
+          const visible = group.items.filter(i => !i.adminOnly || isAdmin);
           if (!visible.length) return null;
           return (
             <div key={gi}>
@@ -92,13 +92,15 @@ export function Sidebar() {
       {/* User */}
       <div className="px-3 pb-4 border-t border-white/10 pt-4">
         <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{background:'rgba(255,255,255,0.05)'}}>
-          <div className="avatar avatar-gold w-8 h-8 text-xs flex-shrink-0" style={{width:32,height:32,minWidth:32,background:'linear-gradient(135deg,#c8a45a,#e8c97a)',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:'700',fontSize:'11px'}}>
-            {getInitials(user?.firstName || '', user?.lastName || '')}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-white text-xs font-semibold truncate">{user?.firstName} {user?.lastName}</p>
-            <p className="text-white/40 text-[10px] truncate mt-0.5">{user?.role?.name}</p>
-          </div>
+          <Link href={`/users/${user?.id}`} className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity">
+            <div className="avatar avatar-gold w-8 h-8 text-xs flex-shrink-0" style={{width:32,height:32,minWidth:32,background:'linear-gradient(135deg,#c8a45a,#e8c97a)',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:'700',fontSize:'11px'}}>
+              {getInitials(user?.firstName || '', user?.lastName || '')}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-xs font-semibold truncate">{user?.firstName} {user?.lastName}</p>
+              <p className="text-white/40 text-[10px] truncate mt-0.5">{user?.role?.name}</p>
+            </div>
+          </Link>
           <button onClick={logout} title="Çıkış" className="text-white/30 hover:text-white/70 transition-colors flex-shrink-0">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
