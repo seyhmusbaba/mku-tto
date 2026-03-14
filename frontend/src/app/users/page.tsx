@@ -40,7 +40,7 @@ export default function UsersPage() {
 
   useEffect(() => { setLoading(true); load().finally(() => setLoading(false)); }, [search]);
 
-  const openAdd = () => { setEditUser(null); setForm({ firstName: '', lastName: '', email: '', password: '', title: '', faculty: '', department: '', roleId: roles[0]?.id || '', phone: '' }); setShowModal(true); };
+  const openAdd = () => { setEditUser(null); setForm({ firstName: '', lastName: '', email: '', password: '', title: '', faculty: '', department: '', roleId: roles[0]?.id || '', phone: '', orcidId: '', googleScholarId: '', expertiseArea: '', bio: '' }); setShowModal(true); };
   const openEdit = (u: User) => { setEditUser(u); setForm({ firstName: u.firstName, lastName: u.lastName, email: u.email, password: '', title: u.title || '', faculty: u.faculty || '', department: u.department || '', roleId: u.roleId || '', phone: u.phone || '', orcidId: (u as any).orcidId || '', googleScholarId: (u as any).googleScholarId || '', expertiseArea: (u as any).expertiseArea || '', bio: (u as any).bio || '' }); setShowModal(true); };
 
   const handleSave = async (e: React.FormEvent) => {
