@@ -11,6 +11,8 @@ export class ProjectsController {
   constructor(private projectsService: ProjectsService) {}
 
   @Get('budget-estimate') budgetEstimate(@Query() q: any) { return this.projectsService.estimateBudget(q); }
+  @Get('budget-stats') budgetStats(@Query() q: any) { return this.projectsService.getBudgetStats(q.type, q.faculty); }
+  @Get('similar') similarByTitle(@Query() q: any) { return this.projectsService.findSimilarByTitle(q.title, q.description, q.excludeId); }
   @Get() findAll(@Query() query: any, @Request() req: any) { return this.projectsService.findAll(query, req.user); }
   @Get(':id/similar') similar(@Param('id') id: string) { return this.projectsService.findSimilar(id); }
   @Get(':id') findOne(@Param('id') id: string) { return this.projectsService.findOne(id); }
