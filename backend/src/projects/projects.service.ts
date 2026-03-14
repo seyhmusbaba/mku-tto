@@ -215,6 +215,57 @@ export class ProjectsService {
   }
 
   // ── Benzer proje dedektörü ─────────────────────────────────────────────────
+
+  // Title/description ile benzer proje ara (yeni proje oluştururken)
+  async findSimilarByTitle(title: string, description?: string, excludeId?: string) {
+    if (!title || title.length < 4) return [];
+    const all = await this.projectRepo.find({ relations: ['owner'] });
+    const titleWords = title.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+    const descWords = (description || '').toLowerCase().split(/\s+/).filter(w => w.length > 3);
+
+    const score = (p: Project): number => {
+      if (excludeId && p.id === excludeId) return -1;
+      let s = 0;
+      const tgtTitle = p.title.toLowerCase();
+      const tgtDesc = (p.description || '').toLowerCase();
+      // Tam başlık eşleşmesi
+      if (tgtTitle === title.toLowerCase()) s += 100;
+      // Başlık kelime örtüşmesi
+      const tgtTitleWords = tgtTitle.split(/\s+/).filter(w => w.length > 2);
+      const titleCommon = titleWords.filter(w => tgtTitleWords.includes(w)).length;
+      s += Math.min(titleCommon * 15, 60);
+      // Açıklama örtüşmesi
+      const descCommon = descWords.filter(w => tgtDesc.includes(w) || tgtTitle.includes(w)).length;
+      s += Math.min(descCommon * 5, 20);
+      return s;
+    };
+
+    return all
+      .map(p => ({ project: p, score: score(p) }))
+      .filter(x => x.score >= 15)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5)
+      .map(x => ({ ...x.project, similarityScore: x.score }));
+  }
+
+  // Budget stats for estimator component
+  async getBudgetStats(type?: string, faculty?: string) {
+    const qb = this.projectRepo.createQueryBuilder('p')
+      .select([
+        'p.type as type', 'p.faculty as faculty',
+        'COUNT(*) as "projectCount"',
+        'AVG(p.budget) as "avgBudget"',
+        'MIN(p.budget) as "minBudget"',
+        'MAX(p.budget) as "maxBudget"',
+        '(AVG(EXTRACT(YEAR FROM p."endDate"::date) - EXTRACT(YEAR FROM p."startDate"::date)))::float as "avgDurationYears"',
+      ])
+      .where('p.budget IS NOT NULL AND p.budget > 0 AND p."startDate" IS NOT NULL AND p."endDate" IS NOT NULL');
+    if (type) qb.andWhere('p.type = :type', { type });
+    if (faculty) qb.andWhere('p.faculty = :faculty', { faculty });
+    const stats = await qb.groupBy('p.type, p.faculty').getRawMany();
+    return stats;
+  }
+
   async findSimilar(projectId: string) {
     const source = await this.findOne(projectId);
     const all = await this.projectRepo.find({
