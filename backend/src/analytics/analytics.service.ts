@@ -15,7 +15,7 @@ export class AnalyticsService {
 
   async getOverview(q: { year?: string; faculty?: string; type?: string }) {
     const qb = this.projectRepo.createQueryBuilder('p');
-    if (q.year) qb.andWhere(`EXTRACT(YEAR FROM p."startDate"::date)::text = :year`, { year: q.year });
+    if (q.year) qb.andWhere(`p."startDate" IS NOT NULL AND SUBSTRING(p."startDate", 1, 4) = :year`, { year: q.year });
     if (q.faculty) qb.andWhere('p.faculty = :faculty', { faculty: q.faculty });
     if (q.type) qb.andWhere('p.type = :type', { type: q.type });
 
@@ -37,8 +37,8 @@ export class AnalyticsService {
       .select([
         'p.faculty as faculty',
         'COUNT(*) as total',
-        'COUNT(CASE WHEN p.status = \'completed\' THEN 1 END) as completed',
-        'COUNT(CASE WHEN p.status = \'active\' THEN 1 END) as active',
+        'COUNT(CASE WHEN p.status = 'completed' THEN 1 ELSE NULL END) as completed',
+        'COUNT(CASE WHEN p.status = 'active' THEN 1 ELSE NULL END) as active',
         'AVG(p.budget) as avgBudget',
         'SUM(p.budget) as totalBudget',
       ])
@@ -64,8 +64,8 @@ export class AnalyticsService {
       .select([
         'p."ownerId" as "ownerId"',
         'COUNT(*) as total',
-        'COUNT(CASE WHEN p.status = \'completed\' THEN 1 END) as completed',
-        'COUNT(CASE WHEN p.status = \'active\' THEN 1 END) as active',
+        'COUNT(CASE WHEN p.status = 'completed' THEN 1 ELSE NULL END) as completed',
+        'COUNT(CASE WHEN p.status = 'active' THEN 1 ELSE NULL END) as active',
         'SUM(p.budget) as totalBudget',
       ])
       .where('p."ownerId" IS NOT NULL')
@@ -100,8 +100,8 @@ export class AnalyticsService {
       .select([
         'p.type as type',
         'COUNT(*) as total',
-        'COUNT(CASE WHEN p.status = \'completed\' THEN 1 END) as completed',
-        'COUNT(CASE WHEN p.status = \'active\' THEN 1 END) as active',
+        'COUNT(CASE WHEN p.status = 'completed' THEN 1 ELSE NULL END) as completed',
+        'COUNT(CASE WHEN p.status = 'active' THEN 1 ELSE NULL END) as active',
         'COUNT(CASE WHEN p.status IN (\'application\',\'pending\') THEN 1 END) as pending',
         'AVG(p.budget) as avgBudget',
         'SUM(p.budget) as totalBudget',
@@ -144,12 +144,12 @@ export class AnalyticsService {
   async getTimeline(q: { from?: string; to?: string }) {
     const raw = await this.projectRepo.createQueryBuilder('p')
       .select([
-        `TO_CHAR(p."startDate"::date, 'YYYY-MM') as month`,
+        `SUBSTRING(p."startDate", 1, 7) as month`,
         'COUNT(*) as count',
         'SUM(p.budget) as budget',
       ])
       .where('p."startDate" IS NOT NULL')
-      .groupBy(`TO_CHAR(p."startDate"::date, 'YYYY-MM')`)
+      .groupBy(`SUBSTRING(p."startDate", 1, 7)`)
       .orderBy('month', 'ASC')
       .getRawMany();
 
