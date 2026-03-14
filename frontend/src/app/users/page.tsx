@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Header } from '@/components/layout/Header';
 import { usersApi, rolesApi } from '@/lib/api';
@@ -13,7 +14,13 @@ type Tab = 'active' | 'pending';
 
 export default function UsersPage() {
   const { user: me } = useAuth();
+  const router = useRouter();
   const isAdmin = me?.role?.name === 'Süper Admin';
+
+  // Admin değilse dashboard'a yönlendir
+  useEffect(() => {
+    if (me && !isAdmin) router.replace('/dashboard');
+  }, [me, isAdmin]);
 
   const [tab, setTab] = useState<Tab>('active');
   const [users, setUsers] = useState<User[]>([]);
@@ -40,7 +47,7 @@ export default function UsersPage() {
 
   useEffect(() => { setLoading(true); load().finally(() => setLoading(false)); }, [search]);
 
-  const openAdd = () => { setEditUser(null); setForm({ firstName: '', lastName: '', email: '', password: '', title: '', faculty: '', department: '', roleId: roles[0]?.id || '', phone: '', orcidId: '', googleScholarId: '', expertiseArea: '', bio: '' }); setShowModal(true); };
+  const openAdd = () => { setEditUser(null); setForm({ firstName: '', lastName: '', email: '', password: '', title: '', faculty: '', department: '', roleId: roles[0]?.id || '', phone: '' }); setShowModal(true); };
   const openEdit = (u: User) => { setEditUser(u); setForm({ firstName: u.firstName, lastName: u.lastName, email: u.email, password: '', title: u.title || '', faculty: u.faculty || '', department: u.department || '', roleId: u.roleId || '', phone: u.phone || '', orcidId: (u as any).orcidId || '', googleScholarId: (u as any).googleScholarId || '', expertiseArea: (u as any).expertiseArea || '', bio: (u as any).bio || '' }); setShowModal(true); };
 
   const handleSave = async (e: React.FormEvent) => {
