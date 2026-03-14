@@ -15,7 +15,7 @@ export class AnalyticsService {
 
   async getOverview(q: { year?: string; faculty?: string; type?: string }) {
     const qb = this.projectRepo.createQueryBuilder('p');
-    if (q.year) qb.andWhere(`SUBSTR(p."startDate", 1, 4) = :year`, { year: q.year });
+    if (q.year) qb.andWhere(`EXTRACT(YEAR FROM p."startDate"::date)::text = :year`, { year: q.year });
     if (q.faculty) qb.andWhere('p.faculty = :faculty', { faculty: q.faculty });
     if (q.type) qb.andWhere('p.type = :type', { type: q.type });
 
@@ -144,12 +144,12 @@ export class AnalyticsService {
   async getTimeline(q: { from?: string; to?: string }) {
     const raw = await this.projectRepo.createQueryBuilder('p')
       .select([
-        `SUBSTR(p."startDate", 1, 7) as month`,
+        `TO_CHAR(p."startDate"::date, 'YYYY-MM') as month`,
         'COUNT(*) as count',
         'SUM(p.budget) as budget',
       ])
       .where('p."startDate" IS NOT NULL')
-      .groupBy(`SUBSTR(p."startDate", 1, 7)`)
+      .groupBy(`TO_CHAR(p."startDate"::date, 'YYYY-MM')`)
       .orderBy('month', 'ASC')
       .getRawMany();
 
