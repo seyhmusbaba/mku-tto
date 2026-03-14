@@ -130,6 +130,12 @@ export default function AnalysisPage() {
             {tab === 'overview' && !overviewLoading && !overview && <p className="text-sm text-muted text-center py-10">Veri bulunamadı. Henüz proje eklenmemiş olabilir.</p>}
             {tab === 'overview' && !overviewLoading && overview && (
               <div className="space-y-6">
+                {overview.restricted && (
+                  <div className="flex items-center gap-2 p-3 rounded-xl text-sm mb-2" style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}>
+                    <span>🔒</span>
+                    <span>Yalnızca yetkili olduğunuz projeler gösteriliyor. Tüm analizlere erişim için yöneticinizle iletişime geçin.</span>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {[
                     { label: 'Toplam Proje', val: overview.total, icon: '📁', color: '#1a3a6b' },
