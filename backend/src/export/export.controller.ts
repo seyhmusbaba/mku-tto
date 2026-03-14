@@ -1,8 +1,10 @@
 import { Controller, Get, Query, Res, UseGuards } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ExportService } from './export.service';
 
+@SkipThrottle()
 @Controller('export')
 @UseGuards(JwtAuthGuard)
 export class ExportController {
