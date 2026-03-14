@@ -9,6 +9,7 @@ import { AnalyticsService } from './analytics.service';
 @Module({
   imports: [TypeOrmModule.forFeature([Project, User, ProjectReport])],
   controllers: [AnalyticsController],
+  providers: [AnalyticsService],
   exports: [AnalyticsService],
 })
 export class AnalyticsModule {}
