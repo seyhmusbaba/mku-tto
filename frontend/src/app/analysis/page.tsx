@@ -31,6 +31,7 @@ export default function AnalysisPage() {
   const [faculties, setFaculties] = useState<FacultyItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [overviewLoading, setOverviewLoading] = useState(true);
+  const [dataError, setDataError] = useState('');
   const [filterYear, setFilterYear] = useState('');
   const [filterFaculty, setFilterFaculty] = useState('');
   const [filterType, setFilterType] = useState('');
@@ -40,10 +41,10 @@ export default function AnalysisPage() {
     Promise.all([
       projectTypesApi.getAll().then(r => setProjectTypes(r.data)).catch(() => {}),
       facultiesApi.getAll().then(r => setFaculties(r.data)).catch(() => {}),
-      api.get('/analytics/faculty-performance').then(r => setFacultyData(r.data)).catch(() => {}),
-      api.get('/analytics/researcher-productivity', { params: { limit: 10 } }).then(r => setResearcherData(r.data)).catch(() => {}),
-      api.get('/analytics/funding-success').then(r => setFundingData(r.data)).catch(() => {}),
-      api.get('/analytics/timeline').then(r => setTimelineData(r.data)).catch(() => {}),
+      api.get('/analytics/faculty-performance').then(r => setFacultyData(r.data || [])).catch(e => setDataError(e?.response?.data?.message || e?.message || 'Fakülte verisi alınamadı')),
+      api.get('/analytics/researcher-productivity', { params: { limit: 10 } }).then(r => setResearcherData(r.data || [])).catch(() => {}),
+      api.get('/analytics/funding-success').then(r => setFundingData(r.data || [])).catch(() => {}),
+      api.get('/analytics/timeline').then(r => setTimelineData(r.data || [])).catch(() => {}),
     ]).finally(() => setLoading(false));
   }, []);
 
@@ -119,6 +120,7 @@ export default function AnalysisPage() {
           </div>
         )}
 
+        {dataError && <div className="p-4 rounded-xl text-sm text-red-700 mb-4" style={{background:'#fef2f2',border:'1px solid #fecaca'}}>⚠️ {dataError}</div>}
         {loading ? (
           <div className="flex justify-center py-20"><div className="spinner" /></div>
         ) : (
