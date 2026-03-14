@@ -30,6 +30,7 @@ export default function AnalysisPage() {
   const [projectTypes, setProjectTypes] = useState<ProjectTypeItem[]>([]);
   const [faculties, setFaculties] = useState<FacultyItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [overviewLoading, setOverviewLoading] = useState(true);
   const [filterYear, setFilterYear] = useState('');
   const [filterFaculty, setFilterFaculty] = useState('');
   const [filterType, setFilterType] = useState('');
@@ -47,8 +48,11 @@ export default function AnalysisPage() {
   }, []);
 
   useEffect(() => {
+    setOverviewLoading(true);
     api.get('/analytics/overview', { params: { year: filterYear, faculty: filterFaculty, type: filterType } })
-      .then(r => setOverview(r.data)).catch(() => {});
+      .then(r => setOverview(r.data))
+      .catch(() => {})
+      .finally(() => setOverviewLoading(false));
   }, [filterYear, filterFaculty, filterType]);
 
   const handleExportCsv = async () => {
@@ -120,7 +124,9 @@ export default function AnalysisPage() {
         ) : (
           <>
             {/* ── GENEL BAKIŞ ── */}
-            {tab === 'overview' && overview && (
+            {tab === 'overview' && overviewLoading && <div className="flex justify-center py-10"><div className="spinner" /></div>}
+            {tab === 'overview' && !overviewLoading && !overview && <p className="text-sm text-muted text-center py-10">Veri bulunamadı. Henüz proje eklenmemiş olabilir.</p>}
+            {tab === 'overview' && !overviewLoading && overview && (
               <div className="space-y-6">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {[
