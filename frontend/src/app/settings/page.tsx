@@ -267,7 +267,15 @@ export default function SettingsPage() {
         {/* FIELDS */}
         {tab==='fields' && (
           <div className="space-y-5">
-            <div className="flex justify-end"><button onClick={()=>{setEditField(null);setFieldForm({name:'',key:'',label:'',type:'text',options:'',required:false});setShowFieldModal(true);}} className="btn-primary">+ Alan Ekle</button></div>
+            <div className="card p-4" style={{background:'#eff6ff',border:'1px solid #bfdbfe'}}>
+              <p className="text-sm font-semibold text-blue-800 mb-1">📝 Form Alanları Nedir?</p>
+              <p className="text-xs text-blue-700 leading-relaxed">
+                Proje oluşturma ve düzenleme formuna <strong>kurumunuza özel ekstra alanlar</strong> ekleyebilirsiniz.
+                Örneğin: "Etik Kurul Onay No", "Sözleşme Başlangıç Tarihi", "Beklenen Yayın Sayısı" gibi.
+                Buraya eklenen alanlar tüm projelerin formunda görünür ve kaydedilir.
+              </p>
+            </div>
+            <div className="flex justify-end"><button onClick={()=>{setEditField(null);setFieldForm({name:'',key:'',label:'',type:'text',options:'',required:false});setShowFieldModal(true);}} className="btn-primary">+ Yeni Alan Ekle</button></div>
             {fields.length ? (
               <div className="card p-0 overflow-hidden">
                 <table className="w-full text-sm">
