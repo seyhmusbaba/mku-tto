@@ -20,7 +20,7 @@ const MEMBER_ROLE_STYLES: Record<string, { color: string; bg: string; icon: stri
 
 interface MemberProject extends Project { memberRole: string; }
 
-const TITLES = ['Prof. Dr.', 'Doç. Dr.', 'Dr. Öğr. Üyesi', 'Arş. Gör. Dr.', 'Arş. Gör.', 'Öğr. Gör.', 'Dr.','Araştırma Görevlisi','Bursiyer'];
+const TITLES = ['Prof. Dr.', 'Doç. Dr.', 'Dr. Öğr. Üyesi', 'Arş. Gör. Dr.', 'Arş. Gör.', 'Öğr. Gör.', 'Dr.'];
 
 export default function UserProfilePage() {
   const { id } = useParams<{ id: string }>();
@@ -251,13 +251,8 @@ export default function UserProfilePage() {
                     </span>
                     {isMe && <span className="badge badge-green text-xs">Sen</span>}
                   </div>
-                  {/* Gizli bilgiler — sadece kendin veya admin görebilir */}
-                  {(isMe || isAdmin) && (
-                    <p className="text-sm text-muted mt-1">✉️ {user.email}</p>
-                  )}
-                  {user.phone && (isMe || isAdmin) && (
-                    <p className="text-sm text-muted mt-0.5">📞 {user.phone}</p>
-                  )}
+                  <p className="text-sm text-muted mt-1">✉️ {user.email}</p>
+                  {user.phone && <p className="text-sm text-muted mt-0.5">📞 {user.phone}</p>}
                   {(user.faculty || user.department) && (
                     <p className="text-sm text-muted mt-1">🏛 {user.faculty}{user.faculty && user.department && ' › '}{user.department}</p>
                   )}
@@ -274,25 +269,25 @@ export default function UserProfilePage() {
                       {(user as any).orcidId && (
                         <a href={`https://orcid.org/${(user as any).orcidId}`} target="_blank" rel="noopener noreferrer"
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity"
-                          style={{ background: '#a6ce3920', border: '1px solid #a6ce39', color: '#5a8a00' }}>
-                          <span className="w-4 h-4 rounded text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0" style={{ background: '#a6ce39' }}>iD</span>
-                          ORCID
+                          style={{ background: '#a6ce3920', border: '1px solid #a6ce39' }}>
+                          <img src="data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAQABADASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAwb/xAAkEAABAwQCAgIDAAAAAAAAAAABAgMEBQYHERIhABMiMUFhkf/EABUBAQEAAAAAAAAAAAAAAAAAAAQH/8QAHhEAAgAGAwAAAAAAAAAAAAAAAREAEyExQVECA2H/2gAMAwEAAhEDEQA/AKvCuL6ValoIjQ6dDXWXHYrUqouKPs9jiiCBoH4b61saA32ST4WYcXUa9LRedIgSJvEpiT2ElLjLvElKVFSUqKTr6PWt/kAhcIZWo102yw4w6yqqh2M9Mhl0IcbcZUVK0nXaVH6UOgP3sA8v5NtyxbMkR2CluoLHONFckB1950JIQSAkcUDkSTr+nQ8mpnHv41M+ru2ysIjbxbUGq/Y//9k=" alt="ORCID" className="w-4 h-4 object-contain flex-shrink-0" />
+                          <span style={{ color: '#5a8a00' }}>ORCID</span>
                         </a>
                       )}
                       {(user as any).googleScholarId && (
                         <a href={`https://scholar.google.com/citations?user=${(user as any).googleScholarId}`} target="_blank" rel="noopener noreferrer"
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity"
-                          style={{ background: '#4285f420', border: '1px solid #4285f4', color: '#1a56c4' }}>
-                          <span className="text-base leading-none">🎓</span>
-                          Google Scholar
+                          style={{ background: '#4285f420', border: '1px solid #4285f4' }}>
+                          <img src="data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAcABwDASIAAhEBAxEB/8QAGQAAAwADAAAAAAAAAAAAAAAABQcIBAYJ/8QALBAAAQMCBQMCBgMAAAAAAAAAAQIDBAURAAYHEiETMUEUUQgiUmFxkUJUYv/EABcBAAMBAAAAAAAAAAAAAAAAAAMEBQb/xAAlEQABAgUDBAMAAAAAAAAAAAABAgQAAwURQRITIRQxsfFRYXH/2gAMAwEAAhEDEQA/AI/olKqNaqbNNpUR2XLeNkNoHtyST2CQLkqNgACSQBh55Z0volCoLy62wxVqi8gJdJJ6TIJFw3ax3f7/AEPJMaQx8ptZXQ9lVfVccbQKg47b1Ic4JSseEbh8tvlNgbk3sw15bkS4KkOvpYUuxts3W5B55GNrR6I3EkOJ5CiRwMD9+/EZ5/UZu5tSxa3c59eYl3UDIEmhh2p0nqzaQLFZIu7GubDqAfxuQN44uQDYkA6Nis6rR51KmIYcSlwOghtSRdLgtZQIP2PIPg+2EPn+PkJnMTiKc/MSNgMhEFKVsIdudyUKURcdu1xe9iRbEasUxDQhctXBxn1FBi8VPGlQ5GYxtFKw3RdUaBKkylR4bkxtiUrftR01nad/gpFwT+PfF7+gh/10frHNbDRynrtqJl6jt0pipRpkdlG1n1kcOLbHgBXBIHgEnC9Of9NdJvY/EFdNd6xHeHp8XVQh0bTBEWO6I82oTEMtpbVtWpsAqc++zhINvqSOxxHWDuds3ZhzlWDVcxVFcyRbajgJQ2n6UpFgkfgYBYVeOS5mlcGbytpGmP/Z" alt="Google Scholar" className="w-4 h-4 object-contain flex-shrink-0" />
+                          <span style={{ color: '#1a56c4' }}>Google Scholar</span>
                         </a>
                       )}
                       {(user as any).researchGateUrl && (
                         <a href={(user as any).researchGateUrl} target="_blank" rel="noopener noreferrer"
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity"
-                          style={{ background: '#00ccbb20', border: '1px solid #00ccbb', color: '#008a7e' }}>
-                          <span className="text-base leading-none">📚</span>
-                          ResearchGate
+                          style={{ background: '#00ccbb20', border: '1px solid #00ccbb' }}>
+                          <img src="data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAcABwDASIAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAABgcCAwQI/8QAKBAAAgIBAwQBAwUAAAAAAAAAAQIDBAUABhEHEiExCBMUQRYiUWGR/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AOyYY44YUhhjSONFCoiDhVA8AAD0NS0rflXFInQzcmVqXb9G/jqv3FWxTuSV5I3Dr+UYcgjxweR50OdWsZ+hqe1MzsvM5yruK3mKVSLHSZezaiycbuBNE8MzuvAQsxkADLxz3DxoDht6Z+zui/XxuFxLYXGZWPGWp7eTMFmVzHG8kkSGMoyoJV8FwW7X444XuML2JxV+YTXsZStSBe0PNArsB745I9eT/ul/uPpfby2WyEIzdBdvZTKw5W3Vnxf1rccyCIMsE5kCxq4hXkmNmHc/BHI7WboFT8t71Kn8et3JbtwQNPS+lCsjhTI5deFUH2f6GgrM4rbvSvdeF6xbRxNCztC1QTHbgXHV0l+xjPDR3Ye0EhQT2yKp8qQe0nyHzimiy+Dx169WrySTVo5iDGCqsyAnjnnj3rdDXrwRGKGCKOMkkqiAA8+/A0FGIyWOzGNgyWJv1b9KdQ8NitKskci/yGUkEa16qq169WEQ1oIoIwSQkaBVBPvwNAnUfeuV23nIaNGvSkjesspMyMW5LMPww8ftGg//2Q==" alt="ResearchGate" className="w-4 h-4 object-contain flex-shrink-0" />
+                          <span style={{ color: '#008a7e' }}>ResearchGate</span>
                         </a>
                       )}
                     </div>
