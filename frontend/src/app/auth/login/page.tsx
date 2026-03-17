@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { api, facultiesApi } from '@/lib/api';
+import { api, facultiesApi, settingsApi } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 type Mode = 'login' | 'register' | 'pending';
@@ -10,23 +10,26 @@ type Mode = 'login' | 'register' | 'pending';
 
 const TITLES = ['Prof. Dr.', 'Doç. Dr.', 'Dr. Öğr. Üyesi', 'Arş. Gör. Dr.', 'Arş. Gör.', 'Öğr. Gör.', 'Dr.'];
 
-function Logo({ dark = false }) {
-  return (
-    <div className="flex items-center gap-3">
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-        style={{ background: dark ? 'linear-gradient(135deg,#c8a45a,#e8c97a)' : 'linear-gradient(135deg,#0f2444,#1a3a6b)' }}>
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={1.8}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-        </svg>
-      </div>
-      <span className={`font-display font-bold text-xl ${dark ? 'text-white' : 'text-navy'}`}>MKÜ TTO</span>
-    </div>
-  );
-}
+// Logo bileşeni aşağıda inline kullanılıyor
 
 export default function LoginPage() {
   const [faculties, setFaculties] = useState<string[]>([]);
-  useEffect(() => { facultiesApi.getActive().then(r => setFaculties((r.data || []).map((f: any) => f.name))).catch(() => {}); }, []);
+  const [siteName, setSiteName] = useState('MKÜ TTO');
+  const [logoUrl, setLogoUrl] = useState('');
+  useEffect(() => {
+    facultiesApi.getActive().then(r => setFaculties((r.data || []).map((f: any) => f.name))).catch(() => {});
+    settingsApi.getAll().then(r => {
+      const s = r.data || {};
+      if (s.site_name) setSiteName(s.site_name);
+      if (s.logo_url) setLogoUrl(s.logo_url);
+      if (s.favicon_url) {
+        let link = document.querySelector('link[rel="icon"]') as HTMLLinkElement;
+        if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
+        link.href = s.favicon_url;
+      }
+      if (s.site_name) document.title = `${s.site_name} - Proje Yönetim Sistemi`;
+    }).catch(() => {});
+  }, []);
   const [mode, setMode] = useState<Mode>('login');
   const [loading, setLoading] = useState(false);
   const { login, register } = useAuth();
@@ -105,7 +108,21 @@ export default function LoginPage() {
           </svg>
         </div>
         <div className="relative z-10 flex flex-col h-full p-12">
-          <div className="mb-auto"><Logo dark /></div>
+          <div className="mb-auto">
+            <div className="flex items-center gap-3">
+              {logoUrl ? (
+                <img src={logoUrl} alt={siteName} className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+              ) : (
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'linear-gradient(135deg,#c8a45a,#e8c97a)' }}>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                  </svg>
+                </div>
+              )}
+              <span className="font-display font-bold text-xl text-white">{siteName}</span>
+            </div>
+          </div>
           <div className="mb-auto">
             <h1 className="font-display text-4xl font-bold text-white leading-tight mb-4">
               Teknoloji<br />Transfer Ofisi<br />
@@ -132,7 +149,20 @@ export default function LoginPage() {
         <div className="w-full max-w-sm py-8">
 
           {/* Mobile logo */}
-          <div className="lg:hidden mb-8"><Logo /></div>
+          <div className="lg:hidden mb-8">
+            <div className="flex items-center gap-3">
+              {logoUrl ? (
+                <img src={logoUrl} alt={siteName} className="w-8 h-8 rounded-xl object-cover" />
+              ) : (
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#0f2444,#1a3a6b)' }}>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                  </svg>
+                </div>
+              )}
+              <span className="font-display font-bold text-lg text-navy">{siteName}</span>
+            </div>
+          </div>
 
           {/* Mode switcher */}
           <div className="flex rounded-2xl p-1 mb-8" style={{ background: '#f0ede8', border: '1px solid #e8e4dc' }}>
