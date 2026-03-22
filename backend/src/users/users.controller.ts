@@ -12,8 +12,20 @@ export class UsersController {
 
   @Get() findAll(@Query() query: any) { return this.usersService.findAll(query); }
   @Get('me') getMe(@Request() req: any) { return this.usersService.findOne(req.user.userId); }
+<<<<<<< HEAD
   @Get(':id') findOne(@Param('id') id: string) { return this.usersService.findOne(id); }
   @Get(':id/projects') getUserProjects(@Param('id') id: string) { return this.usersService.findUserProjects(id); }
+=======
+  @Get('pending/list') getPending() { return this.usersService.findPending(); }
+  @Get(':id/projects') getUserProjects(@Param('id') id: string) { return this.usersService.findUserProjects(id); }
+  @Get(':id/visitors') getVisitors(@Param('id') id: string) { return this.usersService.getRecentVisitors(id); }
+  @Get(':id') findOne(@Param('id') id: string, @Request() req: any) {
+    if (req.user.userId !== id) {
+      this.usersService.recordVisit(id, req.user.userId).catch(() => {});
+    }
+    return this.usersService.findOne(id);
+  }
+>>>>>>> 0c83548e11f2d65b1fbf4cbbe2b8c077f4327da9
   @Post() create(@Body() dto: any) { return this.usersService.create(dto); }
   @Put('me/avatar') updateMyAvatar(@Request() req: any, @Body() body: { avatar: string }) { return this.usersService.updateAvatar(req.user.userId, body.avatar); }
   @Put(':id') update(@Param('id') id: string, @Body() dto: any) { return this.usersService.update(id, dto); }
