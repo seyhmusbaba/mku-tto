@@ -21,7 +21,7 @@ export class UsersService {
   async findAll(query?: any) {
     const { search, limit = 50, page = 1 } = query || {};
     const qb = this.userRepo.createQueryBuilder('user').leftJoinAndSelect('user.role', 'role');
-    if (search) qb.where('(user.firstName LIKE :s OR user.lastName LIKE :s OR user.email LIKE :s)', { s: `%${search}%` });
+    if (search) qb.where('(user.firstName ILIKE :s OR user.lastName ILIKE :s OR user.email ILIKE :s)', { s: `%${search}%` });
     qb.orderBy('user.createdAt', 'DESC');
     const [data, total] = await qb.skip((+page-1)*+limit).take(+limit).getManyAndCount();
     return { data, total, page:+page, limit:+limit, totalPages: Math.ceil(total/+limit) };
@@ -73,8 +73,7 @@ export class UsersService {
   }
 
   async remove(id: string) {
-    const user = await this.findOne(id);
-    // Owned projects — set ownerId to null (orphan koruması)
+    await this.findOne(id);
     await this.userRepo.manager.query(
       `UPDATE projects SET "ownerId" = NULL WHERE "ownerId" = $1`, [id]
     );
@@ -117,7 +116,6 @@ export class UsersService {
     return this.userRepo.save(user);
   }
 
-
   async assignRole(userId: string, roleId: string) {
     const user = await this.findOne(userId);
     const role = await this.roleRepo.findOne({ where: { id: roleId } });
@@ -125,24 +123,31 @@ export class UsersService {
     user.roleId = roleId;
     return this.userRepo.save(user);
   }
+
+  async recordVisit(profileUserId: string, visitorUserId: string): Promise<void> {
+    try {
+      const recent = await (this.visitRepo as any).findOne({
+        where: { profileUserId: profileUserId, visitorUserId: visitorUserId },
+        order: { visitedAt: 'DESC' },
+      });
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      if (recent && new Date(recent.visitedAt) > oneDayAgo) return;
+      await (this.visitRepo as any).save(
+        (this.visitRepo as any).create({ profileUserId: profileUserId, visitorUserId: visitorUserId })
+      );
+    } catch {}
+  }
+
+  async getRecentVisitors(profileUserId: string, limit = 20): Promise<any[]> {
+    try {
+      return await (this.visitRepo as any).find({
+        where: { profileUserId: profileUserId },
+        relations: ['visitor'],
+        order: { visitedAt: 'DESC' },
+        take: limit,
+      });
+    } catch {
+      return [];
+    }
+  }
 }
-
-  async recordVisit(profileUserId: string, visitorUserId: string) {
-    // Son 24 saatte aynı kişi zaten ziyaret ettiyse tekrar kaydetme
-    const recent = await this.visitRepo.findOne({
-      where: { profileUserId, visitorUserId } as any,
-      order: { visitedAt: 'DESC' },
-    });
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    if (recent && new Date(recent.visitedAt) > oneDayAgo) return;
-    return this.visitRepo.save(this.visitRepo.create({ profileUserId, visitorUserId }));
-  }
-
-  async getRecentVisitors(profileUserId: string, limit = 20) {
-    return this.visitRepo.find({
-      where: { profileUserId } as any,
-      relations: ['visitor'],
-      order: { visitedAt: 'DESC' },
-      take: limit,
-    });
-  }
