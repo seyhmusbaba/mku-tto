@@ -5,6 +5,7 @@ import { Project } from '../database/entities/project.entity';
 import { ProjectMember } from '../database/entities/project-member.entity';
 import { User } from '../database/entities/user.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AuditService } from '../audit/audit.service';
 
 // Durum geçiş makinesi
 const STATUS_TRANSITIONS: Record<string, string[]> = {
@@ -28,6 +29,7 @@ export class ProjectsService {
     @InjectRepository(ProjectMember) private memberRepo: Repository<ProjectMember>,
     @InjectRepository(User) private userRepo: Repository<User>,
     private notificationsService: NotificationsService,
+    private auditService: AuditService,
   ) {}
 
   async findAll(query: any, currentUser: any) {
@@ -119,7 +121,9 @@ export class ProjectsService {
     proj.keywords = Array.isArray(dto.keywords) ? dto.keywords : [];
     proj.sdgGoals = Array.isArray(dto.sdgGoals) ? dto.sdgGoals : [];
     proj.dynamicFields = dto.dynamicFields || {};
-    return this.projectRepo.save(proj);
+    const saved = await this.projectRepo.save(proj);
+    await this.auditService.log({ entityType: 'project', entityId: saved.id, entityTitle: saved.title, action: 'created', userId: dto.ownerId });
+    return saved;
   }
 
   async update(id: string, dto: any, currentUser: any) {
@@ -130,6 +134,7 @@ export class ProjectsService {
     }
 
     // Durum geçiş denetimi
+    const oldStatus = project.status;
     if (dto.status && dto.status !== project.status) {
       const allowed = STATUS_TRANSITIONS[project.status] || [];
       if (!allowed.includes(dto.status)) {
@@ -188,6 +193,7 @@ export class ProjectsService {
           researcher: 'araştırmacı', scholarship: 'bursiyer', advisor: 'danışman',
           coordinator: 'koordinatör', assistant: 'asistan',
         };
+        await this.auditService.log({ entityType: 'project', entityId: id, entityTitle: project.title, action: 'status_changed', detail: { from: oldStatus, to: dto.status } });
         await this.notificationsService.create({
           userId: dto.userId,
           title: 'Projeye Eklendiniz',

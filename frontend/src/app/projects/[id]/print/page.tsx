@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { projectsApi, reportsApi } from '@/lib/api';
+import axios from 'axios';
 import { Project, ProjectReport } from '@/types';
 import { PROJECT_STATUS_LABELS, getProjectTypeLabel, formatDate, formatCurrency, getInitials } from '@/lib/utils';
 
@@ -17,9 +17,13 @@ export default function ProjectPrintPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+    // sessionStorage'dan token al (ana sayfadan kopyalandı)
+    const token = sessionStorage.getItem('tto_print_token') || localStorage.getItem('tto_token') || '';
+    const headers = { Authorization: `Bearer ${token}` };
     Promise.all([
-      projectsApi.getOne(id).then(r => setProject(r.data)),
-      reportsApi.getByProject(id).then(r => setReports(r.data)).catch(() => {}),
+      axios.get(`${base}/projects/${id}`, { headers }).then(r => setProject(r.data)),
+      axios.get(`${base}/projects/${id}/reports`, { headers }).then(r => setReports(r.data)).catch(() => {}),
     ]).finally(() => {
       setLoading(false);
       // Otomatik yazdırma diyaloğu
@@ -256,7 +260,7 @@ export default function ProjectPrintPage() {
             <div className="section-title">Raporlar ({reports.length})</div>
             {reports.map((r, idx) => {
               let meta: Record<string, any> = {};
-              try { meta = JSON.parse((r as any).metadata || '{}'); } catch {}
+              try { meta = JSON.parse(r.metadata || '{}'); } catch {}
               const rtLabel = TYPE_LABELS[r.type] || r.type;
               const TYPE_COLORS: Record<string, string> = {
                 progress: '#1a3a6b', milestone: '#92651a', financial: '#059669',

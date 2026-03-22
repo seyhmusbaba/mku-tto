@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { ProfileVisit } from '../database/entities/profile-visit.entity';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { User } from '../database/entities/user.entity';
@@ -11,6 +12,7 @@ import { ProjectMember } from '../database/entities/project-member.entity';
 export class UsersService {
   constructor(
     @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(ProfileVisit) private visitRepo: Repository<ProfileVisit>,
     @InjectRepository(Role) private roleRepo: Repository<Role>,
     @InjectRepository(Project) private projectRepo: Repository<Project>,
     @InjectRepository(ProjectMember) private memberRepo: Repository<ProjectMember>,
@@ -124,3 +126,23 @@ export class UsersService {
     return this.userRepo.save(user);
   }
 }
+
+  async recordVisit(profileUserId: string, visitorUserId: string) {
+    // Son 24 saatte aynı kişi zaten ziyaret ettiyse tekrar kaydetme
+    const recent = await this.visitRepo.findOne({
+      where: { profileUserId, visitorUserId } as any,
+      order: { visitedAt: 'DESC' },
+    });
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    if (recent && new Date(recent.visitedAt) > oneDayAgo) return;
+    return this.visitRepo.save(this.visitRepo.create({ profileUserId, visitorUserId }));
+  }
+
+  async getRecentVisitors(profileUserId: string, limit = 20) {
+    return this.visitRepo.find({
+      where: { profileUserId } as any,
+      relations: ['visitor'],
+      order: { visitedAt: 'DESC' },
+      take: limit,
+    });
+  }
