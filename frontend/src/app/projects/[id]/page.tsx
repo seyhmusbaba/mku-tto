@@ -388,11 +388,11 @@ export default function ProjectDetailPage() {
               </div>
             </div>
             {/* Kurum Dışı Ortaklar Özeti */}
-            {(project as any).partners && (project as any).partners.length > 0 && (
+            {project.partners && project.partners.length > 0 && (
               <div className="card mt-4">
                 <h3 className="font-display text-sm font-semibold text-navy mb-3">🏛 Kurum Dışı Ortaklar</h3>
                 <div className="space-y-2">
-                  {(project as any).partners.map((p: any) => (
+                  {project.partners.map((p: any) => (
                     <div key={p.id} className="flex items-center justify-between text-xs py-1.5 border-b last:border-0" style={{ borderColor: '#f5f2ee' }}>
                       <div className="flex items-center gap-2">
                         <span>{p.type === 'university' ? '🎓' : p.type === 'industry' ? '🏭' : p.type === 'government' ? '🏛' : '🌐'}</span>
@@ -625,7 +625,7 @@ export default function ProjectDetailPage() {
                 {[
                   { label: 'Toplam Rapor', value: reports.length, color: '#1a3a6b' },
                   { label: 'Son İlerleme', value: `%${latestProgress}`, color: latestProgress >= 75 ? '#059669' : latestProgress >= 50 ? '#d97706' : '#1a3a6b' },
-                  { label: 'Raporlayan', value: Array.from(new Set(reports.map(r => r.author?.id))).length, color: '#c8a45a' },
+                  { label: 'Raporlayan', value: [...new Set(reports.map(r => r.author?.id))].length, color: '#c8a45a' },
                   { label: 'İlk Rapor', value: reports.length > 0 ? new Date(reports[reports.length - 1].createdAt).toLocaleDateString('tr-TR', { month: 'short', year: 'numeric' }) : '—', color: '#7c3aed' },
                 ].map(s => (
                   <div key={s.label} className="card py-4 text-center">
@@ -642,7 +642,7 @@ export default function ProjectDetailPage() {
                 const rt = reportTypes.find(x => x.key === r.type);
                 const rtColor = rt?.color || '#1a3a6b';
                 const rtLabel = rt?.label || r.type;
-                { label: 'Raporlayan', value: Array.from(new Set(reports.map(r => r.author?.id))).length, color: '#c8a45a' },
+                const meta = (() => { try { return JSON.parse(r.metadata || '{}'); } catch { return {}; } })();
                 const PROB_LABELS: Record<string,string> = { low:'Düşük', medium:'Orta', high:'Yüksek', very_high:'Çok Yüksek' };
                 const IMPACT_LABELS: Record<string,string> = { low:'Düşük', medium:'Orta', high:'Yüksek', critical:'Kritik' };
                 const RISK_STATUS: Record<string,string> = { open:'🔴 Açık', monitoring:'🟡 İzleniyor', mitigated:'🟢 Azaltıldı', closed:'⚫ Kapatıldı' };
