@@ -1,10 +1,7 @@
 import { Throttle } from '@nestjs/throttler';
 import { Controller, Post, Get, Put, Body, Request, UseGuards } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
-import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
-import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
 @ApiTags('auth')
