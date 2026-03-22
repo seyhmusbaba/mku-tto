@@ -288,9 +288,9 @@ function Pagination({ result, page, setPage }: { result: any; page: number; setP
     <div className="px-6 py-4 flex items-center justify-between border-t" style={{ borderColor: '#f0ede8' }}>
       <span className="text-xs text-muted">{result.total} projeden {(page - 1) * result.limit + 1}–{Math.min(page * result.limit, result.total)} gösteriliyor</span>
       <div className="flex gap-2">
-        <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="btn-secondary text-xs px-3 py-1.5 disabled:opacity-40">← Önceki</button>
+        <button disabled={page <= 1} onClick={() => setPage(page - 1)} className="btn-secondary text-xs px-3 py-1.5 disabled:opacity-40">← Önceki</button>
         <span className="btn-ghost text-xs px-3 py-1.5">{page}/{result.totalPages}</span>
-        <button disabled={page >= result.totalPages} onClick={() => setPage(p => p + 1)} className="btn-secondary text-xs px-3 py-1.5 disabled:opacity-40">Sonraki →</button>
+        <button disabled={page >= result.totalPages} onClick={() => setPage(page + 1)} className="btn-secondary text-xs px-3 py-1.5 disabled:opacity-40">Sonraki →</button>
       </div>
     </div>
   );
