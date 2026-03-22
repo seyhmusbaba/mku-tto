@@ -14,7 +14,7 @@ export class ExportController {
   async exportCsv(@Query() q: any, @Res() res: Response) {
     const csv = await this.svc.exportProjectsCsv(q);
     res.setHeader('Content-Type', 'text/csv; charset=utf-16le');
-    res.setHeader('Content-Disposition', 'attachment; filename="projeler.csv"');
+    res.setHeader('Content-Disposition', 'attachment; filename="projeler.csv"; filename*=UTF-8''projeler.csv');
     res.send(csv);
   }
 

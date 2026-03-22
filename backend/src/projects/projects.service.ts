@@ -193,7 +193,7 @@ export class ProjectsService {
           researcher: 'araştırmacı', scholarship: 'bursiyer', advisor: 'danışman',
           coordinator: 'koordinatör', assistant: 'asistan',
         };
-        
+        await this.auditService.log({ entityType: 'project', entityId: projectId, entityTitle: project.title, action: 'member_added', detail: { userId: dto.userId, role: dto.role } });
         await this.notificationsService.create({
           userId: dto.userId,
           title: 'Projeye Eklendiniz',
