@@ -1,31 +1,145 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards, Request } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { UsersService } from './users.service';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { ProfileVisit } from '../database/entities/profile-visit.entity';
+import { Repository } from 'typeorm';
+import * as bcrypt from 'bcryptjs';
+import { User } from '../database/entities/user.entity';
+import { Role } from '../database/entities/role.entity';
+import { Project } from '../database/entities/project.entity';
+import { ProjectMember } from '../database/entities/project-member.entity';
 
-@ApiTags('users')
-@Controller('users')
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
-export class UsersController {
-  constructor(private usersService: UsersService) {}
+@Injectable()
+export class UsersService {
+  constructor(
+    @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(ProfileVisit) private visitRepo: Repository<ProfileVisit>,
+    @InjectRepository(Role) private roleRepo: Repository<Role>,
+    @InjectRepository(Project) private projectRepo: Repository<Project>,
+    @InjectRepository(ProjectMember) private memberRepo: Repository<ProjectMember>,
+  ) {}
 
-  @Get() findAll(@Query() query: any) { return this.usersService.findAll(query); }
-  @Get('me') getMe(@Request() req: any) { return this.usersService.findOne(req.user.userId); }
-  @Get('pending/list') getPending() { return this.usersService.findPending(); }
-  @Get(':id/projects') getUserProjects(@Param('id') id: string) { return this.usersService.findUserProjects(id); }
-  @Get(':id/visitors') getVisitors(@Param('id') id: string) { return this.usersService.getRecentVisitors(id); }
-  @Get(':id') findOne(@Param('id') id: string, @Request() req: any) {
-    if (req.user.userId !== id) {
-      this.usersService.recordVisit(id, req.user.userId).catch(() => {});
-    }
-    return this.usersService.findOne(id);
+  async findAll(query?: any) {
+    const { search, limit = 50, page = 1 } = query || {};
+    const qb = this.userRepo.createQueryBuilder('user').leftJoinAndSelect('user.role', 'role');
+    if (search) qb.where('(user.firstName ILIKE :s OR user.lastName ILIKE :s OR user.email ILIKE :s)', { s: `%${search}%` });
+    qb.orderBy('user.createdAt', 'DESC');
+    const [data, total] = await qb.skip((+page-1)*+limit).take(+limit).getManyAndCount();
+    return { data, total, page:+page, limit:+limit, totalPages: Math.ceil(total/+limit) };
   }
-  @Post() create(@Body() dto: any) { return this.usersService.create(dto); }
-  @Put('me/avatar') updateMyAvatar(@Request() req: any, @Body() body: { avatar: string }) { return this.usersService.updateAvatar(req.user.userId, body.avatar); }
-  @Put(':id') update(@Param('id') id: string, @Body() dto: any) { return this.usersService.update(id, dto); }
-  @Delete(':id') remove(@Param('id') id: string) { return this.usersService.remove(id); }
-  @Post(':id/assign-role') assignRole(@Param('id') id: string, @Body() body: { roleId: string }) { return this.usersService.assignRole(id, body.roleId); }
-  @Post(':id/approve') approve(@Param('id') id: string, @Body() body: { roleId?: string }) { return this.usersService.approve(id, body.roleId); }
-  @Post(':id/reject') reject(@Param('id') id: string, @Body() body: { reason?: string }) { return this.usersService.reject(id, body.reason); }
+
+  async findOne(id: string) {
+    const user = await this.userRepo.findOne({ where: { id }, relations: ['role', 'role.permissions'] });
+    if (!user) throw new NotFoundException('Kullanıcı bulunamadı');
+    return user;
+  }
+
+  async findUserProjects(userId: string) {
+    const owned = await this.projectRepo.find({
+      where: { ownerId: userId },
+      relations: ['owner', 'members'],
+      order: { createdAt: 'DESC' },
+    });
+    const memberships = await this.memberRepo.find({
+      where: { userId },
+      relations: ['project', 'project.owner'],
+    });
+    const seen = new Set<string>();
+    const memberProjects = memberships
+      .filter(m => {
+        if (!m.project || m.project.ownerId === userId) return false;
+        if (seen.has(m.project.id)) return false;
+        seen.add(m.project.id);
+        return true;
+      })
+      .map(m => ({ ...m.project, memberRole: m.role }));
+    return { owned, member: memberProjects };
+  }
+
+  async create(dto: any) {
+    const existing = await this.userRepo.findOne({ where: { email: dto.email } });
+    if (existing) throw new ConflictException('Bu email zaten kullanılıyor');
+    const user = new User();
+    Object.assign(user, dto);
+    user.password = await bcrypt.hash(dto.password, 12);
+    (user as any).isActive = true;
+    return this.userRepo.save(user);
+  }
+
+  async update(id: string, dto: any) {
+    const user = await this.findOne(id);
+    if (dto.password) dto.password = await bcrypt.hash(dto.password, 12);
+    Object.assign(user, dto);
+    return this.userRepo.save(user);
+  }
+
+  async remove(id: string) {
+    await this.findOne(id);
+    await this.userRepo.manager.query(
+      `UPDATE projects SET "ownerId" = NULL WHERE "ownerId" = $1`, [id]
+    );
+    await this.userRepo.delete(id);
+    return { deleted: true, id };
+  }
+
+  async deactivate(id: string) {
+    const user = await this.findOne(id);
+    (user as any).isActive = false;
+    return this.userRepo.save(user);
+  }
+
+  findPending() {
+    return this.userRepo.find({
+      where: { approvalStatus: 'pending' } as any,
+      relations: ['role'],
+      order: { createdAt: 'DESC' } as any,
+    });
+  }
+
+  async approve(id: string, roleId?: string) {
+    const user = await this.findOne(id);
+    (user as any).approvalStatus = 'approved';
+    (user as any).isActive = true;
+    if (roleId) user.roleId = roleId;
+    return this.userRepo.save(user);
+  }
+
+  async reject(id: string, reason?: string) {
+    const user = await this.findOne(id);
+    (user as any).approvalStatus = 'rejected';
+    (user as any).isActive = false;
+    return this.userRepo.save(user);
+  }
+
+  async updateAvatar(userId: string, avatar: string) {
+    const user = await this.findOne(userId);
+    user.avatar = avatar;
+    return this.userRepo.save(user);
+  }
+
+  async assignRole(userId: string, roleId: string) {
+    const user = await this.findOne(userId);
+    const role = await this.roleRepo.findOne({ where: { id: roleId } });
+    if (!role) throw new NotFoundException('Rol bulunamadı');
+    user.roleId = roleId;
+    return this.userRepo.save(user);
+  }
+
+  async recordVisit(profileUserId: string, visitorUserId: string) {
+    const recent = await this.visitRepo.findOne({
+      where: { profileUserId, visitorUserId } as any,
+      order: { visitedAt: 'DESC' },
+    });
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    if (recent && new Date(recent.visitedAt) > oneDayAgo) return;
+    return this.visitRepo.save(this.visitRepo.create({ profileUserId, visitorUserId }));
+  }
+
+  async getRecentVisitors(profileUserId: string, limit = 20) {
+    return this.visitRepo.find({
+      where: { profileUserId } as any,
+      relations: ['visitor'],
+      order: { visitedAt: 'DESC' },
+      take: limit,
+    });
+  }
 }
