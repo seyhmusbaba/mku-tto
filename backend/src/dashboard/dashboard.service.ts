@@ -27,7 +27,7 @@ export class DashboardService {
       this.projectRepo.createQueryBuilder('p').where("p.status IN ('application','pending')").getCount(),
       this.projectRepo.count({ where: { status: 'suspended' } }),
       this.projectRepo.count({ where: { status: 'cancelled' } }),
-      this.userRepo.count({ where: { isActive: true as any } }),
+      this.userRepo.count({ where: { isActive: 1 as any } }),
     ]);
 
     const byType     = await this.projectRepo.createQueryBuilder('p').select('p.type as type, COUNT(*) as count').groupBy('p.type').getRawMany();

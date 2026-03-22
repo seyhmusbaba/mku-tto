@@ -25,12 +25,6 @@ export class ProjectDocument {
   @Column({ default: 'other' })
   type: string;
 
-  @Column({ default: 1 })
-  version: number;
-
-  @Column({ nullable: true })
-  originalDocumentId: string; // İlk versiyonun ID'si
-
   @ManyToOne(() => Project, project => project.documents, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'projectId' })
   project: Project;

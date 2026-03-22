@@ -15,14 +15,12 @@ const TITLES = ['Prof. Dr.', 'Doç. Dr.', 'Dr. Öğr. Üyesi', 'Arş. Gör. Dr.'
 export default function LoginPage() {
   const [faculties, setFaculties] = useState<string[]>([]);
   const [siteName, setSiteName] = useState('MKÜ TTO');
-  const [footerText, setFooterText] = useState(`© ${new Date().getFullYear()} Hatay MKÜ Teknoloji Transfer Ofisi`);
   const [logoUrl, setLogoUrl] = useState('');
   useEffect(() => {
     facultiesApi.getActive().then(r => setFaculties((r.data || []).map((f: any) => f.name))).catch(() => {});
     settingsApi.getAll().then(r => {
       const s = r.data || {};
       if (s.site_name) setSiteName(s.site_name);
-      if (s.footer_text) setFooterText(s.footer_text);
       if (s.logo_url) setLogoUrl(s.logo_url);
       if (s.favicon_url) {
         let link = document.querySelector('link[rel="icon"]') as HTMLLinkElement;
@@ -311,7 +309,7 @@ export default function LoginPage() {
           )}
 
           <p className="text-center text-xs text-muted mt-10">
-            {footerText}
+            © {new Date().getFullYear()} Hatay MKÜ Teknoloji Transfer Ofisi
           </p>
         </div>
       </div>

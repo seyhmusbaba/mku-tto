@@ -12,6 +12,7 @@ interface NavItem {
   icon: string;
   adminOnly?: boolean;
 }
+
 interface NavGroup {
   label: string | null;
   items: NavItem[];
@@ -36,43 +37,32 @@ const navGroups: NavGroup[] = [
   }
 ];
 
-// Sidebar logo/isim cache — flash önlemek için module-level
-let _cachedSiteName = 'MKÜ TTO';
-let _cachedLogoUrl = '';
-let _settingsLoaded = false;
-
 export function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const isAdmin = user?.role?.name === 'Süper Admin';
-  const [siteName, setSiteName] = useState(_cachedSiteName);
-  const [logoUrl, setLogoUrl] = useState(_cachedLogoUrl);
+  const [siteName, setSiteName] = useState('MKÜ TTO');
+  const [logoUrl, setLogoUrl] = useState('');
 
   useEffect(() => {
-    if (_settingsLoaded) return; // Zaten yüklendiyse tekrar yükleme
     settingsApi.getAll().then(r => {
       const s: Record<string, string> = r.data || {};
-      if (s.site_name) { _cachedSiteName = s.site_name; setSiteName(s.site_name); }
-      if (s.logo_url) { _cachedLogoUrl = s.logo_url; setLogoUrl(s.logo_url); }
-      _settingsLoaded = true;
+      if (s.site_name) setSiteName(s.site_name);
+      if (s.logo_url) setLogoUrl(s.logo_url);
     }).catch(() => {});
   }, []);
 
   return (
-    <aside className="w-64 flex flex-col h-screen sticky top-0 flex-shrink-0"
-      style={{background: 'linear-gradient(180deg, #0f2444 0%, #0a1a30 100%)'}}>
+    <aside className="w-64 flex flex-col h-screen sticky top-0 flex-shrink-0" style={{background: 'linear-gradient(180deg, #0f2444 0%, #0a1a30 100%)'}}>
       {/* Logo */}
       <div className="px-5 py-6 border-b border-white/10">
         <div className="flex items-center gap-3">
           {logoUrl ? (
-            <img src={logoUrl} alt={siteName} className="w-9 h-9 rounded-xl object-cover flex-shrink-0"
-              style={{border:'1px solid rgba(255,255,255,0.15)'}} />
+            <img src={logoUrl} alt={siteName} className="w-9 h-9 rounded-xl object-cover flex-shrink-0" style={{border:'1px solid rgba(255,255,255,0.15)'}} />
           ) : (
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{background:'linear-gradient(135deg,#c8a45a,#e8c97a)'}}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{background:'linear-gradient(135deg,#c8a45a,#e8c97a)'}}>
               <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-                  d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
               </svg>
             </div>
           )}
@@ -95,8 +85,9 @@ export function Sidebar() {
                 {visible.map(item => {
                   const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
                   return (
-                    <Link key={item.href} href={item.href} className={`sidebar-link${active ? ' active' : ''}`}>
-                      <svg className="flex-shrink-0" style={{width:18,height:18}} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <Link key={item.href} href={item.href}
+                      className={`sidebar-link${active ? ' active' : ''}`}>
+                      <svg className="w-4.5 h-4.5 flex-shrink-0" style={{width:'18px',height:'18px'}} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={active ? 2 : 1.5} d={item.icon} />
                       </svg>
                       {item.label}
@@ -110,18 +101,13 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* User — avatar göster */}
+      {/* User */}
       <div className="px-3 pb-4 border-t border-white/10 pt-4">
         <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{background:'rgba(255,255,255,0.05)'}}>
           <Link href={`/users/${user?.id}`} className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity">
-            {(user as any)?.avatar ? (
-              <img src={(user as any).avatar} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                style={{minWidth:32}} />
-            ) : (
-              <div style={{width:32,height:32,minWidth:32,background:'linear-gradient(135deg,#c8a45a,#e8c97a)',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:'700',fontSize:'11px'}}>
-                {getInitials(user?.firstName || '', user?.lastName || '')}
-              </div>
-            )}
+            <div style={{width:32,height:32,minWidth:32,background:'linear-gradient(135deg,#c8a45a,#e8c97a)',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:'700',fontSize:'11px'}}>
+              {getInitials(user?.firstName || '', user?.lastName || '')}
+            </div>
             <div className="flex-1 min-w-0">
               <p className="text-white text-xs font-semibold truncate">{user?.firstName} {user?.lastName}</p>
               <p className="text-white/40 text-[10px] truncate mt-0.5">{user?.role?.name}</p>

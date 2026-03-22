@@ -15,9 +15,6 @@ import { PartnersModule } from './partners/partners.module';
 import { AiModule } from './ai/ai.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ExportModule } from './export/export.module';
-import { AuditModule } from './audit/audit.module';
-import { AuditLog } from './database/entities/audit-log.entity';
-import { ProfileVisit } from './database/entities/profile-visit.entity';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
@@ -52,14 +49,14 @@ import { ProjectPartner } from './database/entities/project-partner.entity';
       ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
       entities: [
         User, Role, Permission, Project, ProjectMember, ProjectDocument, ProjectReport, ProjectPartner,
-        SystemSetting, DynamicProjectField, Notification, ProjectType, Faculty, ReportType, AuditLog, ProfileVisit,
+        SystemSetting, DynamicProjectField, Notification, ProjectType, Faculty, ReportType,
       ],
       synchronize: true,
       logging: false,
     }),
     AuthModule, UsersModule, RolesModule, ProjectsModule,
     DocumentsModule, ReportsModule, DashboardModule, SettingsModule,
-    DynamicFieldsModule, NotificationsModule, ProjectTypesModule, FacultiesModule, ReportTypesModule, PartnersModule, AiModule, AnalyticsModule, ExportModule, AuditModule,
+    DynamicFieldsModule, NotificationsModule, ProjectTypesModule, FacultiesModule, ReportTypesModule, PartnersModule, AiModule, AnalyticsModule, ExportModule,
   ],
 })
 export class AppModule {}

@@ -4,18 +4,17 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Header } from '@/components/layout/Header';
-import { api, projectsApi, reportsApi, documentsApi, usersApi, reportTypesApi } from '@/lib/api';
+import { projectsApi, reportsApi, documentsApi, usersApi, reportTypesApi } from '@/lib/api';
 import { Project, ProjectReport, User } from '@/types';
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_COLORS, SDG_MAP, getProjectTypeLabel, formatDate, formatCurrency, getInitials, MEMBER_ROLE_LABELS } from '@/lib/utils';
 import { useAuth } from '@/lib/auth-context';
 import toast from 'react-hot-toast';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { ProjectQRCode } from '@/components/ProjectQRCode';
 import { PartnersPanel } from '@/components/PartnersPanel';
 import { ReportTemplateDownloader } from '@/components/ReportTemplateDownloader';
 import { AiSummaryPanel } from '@/components/AiSummaryPanel';
 
-type Tab = 'overview' | 'members' | 'documents' | 'reports' | 'partners' | 'history';
+type Tab = 'overview' | 'members' | 'documents' | 'reports' | 'partners';
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -26,8 +25,6 @@ export default function ProjectDetailPage() {
   const [tab, setTab] = useState<Tab>('overview');
   const [reports, setReports] = useState<ProjectReport[]>([]);
   const [showReportModal, setShowReportModal] = useState(false);
-  const [auditLogs, setAuditLogs] = useState<any[]>([]);
-  const [auditLoading, setAuditLoading] = useState(false);
   const [editReport, setEditReport] = useState<ProjectReport | null>(null);
   const [reportForm, setReportForm] = useState<any>({ title: '', content: '', type: 'progress', progressPercent: 0, metadata: {} });
   const [reportTypes, setReportTypes] = useState<any[]>([]);
@@ -136,14 +133,7 @@ export default function ProjectDetailPage() {
     router.push('/projects');
   };
 
-  const handlePrint = () => {
-    // Print sayfası token gerektiriyor, sessionStorage üzerinden geçir
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('tto_token');
-      if (token) sessionStorage.setItem('tto_print_token', token);
-    }
-    window.open(`/projects/${id}/print`, '_blank');
-  };
+  const handlePrint = () => window.open(`/projects/${id}/print`, '_blank');
 
   const memberIds = new Set(project?.members?.map(m => m.userId) || []);
   const filteredUsers = allUsers.filter(u =>
@@ -151,7 +141,7 @@ export default function ProjectDetailPage() {
     (u.firstName + ' ' + u.lastName + ' ' + u.email).toLowerCase().includes(memberSearch.toLowerCase())
   ).slice(0, 5);
 
-  const tabs: [Tab, string][] = [['overview', 'Genel Bakış'], ['members', 'Ekip'], ['documents', 'Belgeler'], ['reports', 'Raporlar'], ['partners', 'Ortaklar 🤝'], ['history', 'Geçmiş 📋']];
+  const tabs: [Tab, string][] = [['overview', 'Genel Bakış'], ['members', 'Ekip'], ['documents', 'Belgeler'], ['reports', 'Raporlar'], ['partners', 'Ortaklar 🤝']];
 
   // Report chart data
   const reportChartData = [...reports].reverse().map(r => ({ date: new Date(r.createdAt).toLocaleDateString('tr-TR', { month: 'short', day: 'numeric' }), progress: r.progressPercent, title: r.title }));
@@ -165,7 +155,6 @@ export default function ProjectDetailPage() {
     <DashboardLayout>
       <Header title={project.title}
         actions={<>
-          <ProjectQRCode projectId={id} projectTitle={project.title} />
           <button onClick={handlePrint} className="btn-secondary text-xs px-3 py-2">
             <svg className="w-3.5 h-3.5 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -548,12 +537,7 @@ export default function ProjectDetailPage() {
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                               </svg>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium text-navy text-sm">{doc.name}</p>
-                              {(doc as any).version > 1 && (
-                                <span className="text-xs px-1.5 py-0.5 rounded font-bold" style={{ background: '#eff6ff', color: '#1d4ed8' }}>v{(doc as any).version}</span>
-                              )}
-                            </div>
+                            <p className="font-medium text-navy text-sm">{doc.name}</p>
                           </div>
                         </td>
                         <td className="px-5 py-3 text-xs text-muted">{(doc.fileSize / 1024).toFixed(1)} KB</td>
@@ -570,7 +554,7 @@ export default function ProjectDetailPage() {
                         <td className="px-5 py-3 text-xs text-muted">{formatDate(doc.createdAt)}</td>
                         <td className="px-5 py-3">
                           <div className="flex gap-2">
-                            <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace("/api","") || "http://localhost:3001"}/uploads/${doc.fileName}`} target="_blank" rel="noreferrer" className="btn-secondary text-xs px-3 py-1.5">İndir</a>
+                            <a href={`http://localhost:3001/uploads/${doc.fileName}`} target="_blank" rel="noreferrer" className="btn-secondary text-xs px-3 py-1.5">İndir</a>
                             {canEdit && <button onClick={() => handleDeleteDoc(doc.id)} className="btn-danger text-xs px-2 py-1.5">Sil</button>}
                           </div>
                         </td>
@@ -1174,89 +1158,6 @@ export default function ProjectDetailPage() {
 
       {tab === 'partners' && (
         <PartnersPanel projectId={id} canEdit={canEdit} />
-      )}
-
-      {/* ── GEÇMİŞ / AUDIT LOG ── */}
-      {tab === 'history' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-display text-base font-semibold text-navy">Proje Geçmişi</h3>
-              <p className="text-xs text-muted mt-0.5">Projede gerçekleştirilen tüm değişikliklerin kaydı</p>
-            </div>
-          </div>
-
-          {auditLoading ? (
-            <div className="flex justify-center py-10"><div className="spinner" /></div>
-          ) : auditLogs.length === 0 ? (
-            <div className="empty-state py-10">
-              <div className="empty-state-icon">📋</div>
-              <p className="text-sm font-medium text-navy">Henüz kayıt yok</p>
-              <p className="text-xs text-muted mt-1">Proje üzerinde yapılan değişiklikler burada görünecek</p>
-            </div>
-          ) : (
-            <div className="space-y-0">
-              {auditLogs.map((log, i) => {
-                const ACTION_LABELS: Record<string, { label: string; icon: string; color: string }> = {
-                  created:            { label: 'Oluşturuldu',          icon: '✨', color: '#059669' },
-                  updated:            { label: 'Güncellendi',          icon: '✏️', color: '#1a3a6b' },
-                  deleted:            { label: 'Silindi',              icon: '🗑️', color: '#dc2626' },
-                  status_changed:     { label: 'Durum Değişti',        icon: '🔄', color: '#d97706' },
-                  member_added:       { label: 'Üye Eklendi',          icon: '👤', color: '#059669' },
-                  member_removed:     { label: 'Üye Çıkarıldı',        icon: '👤', color: '#dc2626' },
-                  member_role_changed:{ label: 'Üye Rolü Değişti',     icon: '🔁', color: '#7c3aed' },
-                  document_uploaded:  { label: 'Belge Yüklendi',       icon: '📄', color: '#1a3a6b' },
-                  document_deleted:   { label: 'Belge Silindi',        icon: '📄', color: '#dc2626' },
-                  report_added:       { label: 'Rapor Eklendi',        icon: '📊', color: '#059669' },
-                  report_updated:     { label: 'Rapor Güncellendi',    icon: '📊', color: '#1a3a6b' },
-                  report_deleted:     { label: 'Rapor Silindi',        icon: '📊', color: '#dc2626' },
-                  partner_added:      { label: 'Ortak Eklendi',        icon: '🏛', color: '#059669' },
-                  partner_removed:    { label: 'Ortak Kaldırıldı',     icon: '🏛', color: '#dc2626' },
-                };
-                const meta = ACTION_LABELS[log.action] || { label: log.action, icon: '•', color: '#6b7280' };
-                let detail: any = {};
-                try { detail = JSON.parse(log.detail || '{}'); } catch {}
-
-                return (
-                  <div key={log.id} className="flex gap-4 py-4 border-b last:border-0" style={{ borderColor: '#f5f2ee' }}>
-                    {/* Zaman çizelgesi çizgisi */}
-                    <div className="flex flex-col items-center flex-shrink-0" style={{ width: 32 }}>
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0"
-                        style={{ background: meta.color + '15', border: `1.5px solid ${meta.color}40` }}>
-                        {meta.icon}
-                      </div>
-                      {i < auditLogs.length - 1 && <div className="flex-1 w-px mt-1" style={{ background: '#f0ede8' }} />}
-                    </div>
-                    <div className="flex-1 min-w-0 pb-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <span className="text-sm font-semibold text-navy">{meta.label}</span>
-                          {log.user && (
-                            <span className="text-xs text-muted ml-2">
-                              {log.user.title} {log.user.firstName} {log.user.lastName}
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-xs text-muted flex-shrink-0">
-                          {new Date(log.createdAt).toLocaleString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                      {/* Detay */}
-                      {detail.from && detail.to && (
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#fef2f2', color: '#dc2626' }}>{detail.from}</span>
-                          <span className="text-xs text-muted">→</span>
-                          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#f0fdf4', color: '#059669' }}>{detail.to}</span>
-                        </div>
-                      )}
-                      {detail.name && <p className="text-xs text-muted mt-1">"{detail.name}"</p>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
       )}
 
       <style>{`
