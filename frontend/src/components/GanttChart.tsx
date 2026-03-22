@@ -20,18 +20,25 @@ const STATUS_COLORS: Record<string, string> = {
   completed: '#2563eb', suspended: '#6b7280', cancelled: '#dc2626',
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  application: 'Başvuru', pending: 'Beklemede', active: 'Aktif',
+  completed: 'Tamamlandı', suspended: 'Askıda', cancelled: 'İptal',
+};
+
 export function GanttChart({ projects }: Props) {
   const validProjects = projects.filter(p => p.startDate && p.endDate);
 
-  const { minDate, maxDate, totalDays } = useMemo(() => {
+  const { minDate, totalDays } = useMemo(() => {
     if (!validProjects.length) return { minDate: new Date(), maxDate: new Date(), totalDays: 365 };
     const starts = validProjects.map(p => new Date(p.startDate).getTime());
     const ends = validProjects.map(p => new Date(p.endDate).getTime());
     const min = new Date(Math.min(...starts));
     const max = new Date(Math.max(...ends));
-    // En az 30 gün göster
-    const days = Math.max(30, Math.ceil((max.getTime() - min.getTime()) / (1000 * 60 * 60 * 24)) + 30);
-    return { minDate: min, maxDate: max, totalDays: days };
+    // Biraz boşluk ekle
+    min.setMonth(min.getMonth() - 1);
+    max.setMonth(max.getMonth() + 1);
+    const days = Math.ceil((max.getTime() - min.getTime()) / (1000 * 60 * 60 * 24));
+    return { minDate: min, maxDate: max, totalDays: Math.max(days, 30) };
   }, [validProjects]);
 
   if (!validProjects.length) {
@@ -44,9 +51,9 @@ export function GanttChart({ projects }: Props) {
     );
   }
 
-  const getPos = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const diff = (date.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24);
+  const getLeft = (dateStr: string) => {
+    const d = new Date(dateStr).getTime();
+    const diff = (d - minDate.getTime()) / (1000 * 60 * 60 * 24);
     return Math.max(0, (diff / totalDays) * 100);
   };
 
@@ -57,90 +64,106 @@ export function GanttChart({ projects }: Props) {
     return Math.max(0.5, (days / totalDays) * 100);
   };
 
-  // Ay etiketleri üret
+  // Ay etiketleri
   const months: { label: string; pos: number }[] = [];
   const cur = new Date(minDate);
   cur.setDate(1);
-  while (cur <= maxDate) {
-    const pos = getPos(cur.toISOString());
-    months.push({ label: cur.toLocaleDateString('tr-TR', { month: 'short', year: '2-digit' }), pos });
+  const maxD = new Date(minDate.getTime() + totalDays * 24 * 60 * 60 * 1000);
+  while (cur <= maxD) {
+    const pos = getLeft(cur.toISOString());
+    if (pos >= 0 && pos <= 100) {
+      months.push({ label: cur.toLocaleDateString('tr-TR', { month: 'short', year: '2-digit' }), pos });
+    }
     cur.setMonth(cur.getMonth() + 1);
   }
 
   const today = new Date();
-  const todayPos = getPos(today.toISOString());
-  const showToday = todayPos >= 0 && todayPos <= 100;
+  const todayPos = getLeft(today.toISOString());
+  const showToday = todayPos > 0 && todayPos < 100;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-1 overflow-x-auto">
+      {/* Açıklama */}
+      <p className="text-xs text-muted mb-3">
+        Her bar projenin başlangıç-bitiş aralığını gösterir. Renkler durumu, içindeki açık alan ise tamamlanma yüzdesini belirtir.
+        {showToday && <span className="ml-2 text-red-500">Kırmızı çizgi = bugün</span>}
+      </p>
+
       {/* Ay başlıkları */}
-      <div className="relative h-6 ml-48" style={{ overflowX: 'hidden' }}>
+      <div className="relative h-6 ml-52">
         {months.map((m, i) => (
-          <div key={i} className="absolute text-xs text-muted font-medium"
+          <div key={i} className="absolute text-xs text-muted whitespace-nowrap"
             style={{ left: `${m.pos}%`, transform: 'translateX(-50%)' }}>
             {m.label}
           </div>
         ))}
-        {showToday && (
-          <div className="absolute top-0 bottom-0 w-px" style={{ left: `${todayPos}%`, background: '#dc2626' }} />
-        )}
       </div>
 
-      {/* Gantt barlar */}
+      {/* Barlar */}
       <div className="space-y-2">
         {validProjects.map(p => {
-          const left = getPos(p.startDate);
+          const left = getLeft(p.startDate);
           const width = getWidth(p.startDate, p.endDate);
           const color = STATUS_COLORS[p.status] || '#1a3a6b';
+          const progress = p.progress || 0;
+          const endDate = new Date(p.endDate).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', year: '2-digit' });
 
           return (
-            <div key={p.id} className="flex items-center gap-3" style={{ minHeight: 36 }}>
+            <div key={p.id} className="flex items-center gap-2">
               {/* Proje adı */}
-              <div className="flex-shrink-0 text-xs font-medium text-navy truncate text-right" style={{ width: 180 }}>
-                {p.title}
+              <div className="flex-shrink-0 text-xs font-medium text-navy text-right leading-tight"
+                style={{ width: 200, minWidth: 200 }}>
+                <span className="line-clamp-1 block">{p.title}</span>
+                <span className="text-muted font-normal">{STATUS_LABELS[p.status] || p.status}</span>
               </div>
 
               {/* Bar alanı */}
-              <div className="flex-1 relative h-8 rounded-lg overflow-hidden" style={{ background: '#f8f6f2' }}>
+              <div className="flex-1 relative rounded-lg overflow-hidden"
+                style={{ height: 32, background: '#f0ede8', minWidth: 200 }}>
                 {/* Bugün çizgisi */}
                 {showToday && (
-                  <div className="absolute top-0 bottom-0 w-px z-10" style={{ left: `${todayPos}%`, background: '#dc262650' }} />
+                  <div className="absolute top-0 bottom-0 w-0.5 z-10"
+                    style={{ left: `${todayPos}%`, background: '#dc2626', opacity: 0.6 }} />
                 )}
 
-                {/* Gantt bar */}
-                <div className="absolute top-1 bottom-1 rounded-lg flex items-center px-2 overflow-hidden"
-                  style={{ left: `${left}%`, width: `${width}%`, background: color + 'cc', minWidth: 4 }}>
-                  {width > 5 && (
-                    <>
-                      {/* İlerleme overlay */}
-                      {p.progress !== undefined && p.progress > 0 && (
-                        <div className="absolute inset-0 rounded-lg opacity-40"
-                          style={{ width: `${p.progress}%`, background: 'white' }} />
-                      )}
-                      <span className="text-white text-xs font-semibold truncate z-10 relative leading-none">
-                        {width > 15 ? p.title : ''}
-                      </span>
-                    </>
+                {/* Ana bar */}
+                <div className="absolute top-1 bottom-1 rounded-md overflow-hidden flex items-center"
+                  style={{ left: `${left}%`, width: `${width}%`, background: color, minWidth: 4, opacity: 0.85 }}>
+                  {/* İlerleme */}
+                  {progress > 0 && (
+                    <div className="absolute inset-0 rounded-md"
+                      style={{ width: `${progress}%`, background: 'rgba(255,255,255,0.35)' }} />
+                  )}
+                  {width > 8 && (
+                    <span className="text-white text-xs font-bold px-2 relative z-10 truncate leading-none">
+                      {progress > 0 ? `%${progress}` : ''}
+                    </span>
                   )}
                 </div>
               </div>
 
-              {/* Tarih */}
-              <div className="flex-shrink-0 text-xs text-muted" style={{ width: 80 }}>
-                {new Date(p.endDate).toLocaleDateString('tr-TR', { month: 'short', year: '2-digit' })}
+              {/* Bitiş tarihi */}
+              <div className="flex-shrink-0 text-xs text-muted" style={{ width: 64 }}>
+                {endDate}
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* Bugün göstergesi */}
-      {showToday && (
-        <div className="flex items-center gap-2 text-xs text-muted">
-          <div className="w-3 h-0.5" style={{ background: '#dc2626' }} />
-          Bugün: {today.toLocaleDateString('tr-TR')}
+      {/* Legend */}
+      <div className="flex items-center gap-4 mt-4 pt-3 border-t flex-wrap" style={{ borderColor: '#e8e4dc' }}>
+        {Object.entries(STATUS_LABELS).map(([key, label]) => (
+          <div key={key} className="flex items-center gap-1.5 text-xs text-muted">
+            <div className="w-3 h-3 rounded-sm" style={{ background: STATUS_COLORS[key] || '#6b7280' }} />
+            {label}
+          </div>
+        ))}
+        <div className="flex items-center gap-1.5 text-xs text-muted">
+          <div className="w-3 h-3 rounded-sm" style={{ background: 'rgba(255,255,255,0.35)', border: '1px solid #aaa' }} />
+          Tamamlanma yüzdesi
         </div>
-      )}
+      </div>
     </div>
   );
 }

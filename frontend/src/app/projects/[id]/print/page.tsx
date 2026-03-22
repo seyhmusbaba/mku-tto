@@ -26,8 +26,6 @@ export default function ProjectPrintPage() {
       axios.get(`${base}/projects/${id}/reports`, { headers }).then(r => setReports(r.data)).catch(() => {}),
     ]).finally(() => {
       setLoading(false);
-      // Otomatik yazdırma diyaloğu
-      setTimeout(() => window.print(), 600);
     });
   }, [id]);
 
@@ -37,6 +35,8 @@ export default function ProjectPrintPage() {
     </div>
   );
   if (!project) return <div>Proje bulunamadı</div>;
+
+  const handlePrint = () => window.print();
 
   const sc = STATUS_COLORS[project.status] || '#6b7280';
   const latestReport = reports[0];
@@ -50,6 +50,14 @@ export default function ProjectPrintPage() {
 
   return (
     <>
+      <style>{`
+        @media screen {
+          .print-btn { position: fixed; top: 16px; right: 16px; z-index: 999; background: #0f2444; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+          .print-btn:hover { background: #1a3a6b; }
+        }
+        @media print { .print-btn { display: none !important; } }
+      `}</style>
+      <button className="print-btn" onClick={handlePrint}>🖨️ PDF Olarak Kaydet</button>
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Segoe UI', system-ui, sans-serif; background: white; color: #1a1a1a; font-size: 11pt; line-height: 1.5; }
