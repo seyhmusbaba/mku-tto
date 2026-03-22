@@ -642,7 +642,7 @@ export default function ProjectDetailPage() {
                 const rt = reportTypes.find(x => x.key === r.type);
                 const rtColor = rt?.color || '#1a3a6b';
                 const rtLabel = rt?.label || r.type;
-                const meta = (() => { try { return JSON.parse(r.metadata || '{}'); } catch { return {}; } })();
+                { label: 'Raporlayan', value: Array.from(new Set(reports.map(r => r.author?.id))).length, color: '#c8a45a' },
                 const PROB_LABELS: Record<string,string> = { low:'Düşük', medium:'Orta', high:'Yüksek', very_high:'Çok Yüksek' };
                 const IMPACT_LABELS: Record<string,string> = { low:'Düşük', medium:'Orta', high:'Yüksek', critical:'Kritik' };
                 const RISK_STATUS: Record<string,string> = { open:'🔴 Açık', monitoring:'🟡 İzleniyor', mitigated:'🟢 Azaltıldı', closed:'⚫ Kapatıldı' };
