@@ -13,9 +13,9 @@ export class ExportController {
   @Get('projects/csv')
   async exportCsv(@Query() q: any, @Res() res: Response) {
     const csv = await this.svc.exportProjectsCsv(q);
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="projeler.csv"');
-    res.send('\uFEFF' + csv); // BOM for Excel Turkish chars
+    res.setHeader('Content-Type', 'text/csv; charset=utf-16le');
+    res.setHeader('Content-Disposition', 'attachment; filename="projeler.csv"; filename*=UTF-8''projeler.csv');
+    res.send(csv);
   }
 
   @Get('projects/json')

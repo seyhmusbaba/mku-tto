@@ -29,41 +29,45 @@ export class ExportService {
     return qb.getMany();
   }
 
-  async exportProjectsCsv(q: any): Promise<string> {
+  async exportProjectsCsv(q: any): Promise<Buffer> {
     const projects = await this.getProjects(q);
+    const SEP = '	'; // Tab ayraç — Excel'de en güvenli
+
     const headers = [
       'ID', 'Başlık', 'Durum', 'Tür', 'Fakülte', 'Bölüm',
-      'Yürütücü', 'E-posta', 'Bütçe (₺)', 'Fon Kaynağı',
+      'Yürütücü', 'E-posta', 'Bütçe (TL)', 'Fon Kaynağı',
       'Başlangıç', 'Bitiş', 'Ekip Sayısı', 'Rapor Sayısı',
       'İlerleme (%)', 'Oluşturulma',
     ];
+
+    const clean = (v: any) => String(v || '').replace(/	/g, ' ').replace(/?
+/g, ' ');
 
     const rows = projects.map(p => {
       const latestProgress = p.reports?.sort((a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )[0]?.progressPercent || 0;
-
       return [
-        p.id,
-        `"${(p.title || '').replace(/"/g, '""')}"`,
-        STATUS_LABELS[p.status] || p.status,
-        TYPE_LABELS[p.type] || p.type,
-        p.faculty || '',
-        p.department || '',
-        p.owner ? `${p.owner.firstName} ${p.owner.lastName}` : '',
-        p.owner?.email || '',
-        p.budget || '',
-        p.fundingSource || '',
-        p.startDate || '',
-        p.endDate || '',
-        p.members?.length || 0,
-        p.reports?.length || 0,
-        latestProgress,
-        new Date(p.createdAt).toLocaleDateString('tr-TR'),
-      ].join(',');
+        clean(p.id), clean(p.title),
+        clean(STATUS_LABELS[p.status] || p.status),
+        clean(TYPE_LABELS[p.type] || p.type),
+        clean(p.faculty), clean(p.department),
+        clean(p.owner ? \`\${p.owner.firstName} \${p.owner.lastName}\` : ''),
+        clean(p.owner?.email),
+        clean(p.budget || ''), clean(p.fundingSource),
+        clean(p.startDate), clean(p.endDate),
+        clean(p.members?.length || 0), clean(p.reports?.length || 0),
+        clean(latestProgress),
+        clean(new Date(p.createdAt).toLocaleDateString('tr-TR')),
+      ].join(SEP);
     });
 
-    return [headers.join(','), ...rows].join('\n');
+    const content = [headers.join(SEP), ...rows].join('
+');
+    // UTF-16 LE BOM + encode — Excel Türkçe karakterleri bu şekilde okur
+    const utf16 = Buffer.from(content, 'utf16le');
+    const bom = Buffer.from([0xFF, 0xFE]); // UTF-16 LE BOM
+    return Buffer.concat([bom, utf16]);
   }
 
   async exportProjectsJson(q: any) {

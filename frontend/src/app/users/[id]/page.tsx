@@ -29,6 +29,7 @@ export default function UserProfilePage() {
   const [loading, setLoading] = useState(true);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [visitors, setVisitors] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
   const { user: currentUser } = useAuth();
@@ -41,6 +42,12 @@ export default function UserProfilePage() {
       usersApi.getOne(id).then(r => { setUser(r.data); setEditForm(r.data); }),
       usersApi.getUserProjects(id).then(r => setProjects(r.data)).catch(() => {}),
     ]).finally(() => setLoading(false));
+    // Kendi profilindeyse ziyaretçileri yükle
+    if (currentUser?.id === id || currentUser?.role?.name === 'Süper Admin') {
+      import('@/lib/api').then(({ api }) => {
+        api.get(`/users/${id}/visitors`).then(r => setVisitors(r.data || [])).catch(() => {});
+      });
+    }
   }, [id]);
 
   const handleAvatarUpload = async (file: File) => {
@@ -348,6 +355,42 @@ export default function UserProfilePage() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Son Ziyaretçiler — sadece kendin veya admin görebilir */}
+            {(isMe || isAdmin) && visitors.length > 0 && (
+              <div>
+                <h3 className="font-display font-semibold text-navy mb-3 flex items-center gap-2">
+                  <span className="w-1.5 h-5 rounded-full inline-block" style={{ background: '#7c3aed' }} />
+                  👁 Son Profil Ziyaretçileri
+                  <span className="badge text-xs" style={{ background: '#f5f3ff', color: '#7c3aed' }}>{visitors.length}</span>
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {visitors.slice(0, 8).map((v, i) => {
+                    const u = v.visitor;
+                    if (!u) return null;
+                    const rs = ROLE_COLORS[u.role?.name || ''] || { bg: '#f0ede8', text: '#6b7280', border: '#e8e4dc' };
+                    return (
+                      <Link key={i} href={`/users/${u.id}`}
+                        className="card p-3 flex items-center gap-3 hover:shadow-md transition-shadow">
+                        {u.avatar ? (
+                          <img src={u.avatar} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 text-white"
+                            style={{ background: `linear-gradient(135deg,${rs.text},${rs.text}bb)` }}>
+                            {getInitials(u.firstName, u.lastName)}
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-semibold text-navy truncate">{u.firstName} {u.lastName}</p>
+                          <p className="text-xs text-muted truncate">{u.role?.name}</p>
+                          <p className="text-xs text-muted">{new Date(v.visitedAt).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' })}</p>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
             )}
 

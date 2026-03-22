@@ -5,6 +5,7 @@ import { Header } from '@/components/layout/Header';
 import { api, projectTypesApi, facultiesApi } from '@/lib/api';
 import { ProjectTypeItem, FacultyItem } from '@/types';
 import { formatCurrency, getProjectTypeLabel, getProjectTypeColor } from '@/lib/utils';
+import { GanttChart } from '@/components/GanttChart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
 
 const C = ['#0f2444','#1a3a6b','#c8a45a','#e8c97a','#2d5aff','#94a3b8','#059669','#dc2626','#7c3aed','#ea580c'];
@@ -18,7 +19,7 @@ const STATUS_COLORS: Record<string,string> = {
   suspended:'#6b7280', cancelled:'#dc2626',
 };
 
-type Tab = 'overview' | 'faculty' | 'researcher' | 'funding' | 'timeline';
+type Tab = 'overview' | 'faculty' | 'researcher' | 'funding' | 'timeline' | 'gantt';
 
 export default function AnalysisPage() {
   const [tab, setTab] = useState<Tab>('overview');
@@ -27,6 +28,7 @@ export default function AnalysisPage() {
   const [researcherData, setResearcherData] = useState<any[]>([]);
   const [fundingData, setFundingData] = useState<any[]>([]);
   const [timelineData, setTimelineData] = useState<any[]>([]);
+  const [allProjects, setAllProjects] = useState<any[]>([]);
   const [projectTypes, setProjectTypes] = useState<ProjectTypeItem[]>([]);
   const [faculties, setFaculties] = useState<FacultyItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,6 +47,7 @@ export default function AnalysisPage() {
       api.get('/analytics/researcher-productivity', { params: { limit: 10 } }).then(r => setResearcherData(r.data || [])).catch(() => {}),
       api.get('/analytics/funding-success').then(r => setFundingData(r.data || [])).catch(() => {}),
       api.get('/analytics/timeline').then(r => setTimelineData(r.data || [])).catch(() => {}),
+      api.get('/analytics/export').then(r => setAllProjects(r.data || [])).catch(() => {}),
     ]).finally(() => setLoading(false));
   }, []);
 
@@ -76,6 +79,7 @@ export default function AnalysisPage() {
     { key: 'researcher',  label: 'Araştırmacılar', icon: '🔬' },
     { key: 'funding',     label: 'Fon Analizi',    icon: '💰' },
     { key: 'timeline',    label: 'Zaman Serisi',   icon: '📅' },
+    { key: 'gantt',       label: 'Gantt',          icon: '📊' },
   ];
 
   const years = Array.from({length: 6}, (_, i) => String(new Date().getFullYear() - i));
@@ -318,6 +322,25 @@ export default function AnalysisPage() {
                     <Line type="monotone" dataKey="count" stroke="#1a3a6b" strokeWidth={2.5} dot={{ r: 4 }} name="Proje Sayısı" />
                   </LineChart>
                 </ResponsiveContainer>
+              </div>
+            )}
+
+            {/* ── GANTT CHART ── */}
+            {tab === 'gantt' && (
+              <div className="card p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-display text-sm font-semibold text-navy">Proje Zaman Çizelgesi</h3>
+                  <span className="text-xs text-muted">{allProjects.filter((p: any) => p.startDate && p.endDate).length} proje gösteriliyor</span>
+                </div>
+                <GanttChart projects={allProjects.map((p: any) => ({
+                  id: p.id,
+                  title: p.title,
+                  startDate: p.startDate,
+                  endDate: p.endDate,
+                  status: p.status,
+                  type: p.type,
+                  progress: p.latestProgress,
+                }))} />
               </div>
             )}
           </>

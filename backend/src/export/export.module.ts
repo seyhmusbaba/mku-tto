@@ -7,6 +7,5 @@ import { ExportService } from './export.service';
 @Module({
   imports: [TypeOrmModule.forFeature([Project])],
   controllers: [ExportController],
-  providers: [ExportService],
 })
 export class ExportModule {}

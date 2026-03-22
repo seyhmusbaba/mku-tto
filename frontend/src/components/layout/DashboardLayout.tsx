@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { Sidebar } from './Sidebar';
+import { Footer } from '@/components/Footer';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -22,7 +23,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen overflow-hidden bg-cream">
       <Sidebar />
-      <main className="flex-1 flex flex-col overflow-y-auto min-w-0">{children}</main>
+      <main className="flex-1 flex flex-col overflow-y-auto min-w-0">
+        <div className="flex-1">
+          {children}
+        </div>
+        <Footer />
+      </main>
     </div>
   );
 }

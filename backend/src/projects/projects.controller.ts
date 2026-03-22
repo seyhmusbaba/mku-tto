@@ -1,4 +1,6 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards, Request } from '@nestjs/common';
+import * as QRCode from 'qrcode';
+import { Controller, Res, Get, Post, Put, Delete, Param, Body, Query, UseGuards, Request } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ProjectsService } from './projects.service';
@@ -12,6 +14,15 @@ export class ProjectsController {
 
   @Get('budget-estimate') budgetEstimate(@Query() q: any) { return this.projectsService.estimateBudget(q); }
   @Get('budget-stats') budgetStats(@Query() q: any) { return this.projectsService.getBudgetStats(q.type, q.faculty); }
+  @Get(':id/qr')
+  async qrCode(@Param('id') id: string, @Res() res: any) {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const url = `${frontendUrl}/projects/${id}`;
+    const qrBuffer = await QRCode.toBuffer(url, { width: 256, margin: 2 });
+    res.setHeader('Content-Type', 'image/png');
+    res.send(qrBuffer);
+  }
+
   @Get('similar') similarByTitle(@Query() q: any) { return this.projectsService.findSimilarByTitle(q.title, q.description, q.excludeId); }
   @Get() findAll(@Query() query: any, @Request() req: any) { return this.projectsService.findAll(query, req.user); }
   @Get(':id/similar') similar(@Param('id') id: string) { return this.projectsService.findSimilar(id); }
