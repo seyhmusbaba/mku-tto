@@ -9,7 +9,7 @@ import { AuditModule } from '../audit/audit.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Project, ProjectMember, User]), NotificationsModule],
+  imports: [TypeOrmModule.forFeature([Project, ProjectMember, User]), NotificationsModule, AuditModule],
   providers: [ProjectsService],
   controllers: [ProjectsController],
 })
