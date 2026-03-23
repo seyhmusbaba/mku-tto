@@ -65,7 +65,7 @@ export function PartnersPanel({ projectId, canEdit }: Props) {
 
   const typeInfo = (key: string) => PARTNER_TYPES.find(t => t.key === key) || { icon: '🌐', label: key };
   const totalBudget = partners.reduce((s, p) => s + (p.contributionBudget || 0), 0);
-  const countries   = [...new Set(partners.map(p => p.country).filter(Boolean))];
+  const countries   = Array.from(new Set(partners.map(p => p.country).filter(Boolean)));
 
   return (
     <div className="space-y-4">

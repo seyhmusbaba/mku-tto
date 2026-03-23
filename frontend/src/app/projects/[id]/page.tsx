@@ -623,7 +623,7 @@ export default function ProjectDetailPage() {
                 {[
                   { label: 'Toplam Rapor', value: reports.length, color: '#1a3a6b' },
                   { label: 'Son İlerleme', value: `%${latestProgress}`, color: latestProgress >= 75 ? '#059669' : latestProgress >= 50 ? '#d97706' : '#1a3a6b' },
-                  { label: 'Raporlayan', value: [...new Set(reports.map(r => r.author?.id))].length, color: '#c8a45a' },
+                  { label: 'Raporlayan', value: Array.from(new Set(reports.map(r => r.author?.id))).length, color: '#c8a45a' },
                   { label: 'İlk Rapor', value: reports.length > 0 ? new Date(reports[reports.length - 1].createdAt).toLocaleDateString('tr-TR', { month: 'short', year: 'numeric' }) : '—', color: '#7c3aed' },
                 ].map(s => (
                   <div key={s.label} className="card py-4 text-center">

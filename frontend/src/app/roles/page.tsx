@@ -52,7 +52,7 @@ export default function RolesPage() {
     ...f, permissionIds: f.permissionIds.includes(id) ? f.permissionIds.filter(p=>p!==id) : [...f.permissionIds,id]
   }));
 
-  const modules = [...new Set(permissions.map(p => p.module))];
+  const modules = Array.from(new Set(permissions.map(p => p.module)));
 
   return (
     <DashboardLayout>
@@ -122,7 +122,7 @@ export default function RolesPage() {
                           <button type="button" className="text-xs text-muted hover:text-navy" onClick={()=>{
                             const modPerms = permissions.filter(p=>p.module===mod).map(p=>p.id);
                             const allSelected = modPerms.every(id=>form.permissionIds.includes(id));
-                            setForm(f=>({...f, permissionIds: allSelected ? f.permissionIds.filter(id=>!modPerms.includes(id)) : [...new Set([...f.permissionIds,...modPerms])]}));
+                            setForm(f=>({...f, permissionIds: allSelected ? f.permissionIds.filter(id=>!modPerms.includes(id)) : Array.from(new Set([...f.permissionIds,...modPerms]))}));
                           }}>Tümü</button>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
