@@ -4,7 +4,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Header } from '@/components/layout/Header';
-import { usersApi } from '@/lib/api';
+import { api, usersApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { User, Project } from '@/types';
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_COLORS, SDG_MAP, getProjectTypeLabel, formatDate, formatCurrency, getInitials, ROLE_COLORS, MEMBER_ROLE_LABELS } from '@/lib/utils';
@@ -44,9 +44,7 @@ export default function UserProfilePage() {
     ]).finally(() => setLoading(false));
     // Kendi profilindeyse ziyaretçileri yükle
     if (currentUser?.id === id || currentUser?.role?.name === 'Süper Admin') {
-      import('@/lib/api').then(({ api }) => {
-        api.get(`/users/${id}/visitors`).then(r => setVisitors(r.data || [])).catch(() => {});
-      });
+      api.get(`/users/${id}/visitors`).then(r => setVisitors(r.data || [])).catch(() => {});
     }
   }, [id]);
 
