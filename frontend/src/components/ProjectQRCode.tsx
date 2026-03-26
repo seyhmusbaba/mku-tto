@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface Props {
   projectId: string;
@@ -8,8 +8,25 @@ interface Props {
 
 export function ProjectQRCode({ projectId, projectTitle }: Props) {
   const [open, setOpen] = useState(false);
-  const base = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '');
-  const qrUrl = `${base}/api/projects/${projectId}/qr`;
+  const [qrDataUrl, setQrDataUrl] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+    const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+    const token = localStorage.getItem('tto_token') || '';
+    fetch(`${base}/projects/${projectId}/qr`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.blob())
+      .then(blob => {
+        const url = URL.createObjectURL(blob);
+        setQrDataUrl(url);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [open, projectId]);
 
   return (
     <>
@@ -29,13 +46,22 @@ export function ProjectQRCode({ projectId, projectTitle }: Props) {
             onClick={e => e.stopPropagation()}>
             <h3 className="font-display font-semibold text-navy mb-1 text-sm">QR Kod</h3>
             <p className="text-xs text-muted mb-4 line-clamp-2">{projectTitle}</p>
-            <div className="rounded-xl overflow-hidden border mb-3" style={{ borderColor: '#e8e4dc' }}>
-              <img src={qrUrl} alt="QR Kod" className="w-full" />
+            <div className="rounded-xl overflow-hidden border mb-3 flex items-center justify-center"
+              style={{ borderColor: '#e8e4dc', minHeight: 200 }}>
+              {loading ? (
+                <div className="spinner" />
+              ) : qrDataUrl ? (
+                <img src={qrDataUrl} alt="QR Kod" className="w-full" />
+              ) : (
+                <p className="text-xs text-muted p-4">QR oluşturulamadı</p>
+              )}
             </div>
             <p className="text-xs text-muted mb-4">QR kodu okutarak projeye doğrudan erişilebilir</p>
             <div className="flex gap-2">
-              <a href={qrUrl} download={`proje-${projectId}-qr.png`}
-                className="btn-primary text-xs flex-1">⬇ İndir</a>
+              {qrDataUrl && (
+                <a href={qrDataUrl} download="proje-qr.png"
+                  className="btn-primary text-xs flex-1">⬇ İndir</a>
+              )}
               <button onClick={() => setOpen(false)} className="btn-secondary text-xs flex-1">Kapat</button>
             </div>
           </div>
