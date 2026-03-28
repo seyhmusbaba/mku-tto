@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Header } from '@/components/layout/Header';
+import { loadSettings } from '@/lib/settings-store';
 import { settingsApi, dynamicFieldsApi, projectTypesApi, facultiesApi, reportTypesApi } from '@/lib/api';
 import { DynamicField, ProjectTypeItem, FacultyItem } from '@/types';
 
@@ -58,6 +59,8 @@ export default function SettingsPage() {
       const payload: Record<string,string> = {};
       Object.entries(settings).forEach(([k,v]) => { payload[k] = String(v||''); });
       await settingsApi.update(payload);
+      // Store cache'ini temizle — sidebar/login anında güncellensin
+      await loadSettings(true);
       toast.success('Ayarlar kaydedildi');
     } catch { toast.error('Kayıt başarısız'); }
     finally { setSaving(false); }

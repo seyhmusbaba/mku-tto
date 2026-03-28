@@ -16,11 +16,11 @@ export function SiteHead() {
       }
     };
 
-    // Önce cache'ten anında uygula
+    // localStorage'dan anında uygula — flash yok
     apply(getSettings());
-    // Sonra API'den yükle
+    // API'den güncel veriyi çek
     loadSettings().then(apply);
-    // Store güncellenince tekrar uygula
+    // Ayarlar değişince güncelle (settings sayfasından kaydetme sonrası)
     const unsub = subscribeSettings(apply);
     return unsub;
   }, [pathname]);

@@ -9,7 +9,8 @@ export function Footer() {
     const apply = (s: any) => { if (s.footer_text) setText(s.footer_text); };
     apply(getSettings());
     loadSettings().then(apply);
-    return subscribeSettings(apply);
+    const unsub = subscribeSettings(apply);
+    return unsub;
   }, []);
 
   return (

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { api, facultiesApi } from '@/lib/api';
-import { loadSettings, getSettings, subscribeSettings } from '@/lib/settings-store';
+import { loadSettings, getSettings } from '@/lib/settings-store';
 import toast from 'react-hot-toast';
 
 type Mode = 'login' | 'register' | 'pending';
@@ -20,8 +20,7 @@ export default function LoginPage() {
   const [logoUrl, setLogoUrl] = useState(() => getSettings().logo_url || '');
   useEffect(() => {
     facultiesApi.getActive().then(r => setFaculties((r.data || []).map((f: any) => f.name))).catch(() => {});
-    settingsApi.getAll().then(r => {
-      const s = r.data || {};
+    const applySettings = (s: any) => {
       if (s.site_name) setSiteName(s.site_name);
       if (s.footer_text) setFooterText(s.footer_text);
       if (s.logo_url) setLogoUrl(s.logo_url);
@@ -30,8 +29,10 @@ export default function LoginPage() {
         if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
         link.href = s.favicon_url;
       }
-      if (s.site_name) document.title = `${s.site_name} - Proje Yönetim Sistemi`;
-    }).catch(() => {});
+      if (s.site_name) document.title = s.site_name + ' - Proje Yönetim Sistemi';
+    };
+    applySettings(getSettings());
+    loadSettings().then(applySettings).catch(() => {});
   }, []);
   const [mode, setMode] = useState<Mode>('login');
   const [loading, setLoading] = useState(false);
