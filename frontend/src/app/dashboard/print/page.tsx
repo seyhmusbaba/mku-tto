@@ -25,7 +25,8 @@ export default function DashboardPrintPage() {
 
   useEffect(() => {
     const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-    const token = sessionStorage.getItem('tto_print_token') || localStorage.getItem('tto_token') || '';
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token') || localStorage.getItem('tto_token') || '';
     const headers = { Authorization: `Bearer ${token}` };
     Promise.all([
       axios.get(`${base}/dashboard`, { headers }).then(r => setStats(r.data)),
