@@ -25,14 +25,24 @@ export default function DashboardPrintPage() {
 
   useEffect(() => {
     const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token') || localStorage.getItem('tto_token') || '';
-    const headers = { Authorization: `Bearer ${token}` };
+    // Token'ı URL'den veya localStorage'dan al
+    let token = '';
+    try {
+      const params = new URLSearchParams(window.location.search);
+      token = params.get('token') || localStorage.getItem('tto_token') || '';
+    } catch {}
+    
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    
+    const headers = { Authorization: 'Bearer ' + token };
 
     Promise.all([
-      axios.get(`${base}/dashboard`, { headers }).then(r => setStats(r.data)),
-      axios.get(`${base}/settings`, { headers }).then(r => { if (r.data?.site_name) setSiteName(r.data.site_name); }).catch(() => {}),
-    ]).finally(() => setLoading(false));
+      axios.get(base + '/dashboard', { headers }).then(r => setStats(r.data)),
+      axios.get(base + '/settings', { headers }).then(r => { if (r.data?.site_name) setSiteName(r.data.site_name); }).catch(() => {}),
+    ]).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   if (loading) return (
