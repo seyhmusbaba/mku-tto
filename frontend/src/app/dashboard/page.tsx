@@ -425,7 +425,13 @@ export default function DashboardPage() {
         title={isAdmin ? 'Genel Bakış' : 'Projelerim'}
         subtitle={isAdmin ? 'Sistem geneli istatistikler' : `${user?.firstName} ${user?.lastName} · Proje Özeti`}
         actions={isAdmin && (
-          <button onClick={() => window.print()} className="btn-secondary flex items-center gap-2 text-sm">
+          <button onClick={() => {
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('tto_token');
+    if (token) sessionStorage.setItem('tto_print_token', token);
+  }
+  window.open('/dashboard/print', '_blank');
+}} className="btn-secondary flex items-center gap-2 text-sm">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
             </svg>
