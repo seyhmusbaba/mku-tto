@@ -8,28 +8,68 @@ export class AiController {
   @Get('orcid/:orcidId')
   async lookupOrcid(@Param('orcidId') orcidId: string) {
     try {
-      const res = await fetch(`https://pub.orcid.org/v3.0/${orcidId}/record`, {
-        headers: { 'Accept': 'application/json' },
-      });
-      if (!res.ok) return { error: 'ORCID bulunamadı' };
-      const data = await res.json();
-      const person = data?.person;
-      const works = data?.['activities-summary']?.works?.group || [];
+      const headers = { Accept: 'application/json' };
+      const [person, works, employments, educations] = await Promise.all([
+        fetch(`https://pub.orcid.org/v3.0/${orcidId}/person`, { headers }).then(r => r.json()).catch(() => ({})),
+        fetch(`https://pub.orcid.org/v3.0/${orcidId}/works`, { headers }).then(r => r.json()).catch(() => ({})),
+        fetch(`https://pub.orcid.org/v3.0/${orcidId}/employments`, { headers }).then(r => r.json()).catch(() => ({})),
+        fetch(`https://pub.orcid.org/v3.0/${orcidId}/educations`, { headers }).then(r => r.json()).catch(() => ({})),
+      ]);
+
       const name = person?.name;
+      const firstName = name?.['given-names']?.value || '';
+      const lastName = name?.['family-name']?.value || '';
+      const biography = person?.biography?.content || '';
+      const keywords = person?.keywords?.keyword?.map((k: any) => k.content) || [];
+
+      const TYPE_LABELS: Record<string, string> = {
+        'journal-article': 'Dergi Makalesi', 'conference-paper': 'Konferans',
+        'book': 'Kitap', 'book-chapter': 'Kitap Bölümü', 'dissertation': 'Tez',
+      };
+
+      const workList = (works?.group || []).slice(0, 30).map((g: any) => {
+        const ws = g['work-summary']?.[0];
+        const extIds = ws?.['external-ids']?.['external-id'] || [];
+        const doi = extIds.find((e: any) => e['external-id-type'] === 'doi')?.['external-id-value'] || '';
+        return {
+          title: ws?.title?.title?.value || '',
+          year: ws?.['publication-date']?.year?.value || '',
+          type: ws?.type || '',
+          typeLabel: TYPE_LABELS[ws?.type] || ws?.type || '',
+          journal: ws?.['journal-title']?.value || '',
+          doi,
+        };
+      }).filter((w: any) => w.title);
+
+      const employmentList = (employments?.['affiliation-group'] || []).map((g: any) => {
+        const s = g.summaries?.[0]?.['employment-summary'];
+        return {
+          organization: s?.organization?.name || '',
+          role: s?.['role-title'] || '',
+          department: s?.['department-name'] || '',
+          startYear: s?.['start-date']?.year?.value || '',
+          endYear: s?.['end-date']?.year?.value || '',
+          current: !s?.['end-date'],
+        };
+      }).filter((e: any) => e.organization);
+
+      const educationList = (educations?.['affiliation-group'] || []).map((g: any) => {
+        const s = g.summaries?.[0]?.['education-summary'];
+        return {
+          organization: s?.organization?.name || '',
+          role: s?.['role-title'] || '',
+          department: s?.['department-name'] || '',
+          startYear: s?.['start-date']?.year?.value || '',
+          endYear: s?.['end-date']?.year?.value || '',
+        };
+      }).filter((e: any) => e.organization);
+
       return {
-        name: name ? `${name['given-names']?.value || ''} ${name['family-name']?.value || ''}`.trim() : null,
-        bio: person?.biography?.content || null,
-        keywords: person?.keywords?.keyword?.map((k: any) => k.content) || [],
-        publicationCount: works.length,
-        recentWorks: works.slice(0, 5).map((g: any) => {
-          const ws = g['work-summary']?.[0];
-          return {
-            title: ws?.title?.title?.value,
-            year: ws?.['publication-date']?.year?.value,
-            type: ws?.type,
-            journal: ws?.['journal-title']?.value,
-          };
-        }).filter((w: any) => w.title),
+        firstName, lastName, biography, keywords,
+        works: workList,
+        employments: employmentList,
+        educations: educationList,
+        publicationCount: workList.length,
       };
     } catch {
       return { error: 'ORCID sorgusu başarısız' };
@@ -39,9 +79,7 @@ export class AiController {
   @Post('generate')
   async generate(@Body() dto: { system: string; userContent: string; maxTokens?: number }) {
     const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      return { error: 'ANTHROPIC_API_KEY tanımlı değil. Backend .env dosyasına ANTHROPIC_API_KEY=sk-ant-... ekleyin.' };
-    }
+    if (!apiKey) return { error: 'ANTHROPIC_API_KEY tanımlı değil.' };
 
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {

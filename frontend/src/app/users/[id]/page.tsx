@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/auth-context';
 import { User, Project } from '@/types';
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_COLORS, SDG_MAP, getProjectTypeLabel, formatDate, formatCurrency, getInitials, ROLE_COLORS, MEMBER_ROLE_LABELS } from '@/lib/utils';
 import toast from 'react-hot-toast';
+import { OrcidPublications } from '@/components/OrcidPublications';
 
 const MEMBER_ROLE_STYLES: Record<string, { color: string; bg: string; icon: string; label: string }> = {
   researcher:  { color: '#1a3a6b', bg: '#eff6ff', icon: '🔬', label: 'Araştırmacı' },
@@ -199,7 +200,28 @@ export default function UserProfilePage() {
                     <span className="w-4 h-4 rounded text-white text-[9px] font-bold flex items-center justify-center" style={{ background: '#a6ce39' }}>iD</span>
                     ORCID ID
                   </label>
-                  <input className="input" placeholder="0000-0000-0000-0000" value={editForm.orcidId||''} onChange={e => set('orcidId', e.target.value)} />
+                  <div className="flex gap-2">
+                    <input className="input flex-1" placeholder="0000-0000-0000-0000" value={editForm.orcidId||''} onChange={e => set('orcidId', e.target.value)} />
+                    {editForm.orcidId && (
+                      <button type="button" onClick={async () => {
+                        try {
+                          const r = await api.get(`/ai/orcid/${editForm.orcidId}`);
+                          const d = r.data;
+                          if (d.error) { toast.error(d.error); return; }
+                          if (d.biography) set('bio', d.biography);
+                          if (d.keywords?.length) set('expertiseArea', d.keywords.join(', '));
+                          if (d.employments?.length) {
+                            const cur = d.employments.find((e: any) => e.current) || d.employments[0];
+                            if (cur?.organization) set('faculty', cur.organization);
+                            if (cur?.department) set('department', cur.department);
+                          }
+                          toast.success(`ORCID aktarıldı — ${d.publicationCount || 0} yayın bulundu`);
+                        } catch { toast.error('ORCID verisi alınamadı'); }
+                      }} className="btn-secondary text-xs px-3 flex-shrink-0 whitespace-nowrap">
+                        🔄 Senkronize Et
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="label flex items-center gap-1">🎓 Google Scholar ID</label>
@@ -354,6 +376,11 @@ export default function UserProfilePage() {
                   );
                 })}
               </div>
+            )}
+
+            {/* ORCID Yayınları */}
+            {(user as any).orcidId && !editMode && (
+              <OrcidPublications orcidId={(user as any).orcidId} />
             )}
 
             {/* Son Ziyaretçiler — sadece kendin veya admin görebilir */}
