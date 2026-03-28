@@ -1,14 +1,15 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { settingsApi } from '@/lib/api';
+import { loadSettings, getSettings, subscribeSettings } from '@/lib/settings-store';
 
 export function Footer() {
-  const [text, setText] = useState('© Hatay Mustafa Kemal Üniversitesi TTO');
+  const [text, setText] = useState(() => getSettings().footer_text || '© Hatay Mustafa Kemal Üniversitesi TTO');
 
   useEffect(() => {
-    settingsApi.getAll().then(r => {
-      if (r.data?.footer_text) setText(r.data.footer_text);
-    }).catch(() => {});
+    const apply = (s: any) => { if (s.footer_text) setText(s.footer_text); };
+    apply(getSettings());
+    loadSettings().then(apply);
+    return subscribeSettings(apply);
   }, []);
 
   return (

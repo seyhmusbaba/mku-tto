@@ -2,7 +2,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { api, facultiesApi, settingsApi } from '@/lib/api';
+import { api, facultiesApi } from '@/lib/api';
+import { loadSettings, getSettings, subscribeSettings } from '@/lib/settings-store';
 import toast from 'react-hot-toast';
 
 type Mode = 'login' | 'register' | 'pending';
@@ -14,9 +15,9 @@ const TITLES = ['Prof. Dr.', 'Doç. Dr.', 'Dr. Öğr. Üyesi', 'Arş. Gör. Dr.'
 
 export default function LoginPage() {
   const [faculties, setFaculties] = useState<string[]>([]);
-  const [siteName, setSiteName] = useState('MKÜ TTO');
-  const [footerText, setFooterText] = useState(`© ${new Date().getFullYear()} Hatay MKÜ Teknoloji Transfer Ofisi`);
-  const [logoUrl, setLogoUrl] = useState('');
+  const [siteName, setSiteName] = useState(() => getSettings().site_name || 'MKÜ TTO');
+  const [footerText, setFooterText] = useState(() => getSettings().footer_text || `© ${new Date().getFullYear()} Hatay MKÜ Teknoloji Transfer Ofisi`);
+  const [logoUrl, setLogoUrl] = useState(() => getSettings().logo_url || '');
   useEffect(() => {
     facultiesApi.getActive().then(r => setFaculties((r.data || []).map((f: any) => f.name))).catch(() => {});
     settingsApi.getAll().then(r => {

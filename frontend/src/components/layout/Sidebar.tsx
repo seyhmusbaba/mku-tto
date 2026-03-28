@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { settingsApi } from '@/lib/api';
+import { loadSettings, getSettings, subscribeSettings } from '@/lib/settings-store';
 import { getInitials } from '@/lib/utils';
 
 interface NavItem {
@@ -37,25 +37,23 @@ const navGroups: NavGroup[] = [
 ];
 
 // Sidebar logo/isim cache — flash önlemek için module-level
-let _cachedSiteName = 'MKÜ TTO';
-let _cachedLogoUrl = '';
-let _settingsLoaded = false;
+
 
 export function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const isAdmin = user?.role?.name === 'Süper Admin';
-  const [siteName, setSiteName] = useState(_cachedSiteName);
-  const [logoUrl, setLogoUrl] = useState(_cachedLogoUrl);
+  const [siteName, setSiteName] = useState(() => getSettings().site_name || 'MKÜ TTO');
+  const [logoUrl, setLogoUrl] = useState(() => getSettings().logo_url || '');
 
   useEffect(() => {
-    if (_settingsLoaded) return; // Zaten yüklendiyse tekrar yükleme
-    settingsApi.getAll().then(r => {
-      const s: Record<string, string> = r.data || {};
-      if (s.site_name) { _cachedSiteName = s.site_name; setSiteName(s.site_name); }
-      if (s.logo_url) { _cachedLogoUrl = s.logo_url; setLogoUrl(s.logo_url); }
-      _settingsLoaded = true;
-    }).catch(() => {});
+    const apply = (s: any) => {
+      if (s.site_name) setSiteName(s.site_name);
+      if (s.logo_url !== undefined) setLogoUrl(s.logo_url);
+    };
+    apply(getSettings());
+    loadSettings().then(apply);
+    return subscribeSettings(apply);
   }, []);
 
   return (
