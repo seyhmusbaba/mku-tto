@@ -2,57 +2,50 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Competition } from '../database/entities/competition.entity';
+import { CompetitionSource } from '../database/entities/competition-source.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { User } from '../database/entities/user.entity';
-
-const SOURCES = [
-  {
-    key: 'tubitak',
-    name: 'TÜBİTAK',
-    rssUrl: 'https://www.tubitak.gov.tr/tr/duyurular/icerik-haber-rss',
-    color: '#1d4ed8',
-  },
-  {
-    key: 'horizon',
-    name: 'Horizon Europe',
-    rssUrl: 'https://ec.europa.eu/info/funding-tenders/opportunities/data/topicDetails.json',
-    color: '#003399',
-  },
-];
 
 @Injectable()
 export class CompetitionsService {
   constructor(
     @InjectRepository(Competition) private repo: Repository<Competition>,
+    @InjectRepository(CompetitionSource) private sourceRepo: Repository<CompetitionSource>,
     @InjectRepository(User) private userRepo: Repository<User>,
     private notificationsService: NotificationsService,
   ) {}
 
-  async findAll(q: {
-    source?: string;
-    category?: string;
-    status?: string;
-    search?: string;
-    page?: number;
-    limit?: number;
-  }) {
-    const { source, category, status, search, page = 1, limit = 20 } = q;
-    const qb = this.repo.createQueryBuilder('c')
-      .where('c.isActive = :active', { active: true });
+  // ── KAYNAK YÖNETİMİ ───────────────────────────────────────────
+  async getSources() {
+    return this.sourceRepo.find({ order: { createdAt: 'ASC' } });
+  }
 
+  async createSource(dto: Partial<CompetitionSource>) {
+    const src = this.sourceRepo.create(dto);
+    return this.sourceRepo.save(src);
+  }
+
+  async updateSource(id: string, dto: Partial<CompetitionSource>) {
+    await this.sourceRepo.update(id, dto);
+    return this.sourceRepo.findOne({ where: { id } });
+  }
+
+  async deleteSource(id: string) {
+    await this.sourceRepo.delete(id);
+    return { deleted: true };
+  }
+
+  // ── YARIŞMALAR ────────────────────────────────────────────────
+  async findAll(q: any) {
+    const { source, category, status, search, page = 1, limit = 12 } = q;
+    const qb = this.repo.createQueryBuilder('c').where('c.isActive = true');
     if (source) qb.andWhere('c.source = :source', { source });
     if (category) qb.andWhere('c.category = :category', { category });
     if (status) qb.andWhere('c.status = :status', { status });
     if (search) qb.andWhere('(c.title ILIKE :s OR c.description ILIKE :s)', { s: `%${search}%` });
-
     qb.orderBy('c.createdAt', 'DESC');
-
-    const [data, total] = await qb
-      .skip((+page - 1) * +limit)
-      .take(+limit)
-      .getManyAndCount();
-
-    return { data, total, page: +page, limit: +limit, totalPages: Math.ceil(total / +limit) };
+    const [data, total] = await qb.skip((+page-1)*+limit).take(+limit).getManyAndCount();
+    return { data, total, page: +page, limit: +limit, totalPages: Math.ceil(total/+limit) };
   }
 
   async findOne(id: string) {
@@ -60,14 +53,8 @@ export class CompetitionsService {
   }
 
   async create(dto: Partial<Competition>) {
-    const comp = this.repo.create({
-      ...dto,
-      isManual: true,
-      isActive: true,
-      status: dto.status || 'active',
-    });
+    const comp = this.repo.create({ ...dto, isManual: true, isActive: true, status: dto.status || 'active' });
     const saved = await this.repo.save(comp);
-    // Tüm kullanıcılara sistem bildirimi gönder
     await this.sendNotifications(saved);
     return saved;
   }
@@ -82,127 +69,126 @@ export class CompetitionsService {
     return { deleted: true };
   }
 
+  // ── KAYNAK TARAMA ─────────────────────────────────────────────
   async fetchFromSources() {
-    const results: { added: number; sources: string[] } = { added: 0, sources: [] };
+    const sources = await this.sourceRepo.find({ where: { isActive: true } });
 
-    // TÜBİTAK RSS
-    try {
-      const added = await this.fetchTubitakRSS();
-      if (added > 0) { results.added += added; results.sources.push('TÜBİTAK'); }
-    } catch {}
+    if (!sources.length) {
+      return { added: 0, message: 'Henüz kaynak eklenmemiş. Sistem Ayarları → Kaynaklar bölümünden kaynak ekleyin.' };
+    }
 
-    // Horizon Europe (açık API)
-    try {
-      const added = await this.fetchHorizonEurope();
-      if (added > 0) { results.added += added; results.sources.push('Horizon Europe'); }
-    } catch {}
+    let totalAdded = 0;
+    const usedSources: string[] = [];
 
-    return results;
-  }
-
-  private async fetchTubitakRSS(): Promise<number> {
-    const rssUrls = [
-      'https://www.tubitak.gov.tr/tr/duyurular/icerik-haber-rss',
-      'https://www.tubitak.gov.tr/tr/destekler/akademik/ulusal-destek-programlari/icerik-1001',
-    ];
-
-    let added = 0;
-    for (const url of rssUrls) {
+    for (const src of sources) {
       try {
-        const res = await fetch(url, {
-          headers: { 'Accept': 'application/rss+xml, application/xml, text/xml' },
-          signal: AbortSignal.timeout(8000),
-        });
-        if (!res.ok) continue;
-        const text = await res.text();
-        const items = this.parseRSS(text);
-
-        for (const item of items.slice(0, 10)) {
-          const externalId = 'tubitak_' + Buffer.from(item.link || item.title).toString('base64').slice(0, 32);
-          const exists = await this.repo.findOne({ where: { externalId } });
-          if (exists) continue;
-
-          const comp = this.repo.create({
-            title: item.title,
-            description: item.description?.replace(/<[^>]*>/g, '').slice(0, 500),
-            source: 'tubitak',
-            sourceUrl: item.link,
-            applyUrl: item.link,
-            category: 'araştırma',
-            status: 'active',
-            isManual: false,
-            isActive: true,
-            externalId,
+        let added = 0;
+        if (src.type === 'rss') {
+          added = await this.fetchRSS(src);
+        }
+        if (added > 0) {
+          totalAdded += added;
+          usedSources.push(src.name);
+          await this.sourceRepo.update(src.id, {
+            lastFetchedAt: new Date(),
+            totalFetched: (src.totalFetched || 0) + added,
           });
-          const saved = await this.repo.save(comp);
-          await this.sendNotifications(saved);
-          added++;
+        } else {
+          // Son tarama zamanını güncelle
+          await this.sourceRepo.update(src.id, { lastFetchedAt: new Date() });
         }
       } catch {}
+    }
+
+    return {
+      added: totalAdded,
+      sources: usedSources,
+      message: totalAdded > 0
+        ? `${totalAdded} yeni duyuru eklendi`
+        : 'Yeni duyuru bulunamadı. RSS kaynaklarınızın güncel ve erişilebilir olduğunu kontrol edin.',
+    };
+  }
+
+  async testSource(url: string): Promise<{ ok: boolean; count: number; preview: string[] }> {
+    try {
+      const res = await fetch(url, {
+        headers: { Accept: 'application/rss+xml, application/xml, text/xml, */*' },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!res.ok) return { ok: false, count: 0, preview: [] };
+      const text = await res.text();
+      const items = this.parseRSS(text);
+      return {
+        ok: true,
+        count: items.length,
+        preview: items.slice(0, 3).map(i => i.title),
+      };
+    } catch (e: any) {
+      return { ok: false, count: 0, preview: [e.message || 'Bağlantı hatası'] };
+    }
+  }
+
+  private async fetchRSS(src: CompetitionSource): Promise<number> {
+    const res = await fetch(src.url, {
+      headers: { Accept: 'application/rss+xml, application/xml, text/xml, */*' },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return 0;
+    const text = await res.text();
+    const items = this.parseRSS(text);
+    let added = 0;
+
+    for (const item of items.slice(0, 20)) {
+      const externalId = src.id + '_' + Buffer.from(item.link || item.title).toString('base64').slice(0, 40);
+      const exists = await this.repo.findOne({ where: { externalId } });
+      if (exists) continue;
+
+      const comp = this.repo.create({
+        title: item.title,
+        description: item.description?.replace(/<[^>]*>/g, '').trim().slice(0, 600) || null,
+        source: src.name.toLowerCase().replace(/\s+/g, '_').slice(0, 30),
+        sourceUrl: item.link,
+        applyUrl: item.link,
+        deadline: item.pubDate ? new Date(item.pubDate).toLocaleDateString('tr-TR') : null,
+        category: src.defaultCategory || 'araştırma',
+        status: 'active',
+        isManual: false,
+        isActive: true,
+        externalId,
+      });
+      const saved = await this.repo.save(comp);
+      await this.sendNotifications(saved);
+      added++;
     }
     return added;
   }
 
-  private async fetchHorizonEurope(): Promise<number> {
-    let added = 0;
-    try {
-      const res = await fetch(
-        'https://ec.europa.eu/info/funding-tenders/opportunities/data/topicDetails.json?callStatus=open&programmePeriod=2021-2027&sortBy=startDate&order=desc&pageSize=10',
-        { signal: AbortSignal.timeout(8000) }
-      );
-      if (!res.ok) return 0;
-      const data = await res.json();
-      const topics = data?.fundingData?.GrantTenderObj || [];
-
-      for (const topic of topics.slice(0, 5)) {
-        const externalId = 'horizon_' + (topic.identifier || topic.id || '').slice(0, 32);
-        const exists = await this.repo.findOne({ where: { externalId } });
-        if (exists) continue;
-
-        const comp = this.repo.create({
-          title: topic.title || topic.titleEn || 'Horizon Europe Çağrısı',
-          description: (topic.description || topic.objective || '').replace(/<[^>]*>/g, '').slice(0, 500),
-          source: 'horizon',
-          sourceUrl: `https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-details/${topic.identifier}`,
-          applyUrl: `https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-details/${topic.identifier}`,
-          deadline: topic.deadlineDate ? new Date(topic.deadlineDate).toLocaleDateString('tr-TR') : null,
-          category: 'uluslararası',
-          status: 'active',
-          isManual: false,
-          isActive: true,
-          externalId,
-        });
-        const saved = await this.repo.save(comp);
-        await this.sendNotifications(saved);
-        added++;
-      }
-    } catch {}
-    return added;
-  }
-
-  private parseRSS(xml: string): Array<{ title: string; link: string; description: string }> {
-    const items: Array<{ title: string; link: string; description: string }> = [];
-    const itemMatches = xml.matchAll(/<item>([\s\S]*?)<\/item>/g);
-    for (const match of itemMatches) {
-      const content = match[1];
-      const title = content.match(/<title[^>]*><!\[CDATA\[(.*?)\]\]><\/title>|<title[^>]*>(.*?)<\/title>/)?.[1] || '';
-      const link = content.match(/<link[^>]*>(.*?)<\/link>|<link>(.*?)<\/link>/)?.[1] || '';
-      const description = content.match(/<description[^>]*><!\[CDATA\[(.*?)\]\]><\/description>|<description[^>]*>(.*?)<\/description>/)?.[1] || '';
-      if (title) items.push({ title: title.trim(), link: link.trim(), description: description.trim() });
+  private parseRSS(xml: string) {
+    const items: any[] = [];
+    const matches = xml.matchAll(/<item[^>]*>([\s\S]*?)<\/item>/gi);
+    for (const m of matches) {
+      const block = m[1];
+      const get = (tag: string) => {
+        const r = block.match(new RegExp(`<${tag}[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/${tag}>`, 'i'));
+        return r?.[1]?.trim() || '';
+      };
+      const title = get('title');
+      const link = get('link') || get('guid');
+      const description = get('description') || get('summary');
+      const pubDate = get('pubDate') || get('dc:date');
+      if (title) items.push({ title, link, description, pubDate });
     }
     return items;
   }
 
   private async sendNotifications(comp: Competition) {
     try {
-      // Aktif tüm kullanıcılara sistem içi bildirim
       const users = await this.userRepo.find({ where: { isActive: true as any } });
-      const source = this.getSourceLabel(comp.source);
       await Promise.all(users.map(u =>
         this.notificationsService.create({
           userId: u.id,
           title: '🏆 Yeni Yarışma/Destek Duyurusu',
-          message: `${source}: ${comp.title}`,
+          message: `${comp.title}`,
           type: 'info',
           link: '/competitions',
         }).catch(() => {})
@@ -210,23 +196,12 @@ export class CompetitionsService {
     } catch {}
   }
 
-  private getSourceLabel(source: string): string {
-    const labels: Record<string, string> = {
-      tubitak: 'TÜBİTAK', horizon: 'Horizon Europe',
-      kosgeb: 'KOSGEB', kalkinma: 'Kalkınma Ajansı', diger: 'Diğer',
-    };
-    return labels[source] || source;
-  }
-
   async getStats() {
     const total = await this.repo.count({ where: { isActive: true } });
     const active = await this.repo.count({ where: { isActive: true, status: 'active' } as any });
     const bySrc = await this.repo.createQueryBuilder('c')
-      .select('c.source', 'source')
-      .addSelect('COUNT(*)', 'count')
-      .where('c.isActive = true')
-      .groupBy('c.source')
-      .getRawMany();
+      .select('c.source', 'source').addSelect('COUNT(*)', 'count')
+      .where('c.isActive = true').groupBy('c.source').getRawMany();
     return { total, active, bySources: bySrc };
   }
 }

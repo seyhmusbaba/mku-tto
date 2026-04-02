@@ -18,6 +18,7 @@ import { ExportModule } from './export/export.module';
 import { AuditModule } from './audit/audit.module';
 import { CompetitionsModule } from './competitions/competitions.module';
 import { Competition } from './database/entities/competition.entity';
+import { CompetitionSource } from './database/entities/competition-source.entity';
 import { AuditLog } from './database/entities/audit-log.entity';
 import { ProfileVisit } from './database/entities/profile-visit.entity';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -54,7 +55,7 @@ import { ProjectPartner } from './database/entities/project-partner.entity';
       ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
       entities: [
         User, Role, Permission, Project, ProjectMember, ProjectDocument, ProjectReport, ProjectPartner,
-        SystemSetting, DynamicProjectField, Notification, ProjectType, Faculty, ReportType, AuditLog, ProfileVisit, Competition,
+        SystemSetting, DynamicProjectField, Notification, ProjectType, Faculty, ReportType, AuditLog, ProfileVisit, Competition, CompetitionSource,
       ],
       synchronize: true,
       logging: false,
