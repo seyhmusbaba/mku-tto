@@ -140,12 +140,24 @@ export class UsersService {
 
   async getRecentVisitors(profileUserId: string, limit = 20): Promise<any[]> {
     try {
-      return await this.visitRepo.find({
+      const visits = await this.visitRepo.find({
         where: { profileUserId: profileUserId } as any,
         relations: ['visitor'],
         order: { visitedAt: 'DESC' } as any,
-        take: limit,
+        take: 100,
       });
+      // Her ziyaretçiden sadece en son ziyareti tut (tekil gösterim)
+      const seen = new Set<string>();
+      const unique: any[] = [];
+      for (const v of visits) {
+        const id = v.visitorUserId;
+        if (id && !seen.has(id)) {
+          seen.add(id);
+          unique.push(v);
+          if (unique.length >= limit) break;
+        }
+      }
+      return unique;
     } catch (_) {
       return [];
     }
