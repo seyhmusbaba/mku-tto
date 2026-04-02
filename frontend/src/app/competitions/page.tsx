@@ -6,6 +6,47 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import toast from 'react-hot-toast';
 
+// Tarih ayrıştır — "15 Mayıs 2025", "2025-05-15", "15.05.2025" gibi formatları destekle
+function parseDeadline(str: string): Date | null {
+  if (!str) return null;
+  // ISO format
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) return new Date(str);
+  // dd.mm.yyyy
+  const dmy = str.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+  if (dmy) return new Date(+dmy[3], +dmy[2]-1, +dmy[1]);
+  // Türkçe ay adları
+  const TR_MONTHS: Record<string, number> = { 'ocak':0,'şubat':1,'mart':2,'nisan':3,'mayıs':4,'haziran':5,'temmuz':6,'ağustos':7,'eylül':8,'ekim':9,'kasım':10,'aralık':11 };
+  const parts = str.toLowerCase().replace(/[,]/g,'').split(/\s+/);
+  if (parts.length >= 3) {
+    const day = parseInt(parts[0]);
+    const month = TR_MONTHS[parts[1]];
+    const year = parseInt(parts[parts.length-1]);
+    if (!isNaN(day) && month !== undefined && !isNaN(year)) return new Date(year, month, day);
+  }
+  if (parts.length === 2) {
+    const month = TR_MONTHS[parts[0]];
+    const year = parseInt(parts[1]);
+    if (month !== undefined && !isNaN(year)) return new Date(year, month, 1);
+  }
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function getDeadlineInfo(deadlineStr: string): { daysLeft: number | null; isExpired: boolean; isUrgent: boolean; isSoon: boolean; label: string; color: string; bg: string; icon: string } {
+  const date = parseDeadline(deadlineStr);
+  if (!date) return { daysLeft: null, isExpired: false, isUrgent: false, isSoon: false, label: deadlineStr, color: '#6b7280', bg: 'transparent', icon: '⏰' };
+  const now = new Date();
+  now.setHours(0,0,0,0);
+  date.setHours(0,0,0,0);
+  const diff = Math.round((date.getTime() - now.getTime()) / (1000*60*60*24));
+  if (diff < 0) return { daysLeft: diff, isExpired: true, isUrgent: false, isSoon: false, label: `${Math.abs(diff)} gün önce sona erdi`, color: '#9ca3af', bg: '#f3f4f6', icon: '🔒' };
+  if (diff === 0) return { daysLeft: 0, isExpired: false, isUrgent: true, isSoon: false, label: 'Bugün son gün!', color: '#dc2626', bg: '#fef2f2', icon: '🚨' };
+  if (diff <= 3) return { daysLeft: diff, isExpired: false, isUrgent: true, isSoon: false, label: `${diff} gün kaldı`, color: '#dc2626', bg: '#fef2f2', icon: '🔥' };
+  if (diff <= 7) return { daysLeft: diff, isExpired: false, isUrgent: false, isSoon: true, label: `${diff} gün kaldı`, color: '#d97706', bg: '#fffbeb', icon: '⚡' };
+  if (diff <= 30) return { daysLeft: diff, isExpired: false, isUrgent: false, isSoon: true, label: `${diff} gün kaldı`, color: '#059669', bg: '#f0fdf4', icon: '📅' };
+  return { daysLeft: diff, isExpired: false, isUrgent: false, isSoon: false, label: deadlineStr, color: '#6b7280', bg: 'transparent', icon: '⏰' };
+}
+
 const CATEGORY_LABELS: Record<string, string> = {
   'araştırma': '🔬 Araştırma', 'inovasyon': '💡 İnovasyon',
   'girişim': '🚀 Girişim', 'uluslararası': '🌍 Uluslararası', 'diger': '📋 Diğer',
@@ -276,15 +317,48 @@ export default function CompetitionsPage() {
                   {competitions.map(comp => {
                     const status = STATUS_STYLES[comp.status] || STATUS_STYLES.active;
                     return (
-                      <div key={comp.id} className="card p-5 flex flex-col gap-3 hover:shadow-md transition-shadow">
+                      <div key={comp.id} className="card p-5 flex flex-col gap-3 hover:shadow-md transition-shadow relative overflow-hidden"
+                       style={{ opacity: comp.deadline && getDeadlineInfo(comp.deadline).isExpired ? 0.72 : 1 }}>
+                        {/* Sona erdi şeridi */}
+                        {comp.deadline && getDeadlineInfo(comp.deadline).isExpired && (
+                          <div className="absolute top-3 right-[-28px] rotate-45 text-white text-[9px] font-bold px-8 py-0.5 z-10"
+                            style={{ background: '#9ca3af' }}>
+                            SONA ERDİ
+                          </div>
+                        )}
+                        {/* Acil şerit */}
+                        {comp.deadline && getDeadlineInfo(comp.deadline).isUrgent && !getDeadlineInfo(comp.deadline).isExpired && (
+                          <div className="absolute top-3 right-[-24px] rotate-45 text-white text-[9px] font-bold px-8 py-0.5 z-10"
+                            style={{ background: '#dc2626' }}>
+                            ACİL
+                          </div>
+                        )}
                         <div className="flex items-center justify-between gap-2 flex-wrap">
                           <span className="text-xs font-semibold px-2 py-1 rounded-full" style={{ background: '#f0ede8', color: '#0f2444' }}>{comp.source || 'Duyuru'}</span>
                           <span className="text-xs font-semibold px-2 py-1 rounded-full" style={{ background: status.bg, color: status.color }}>● {status.label}</span>
                         </div>
                         <h3 className="font-display font-semibold text-navy text-sm leading-snug">{comp.title}</h3>
                         {comp.description && <p className="text-xs text-muted leading-relaxed line-clamp-3">{comp.description}</p>}
-                        <div className="space-y-1 text-xs">
-                          {comp.deadline && <p><span className="text-muted">⏰ Son Başvuru: </span><span className="font-semibold text-navy">{comp.deadline}</span></p>}
+                        <div className="space-y-1.5 text-xs">
+                          {comp.deadline && (() => {
+                            const dl = getDeadlineInfo(comp.deadline);
+                            return (
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {dl.bg !== 'transparent' ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg font-semibold"
+                                    style={{ background: dl.bg, color: dl.color, border: `1px solid ${dl.color}22` }}>
+                                    {dl.icon} {dl.isExpired ? 'Sona erdi: ' : 'Son başvuru: '}{dl.label}
+                                    {dl.isUrgent && !dl.isExpired && (
+                                      <span className="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full text-white text-[9px] font-bold animate-pulse"
+                                        style={{ background: dl.color }}>!</span>
+                                    )}
+                                  </span>
+                                ) : (
+                                  <p><span className="text-muted">⏰ Son Başvuru: </span><span className="font-semibold text-navy">{comp.deadline}</span></p>
+                                )}
+                              </div>
+                            );
+                          })()}
                           {comp.budget && <p><span className="text-muted">💰 Destek: </span><span className="font-semibold text-navy">{comp.budget}</span></p>}
                           {comp.category && <p className="text-muted">{CATEGORY_LABELS[comp.category] || comp.category}</p>}
                         </div>
