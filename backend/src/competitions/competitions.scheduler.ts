@@ -8,26 +8,28 @@ export class CompetitionsScheduler {
 
   constructor(private readonly svc: CompetitionsService) {}
 
-  // Her gün gece yarısı süresi dolmuşları işaretle
+  // Her gece yarısı süresi dolmuşları işaretle
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async autoExpire() {
     const expired = await this.svc.autoExpireCompetitions();
-    if (expired > 0) this.logger.log(\`⏰ \${expired} yarışma süresi doldu olarak işaretlendi\`);
+    if (expired > 0) {
+      this.logger.log(expired + ' yarişma süresi doldu olarak işaretlendi');
+    }
   }
 
-  // Her 6 saatte bir otomatik tara (00:00, 06:00, 12:00, 18:00)
+  // Her 6 saatte bir otomatik tara
   @Cron('0 0,6,12,18 * * *')
   async scheduledFetch() {
-    this.logger.log('🔄 Otomatik yarışma taraması başladı...');
+    this.logger.log('Otomatik yarısma taramasi basladi...');
     try {
       const result = await this.svc.fetchFromSources();
       if (result.added > 0) {
-        this.logger.log(`✅ ${result.added} yeni duyuru eklendi: ${result.sources?.join(', ')}`);
+        this.logger.log(result.added + ' yeni duyuru eklendi: ' + (result.sources || []).join(', '));
       } else {
-        this.logger.log('ℹ️ Yeni duyuru bulunamadı.');
+        this.logger.log('Yeni duyuru bulunamadi.');
       }
     } catch (err) {
-      this.logger.error('❌ Otomatik tarama hatası:', err);
+      this.logger.error('Otomatik tarama hatasi: ' + err);
     }
   }
 }
