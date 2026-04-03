@@ -78,6 +78,7 @@ export default function CompetitionsPage() {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<any>(null);
   const [savingSource, setSavingSource] = useState(false);
+  const [scheduleInfo, setScheduleInfo] = useState<any>(null);
 
   // Duyuru modal
   const [showModal, setShowModal] = useState(false);
@@ -103,6 +104,7 @@ export default function CompetitionsPage() {
   const loadSources = async () => {
     const r = await api.get('/competitions/sources/list').catch(() => ({ data: [] }));
     setSources(r.data || []);
+    api.get('/competitions/schedule-info').then(r => setScheduleInfo(r.data)).catch(() => {});
   };
 
   useEffect(() => { load(1); api.get('/competitions/stats').then(r => setStats(r.data)).catch(() => {}); }, [filters]);
@@ -222,9 +224,29 @@ export default function CompetitionsPage() {
         {/* ── KAYNAKLAR SEKMESİ ── */}
         {tab === 'sources' && isAdmin && (
           <div className="space-y-4">
-            <div className="card p-4" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
-              <p className="text-sm font-semibold text-blue-800 mb-1">📡 Kaynak Yönetimi</p>
-              <p className="text-xs text-blue-700">RSS feed URL'lerini buraya ekleyin. "Kaynakları Tara" butonuna basınca tüm aktif kaynaklar taranır ve yeni duyurular otomatik eklenir. Her kaynak için "Test Et" ile bağlantıyı doğrulayabilirsiniz.</p>
+            <div className="space-y-3">
+              <div className="card p-4" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+                <p className="text-sm font-semibold text-blue-800 mb-1">📡 Kaynak Yönetimi</p>
+                <p className="text-xs text-blue-700">RSS feed URL'lerini buraya ekleyin. Kaynaklar <strong>otomatik olarak her 6 saatte bir</strong> taranır. Yeni duyuru bulunursa tüm kullanıcılara otomatik bildirim gider. Manuel tarama için "Kaynakları Tara" butonunu kullanabilirsiniz.</p>
+              </div>
+              {/* Otomatik tarama bilgisi */}
+              <div className="card p-4 flex items-center gap-4" style={{ background: '#f0fdf4', border: '1px solid #86efac' }}>
+                <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: '#059669' }}>
+                  <span className="text-white text-lg">⏱️</span>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-green-800">Otomatik Tarama Aktif</p>
+                  <p className="text-xs text-green-700 mt-0.5">
+                    {scheduleInfo?.interval || 'Her 6 saatte bir (00:00, 06:00, 12:00, 18:00)'} — Yeni duyuru bulununca tüm kullanıcılara 🔔 bildirim gider
+                  </p>
+                </div>
+                <div className="ml-auto flex-shrink-0">
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold" style={{ background: '#dcfce7', color: '#15803d' }}>
+                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse inline-block" />
+                    Aktif
+                  </span>
+                </div>
+              </div>
             </div>
 
             {sources.length === 0 ? (

@@ -36,14 +36,68 @@ export class CompetitionsService {
   }
 
   // ── YARIŞMALAR ────────────────────────────────────────────────
+  // Tarih stringini parse et (dd.mm.yyyy, yyyy-mm-dd, "15 Mayıs 2025")
+  private parseDeadlineDate(str: string): Date | null {
+    if (!str) return null;
+    if (/^\d{4}-\d{2}-\d{2}/.test(str)) return new Date(str);
+    const dmy = str.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+    if (dmy) return new Date(+dmy[3], +dmy[2]-1, +dmy[1]);
+    const TR: Record<string,number> = { ocak:0,şubat:1,mart:2,nisan:3,mayıs:4,haziran:5,temmuz:6,ağustos:7,eylül:8,ekim:9,kasım:10,aralık:11 };
+    const parts = str.toLowerCase().replace(/[,]/g,'').split(/\s+/);
+    if (parts.length >= 2) {
+      const day = parseInt(parts[0]);
+      const month = TR[parts[1]];
+      const year = parts.length >= 3 ? parseInt(parts[2]) : new Date().getFullYear();
+      if (!isNaN(day) && month !== undefined && !isNaN(year)) return new Date(year, month, day);
+    }
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  // Süresi dolan yarışmaları otomatik güncelle
+  async autoExpireCompetitions() {
+    const all = await this.repo.find({ where: { isActive: true, status: 'active' } as any });
+    const now = new Date(); now.setHours(0,0,0,0);
+    let expired = 0;
+    for (const comp of all) {
+      if (!comp.deadline) continue;
+      const d = this.parseDeadlineDate(comp.deadline);
+      if (d && d < now) {
+        await this.repo.update(comp.id, { status: 'expired' });
+        expired++;
+      }
+    }
+    return expired;
+  }
+
   async findAll(q: any) {
     const { source, category, status, search, page = 1, limit = 12 } = q;
+
+    // Her listede süresi dolmuşları otomatik işaretle
+    await this.autoExpireCompetitions();
+
+    // 30 günden eski sona erenleri filtrele
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
     const qb = this.repo.createQueryBuilder('c').where('c.isActive = true');
     if (source) qb.andWhere('c.source = :source', { source });
     if (category) qb.andWhere('c.category = :category', { category });
-    if (status) qb.andWhere('c.status = :status', { status });
-    if (search) qb.andWhere('(c.title ILIKE :s OR c.description ILIKE :s)', { s: `%${search}%` });
-    qb.orderBy('c.createdAt', 'DESC');
+    if (status) {
+      qb.andWhere('c.status = :status', { status });
+    } else {
+      // Durum filtresi yoksa: aktif + yakında + 30 günden yeni sona erenler
+      qb.andWhere(
+        \`(c.status IN ('active','upcoming') OR (c.status = 'expired' AND c.updatedAt >= :cutoff))\`,
+        { cutoff: thirtyDaysAgo }
+      );
+    }
+    if (search) qb.andWhere('(c.title ILIKE :s OR c.description ILIKE :s)', { s: \`%\${search}%\` });
+
+    // Sıralama: aktifler önce, sona erenler sona
+    qb.orderBy(\`CASE WHEN c.status = 'active' THEN 0 WHEN c.status = 'upcoming' THEN 1 ELSE 2 END\`, 'ASC')
+      .addOrderBy('c.createdAt', 'DESC');
+
     const [data, total] = await qb.skip((+page-1)*+limit).take(+limit).getManyAndCount();
     return { data, total, page: +page, limit: +limit, totalPages: Math.ceil(total/+limit) };
   }

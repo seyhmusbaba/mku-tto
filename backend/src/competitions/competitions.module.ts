@@ -5,12 +5,16 @@ import { CompetitionSource } from '../database/entities/competition-source.entit
 import { User } from '../database/entities/user.entity';
 import { CompetitionsController } from './competitions.controller';
 import { CompetitionsService } from './competitions.service';
+import { CompetitionsScheduler } from './competitions.scheduler';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Competition, CompetitionSource, User]), NotificationsModule],
+  imports: [
+    TypeOrmModule.forFeature([Competition, CompetitionSource, User]),
+    NotificationsModule,
+  ],
   controllers: [CompetitionsController],
-  providers: [CompetitionsService],
+  providers: [CompetitionsService, CompetitionsScheduler],
   exports: [CompetitionsService],
 })
 export class CompetitionsModule {}
