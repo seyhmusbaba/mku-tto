@@ -56,7 +56,7 @@ export class YoksisService {
       if (profile.faculty) updateData.faculty = profile.faculty;
       if (profile.department) updateData.department = profile.department;
       if (profile.title) updateData.title = profile.title;
-      if (profile.expertise) updateData.expertise = profile.expertise;
+      if (profile.expertise) (updateData as any).expertiseArea = profile.expertise;
       if (profile.bio) updateData.bio = profile.bio;
 
       await this.userRepo.update(userId, updateData);

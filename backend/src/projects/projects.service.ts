@@ -133,17 +133,24 @@ export class ProjectsService {
       throw new ForbiddenException('Bu projeyi düzenleme yetkiniz yok');
     }
 
-    // Durum geçiş denetimi
+    // ── Değişen alanları tespit et (audit log) ────────────
+    const TRACK = ['title','description','status','type','faculty','department','budget','fundingSource','startDate','endDate','projectText','ipStatus','ipType','ipRegistrationNo','ethicsRequired','ethicsApproved'];
+    const changes: Record<string, { from: any; to: any }> = {};
+    for (const field of TRACK) {
+      if (dto[field] !== undefined && String(dto[field]) !== String((project as any)[field])) {
+        changes[field] = { from: (project as any)[field], to: dto[field] };
+      }
+    }
+
     const oldStatus = project.status;
+    const oldIpStatus = (project as any).ipStatus;
+
+    // Durum geçiş denetimi
     if (dto.status && dto.status !== project.status) {
       const allowed = STATUS_TRANSITIONS[project.status] || [];
       if (!allowed.includes(dto.status)) {
-        throw new BadRequestException(
-          `"${STATUS_LABELS[project.status]}" durumundan "${STATUS_LABELS[dto.status] || dto.status}" durumuna geçiş yapılamaz.`
-        );
+        throw new BadRequestException(`"${STATUS_LABELS[project.status]}" durumundan "${STATUS_LABELS[dto.status] || dto.status}" durumuna geçiş yapılamaz.`);
       }
-      // Bildirim: durum değişikliği
-      await this.notifyStatusChange(project, dto.status, ownerId => ownerId).catch(() => {});
     }
 
     if (dto.tags !== undefined) { project.tags = Array.isArray(dto.tags) ? dto.tags : []; delete dto.tags; }
@@ -151,7 +158,62 @@ export class ProjectsService {
     if (dto.sdgGoals !== undefined) { project.sdgGoals = Array.isArray(dto.sdgGoals) ? dto.sdgGoals : []; delete dto.sdgGoals; }
     if (dto.dynamicFields !== undefined) { project.dynamicFields = dto.dynamicFields; delete dto.dynamicFields; }
     Object.assign(project, dto);
-    return this.projectRepo.save(project);
+    const saved = await this.projectRepo.save(project);
+
+    // ── Audit log ─────────────────────────────────────────
+    if (Object.keys(changes).length > 0) {
+      await this.auditService.log({
+        entityType: 'project', entityId: id, entityTitle: project.title,
+        action: changes.status ? 'status_changed' : 'updated',
+        userId: currentUser.userId, detail: changes,
+      }).catch(() => {});
+    }
+
+    // ── Durum değişikliği bildirimleri ─────────────────────
+    if (dto.status && dto.status !== oldStatus) {
+      await this.notifyStatusChange(project, dto.status, () => {}).catch(() => {});
+      await this.notifyRectors({
+        title: '📋 Proje Durumu: ' + (STATUS_LABELS[dto.status] || dto.status),
+        message: project.title + (project.owner ? ' — ' + project.owner.firstName + ' ' + project.owner.lastName : ''),
+        link: '/projects/' + id,
+        type: dto.status === 'completed' ? 'success' : 'info',
+      });
+    }
+
+    // ── Fikri mülkiyet değişikliği ─────────────────────────
+    if (dto.ipStatus && dto.ipStatus !== oldIpStatus && dto.ipStatus !== 'none') {
+      const IP_TR: Record<string,string> = { pending:'Başvuru Yapıldı', registered:'Tescil Edildi', published:'Yayımlandı' };
+      await this.notifyRectors({
+        title: '⚖️ Fikri Mülkiyet: ' + (IP_TR[dto.ipStatus] || dto.ipStatus),
+        message: project.title,
+        link: '/projects/' + id,
+        type: 'info',
+      });
+    }
+
+    // ── Etik kurul onayı ──────────────────────────────────
+    if (dto.ethicsApproved === true && !(project as any).ethicsApproved) {
+      await this.notifyRectors({
+        title: '🔬 Etik Kurul Onayı Alındı',
+        message: project.title,
+        link: '/projects/' + id,
+        type: 'success',
+      });
+    }
+
+    return saved;
+  }
+
+  private async notifyRectors(notif: { title: string; message: string; link: string; type: string }) {
+    try {
+      const rectors = await this.userRepo.createQueryBuilder('u')
+        .innerJoin('u.role', 'r')
+        .where("LOWER(r.name) LIKE '%rekt%' OR LOWER(r.name) LIKE '%dekan%'")
+        .getMany();
+      for (const r of rectors) {
+        await this.notificationsService.create({ userId: r.id, ...notif }).catch(() => {});
+      }
+    } catch {}
   }
 
   private async notifyStatusChange(project: Project, newStatus: string, _: any) {

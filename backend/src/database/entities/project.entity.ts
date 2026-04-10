@@ -55,6 +55,50 @@ export class Project {
   @Column({ type: 'text', nullable: true, name: 'legacy_partners_json' })
   legacyPartnersJson: string;
 
+  // ── PROJE METNİ ──────────────────────────────────────────────
+  @Column({ type: 'text', nullable: true })
+  projectText: string;
+
+  // ── FİKRİ MÜLKİYET ───────────────────────────────────────────
+  @Column({ nullable: true, default: 'none' })
+  ipStatus: string;
+
+  @Column({ nullable: true })
+  ipType: string;
+
+  @Column({ nullable: true })
+  ipRegistrationNo: string;
+
+  @Column({ nullable: true })
+  ipDate: string;
+
+  @Column({ type: 'text', nullable: true })
+  ipNotes: string;
+
+  // ── ETİK KURUL ────────────────────────────────────────────────
+  @Column({ default: false })
+  ethicsRequired: boolean;
+
+  @Column({ default: false })
+  ethicsApproved: boolean;
+
+  @Column({ nullable: true })
+  ethicsCommittee: string;
+
+  @Column({ nullable: true })
+  ethicsApprovalNo: string;
+
+  @Column({ nullable: true })
+  ethicsApprovalDate: string;
+
+  // ── YZ UYGUNLUK SKORU ─────────────────────────────────────────
+  @Column({ nullable: true, type: 'float' })
+  aiComplianceScore: number;
+
+  @Column({ type: 'text', nullable: true })
+  aiComplianceResult: string;
+
+  // ── GETTER / SETTER ───────────────────────────────────────────
   get dynamicFields(): Record<string, any> {
     try { return this.dynamicFieldsJson ? JSON.parse(this.dynamicFieldsJson) : {}; } catch { return {}; }
   }
@@ -83,7 +127,6 @@ export class Project {
     this.sdgGoalsJson = val ? JSON.stringify(val) : null;
   }
 
-  // legacy inline partners field (replaced by ProjectPartner entity)
   get legacyPartners(): any[] {
     try { return this.legacyPartnersJson ? JSON.parse(this.legacyPartnersJson) : []; } catch { return []; }
   }

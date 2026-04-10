@@ -18,6 +18,8 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { ExportModule } from './export/export.module';
 import { AuditModule } from './audit/audit.module';
 import { CompetitionsModule } from './competitions/competitions.module';
+import { EthicsModule } from './ethics/ethics.module';
+import { EthicsReview } from './ethics/ethics-review.entity';
 import { Competition } from './database/entities/competition.entity';
 import { CompetitionSource } from './database/entities/competition-source.entity';
 import { AuditLog } from './database/entities/audit-log.entity';
@@ -57,14 +59,14 @@ import { ProjectPartner } from './database/entities/project-partner.entity';
       ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
       entities: [
         User, Role, Permission, Project, ProjectMember, ProjectDocument, ProjectReport, ProjectPartner,
-        SystemSetting, DynamicProjectField, Notification, ProjectType, Faculty, ReportType, AuditLog, ProfileVisit, Competition, CompetitionSource,
+        SystemSetting, DynamicProjectField, Notification, ProjectType, Faculty, ReportType, AuditLog, ProfileVisit, Competition, CompetitionSource, EthicsReview,
       ],
       synchronize: true,
       logging: false,
     }),
     AuthModule, UsersModule, RolesModule, ProjectsModule,
     DocumentsModule, ReportsModule, DashboardModule, SettingsModule,
-    DynamicFieldsModule, NotificationsModule, ProjectTypesModule, FacultiesModule, ReportTypesModule, PartnersModule, AiModule, AnalyticsModule, ExportModule, AuditModule, CompetitionsModule,
+    DynamicFieldsModule, NotificationsModule, ProjectTypesModule, FacultiesModule, ReportTypesModule, PartnersModule, AiModule, AnalyticsModule, ExportModule, AuditModule, CompetitionsModule, EthicsModule,
   ],
 })
 export class AppModule {}

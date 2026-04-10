@@ -12,6 +12,8 @@ import toast from 'react-hot-toast';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { ProjectQRCode } from '@/components/ProjectQRCode';
 import { PartnersPanel } from '@/components/PartnersPanel';
+import { ProjectIpEthicsPanel } from '@/components/ProjectIpEthicsPanel';
+import { EthicsStatusPanel2 } from '@/components/EthicsStatusPanel2';
 import { ReportTemplateDownloader } from '@/components/ReportTemplateDownloader';
 import { AiSummaryPanel } from '@/components/AiSummaryPanel';
 
@@ -423,6 +425,30 @@ export default function ProjectDetailPage() {
                 />
               </div>
             )}
+
+            {/* Proje Metni */}
+            {(project as any).projectText && (
+              <div className="card p-5 mt-4">
+                <h3 className="font-display text-sm font-semibold text-navy mb-3 flex items-center gap-2">
+                  <span className="w-1.5 h-5 rounded-full inline-block" style={{ background: '#1a3a6b' }} />
+                  Proje Metni
+                </h3>
+                <div className="text-sm text-navy leading-relaxed whitespace-pre-wrap"
+                  style={{ maxHeight: 300, overflowY: 'auto', lineHeight: 1.8 }}>
+                  {(project as any).projectText}
+                </div>
+              </div>
+            )}
+
+            {/* Fikri Mülkiyet + YZ Uygunluk */}
+            <div className="mt-4">
+              <ProjectIpEthicsPanel project={project} />
+            </div>
+
+            {/* Etik Kurul Durumu */}
+            <div className="mt-4">
+              <EthicsStatusPanel2 projectId={project.id} />
+            </div>
           </div>
         )}
 
@@ -1215,7 +1241,7 @@ export default function ProjectDetailPage() {
                 };
                 const meta = ACTION_LABELS[log.action] || { label: log.action, icon: '•', color: '#6b7280' };
                 let detail: any = {};
-                try { detail = JSON.parse(log.detail || '{}'); } catch {}
+                try { detail = typeof log.detail === 'string' ? JSON.parse(log.detail) : (log.detail || {}); } catch {}
 
                 return (
                   <div key={log.id} className="flex gap-4 py-4 border-b last:border-0" style={{ borderColor: '#f5f2ee' }}>
