@@ -121,8 +121,11 @@ export class ProjectsService {
     proj.keywords = Array.isArray(dto.keywords) ? dto.keywords : [];
     proj.sdgGoals = Array.isArray(dto.sdgGoals) ? dto.sdgGoals : [];
     proj.dynamicFields = dto.dynamicFields || {};
+    // Yeni alanlar
+    const extra = ['projectText','ipStatus','ipType','ipRegistrationNo','ipDate','ipNotes','ethicsRequired','ethicsApproved','ethicsCommittee','ethicsApprovalNo','ethicsApprovalDate','aiComplianceScore','aiComplianceResult'];
+    for (const f of extra) { if (dto[f] !== undefined) (proj as any)[f] = dto[f]; }
     const saved = await this.projectRepo.save(proj);
-    await this.auditService.log({ entityType: 'project', entityId: saved.id, entityTitle: saved.title, action: 'created', userId: dto.ownerId });
+    await this.auditService.log({ entityType: 'project', entityId: saved.id, entityTitle: saved.title, action: 'created', userId: ownerId });
     return saved;
   }
 

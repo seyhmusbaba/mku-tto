@@ -136,13 +136,15 @@ export default function EditProjectPage() {
 
       await projectsApi.update(id, payload);
 
-      // Yeni belgeler varsa yükle
-      if (ipFile && ipBase64) {
-        await documentsApi.upload(id, { name: 'Fikri Mülkiyet Belgesi', fileName: ipFile.name, fileData: ipBase64, type: 'ip', size: ipFile.size }).catch(() => {});
+      // FormData ile belge yukle
+      if (ipFile) {
+        const fd = new FormData(); fd.append('file', ipFile); fd.append('name', 'Fikri Mülkiyet Belgesi'); fd.append('type', 'ip');
+        await documentsApi.upload(id, fd).catch(() => {});
         setIpFile(null); setIpBase64(null);
       }
-      if (ethicsFile && ethicsBase64) {
-        await documentsApi.upload(id, { name: 'Etik Kurul Onay Belgesi', fileName: ethicsFile.name, fileData: ethicsBase64, type: 'ethics', size: ethicsFile.size }).catch(() => {});
+      if (ethicsFile) {
+        const fd = new FormData(); fd.append('file', ethicsFile); fd.append('name', 'Etik Kurul Onay Belgesi'); fd.append('type', 'ethics');
+        await documentsApi.upload(id, fd).catch(() => {});
         setEthicsFile(null); setEthicsBase64(null);
       }
 

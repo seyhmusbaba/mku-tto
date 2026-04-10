@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 
-const CFG: Record<string, any> = {
+const CFG: Record<string, { label: string; color: string; bg: string; border: string; icon: string }> = {
   pending:      { label: 'Etik Kurul İncelemesi Bekliyor',  color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: '⏳' },
   approved:     { label: 'Etik Kurul Onayı Alındı',          color: '#059669', bg: '#f0fdf4', border: '#86efac', icon: '✅' },
   rejected:     { label: 'Etik Kurul Başvurusu Reddedildi',  color: '#dc2626', bg: '#fef2f2', border: '#fca5a5', icon: '❌' },
@@ -13,7 +13,9 @@ export function EthicsStatusPanel2({ projectId }: { projectId: string }) {
   const [review, setReview] = useState<any>(null);
 
   useEffect(() => {
-    api.get('/ethics/project/' + projectId).then(r => { if (r.data) setReview(r.data); }).catch(() => {});
+    api.get('/ethics/project/' + projectId)
+      .then(r => { if (r.data) setReview(r.data); })
+      .catch(() => {});
   }, [projectId]);
 
   if (!review) return null;
@@ -21,19 +23,18 @@ export function EthicsStatusPanel2({ projectId }: { projectId: string }) {
   const c = CFG[review.status] || CFG.pending;
 
   return (
-    <div className="card p-4" style={{ border: '1px solid ' + c.border, background: c.bg }}>
-      <h4 className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: c.color }}>
-        🔬 Etik Kurul Durumu
-      </h4>
+    <div className="card p-4" style={{ borderLeft: '3px solid ' + c.color, background: c.bg }}>
       <div className="flex items-start gap-3">
-        <span className="text-xl">{c.icon}</span>
+        <span className="text-2xl flex-shrink-0">{c.icon}</span>
         <div className="flex-1">
           <p className="text-sm font-semibold" style={{ color: c.color }}>{c.label}</p>
           {review.aiEthicsReason && (
-            <p className="text-xs text-muted mt-1">{review.aiEthicsReason}</p>
+            <p className="text-xs text-muted mt-1 leading-relaxed">{review.aiEthicsReason}</p>
           )}
           {review.reviewNote && (
-            <p className="text-xs mt-2 p-2 rounded-lg bg-white/70 text-navy">📋 {review.reviewNote}</p>
+            <div className="mt-2 p-2 rounded-lg text-xs" style={{ background: 'white/70' }}>
+              <span className="font-semibold">📋 Kurul Kararı: </span>{review.reviewNote}
+            </div>
           )}
           {review.approvalNumber && (
             <p className="text-xs text-muted mt-1">Onay No: <strong>{review.approvalNumber}</strong></p>

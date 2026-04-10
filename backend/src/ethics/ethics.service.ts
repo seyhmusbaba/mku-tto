@@ -136,6 +136,17 @@ SADECE bu JSON formatında yanıt ver:
     return this.reviewRepo.findOne({ where: { projectId }, relations: ['reviewer'] });
   }
 
+  // Kullanici kontrollu - sadece proje sahibi veya etik kurul gorebilir
+  async getReviewByProjectForUser(projectId: string, userId: string, roleName: string) {
+    const isEthics = roleName.toLowerCase().includes('etik') || roleName === 'Super Admin' || roleName === 'Süper Admin';
+    if (!isEthics) {
+      // Proje sahibi mi?
+      const project = await this.projectRepo.findOne({ where: { id: projectId } });
+      if (!project || project.ownerId !== userId) return null;
+    }
+    return this.reviewRepo.findOne({ where: { projectId }, relations: ['reviewer'] });
+  }
+
   getAllReviews() {
     return this.reviewRepo.find({ relations: ['project', 'project.owner', 'reviewer'], order: { createdAt: 'DESC' } });
   }
