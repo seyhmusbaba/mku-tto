@@ -51,4 +51,9 @@ export class AuditService {
       take: limit,
     });
   }
+
+  // FIX #14: Belirli bir entity'nin tum audit kayitlarini sil
+  async deleteByEntity(entityType: string, entityId: string) {
+    await this.repo.delete({ entityType, entityId });
+  }
 }

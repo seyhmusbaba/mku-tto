@@ -3,56 +3,73 @@ import { SkipThrottle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { EthicsService } from './ethics.service';
 
+function hasEthicsAccess(roleName: string): boolean {
+  const r = (roleName || '').toLowerCase();
+  return r.includes('etik') || r.includes('admin') || r.includes('rekt') || r.includes('dekan');
+}
+
 @SkipThrottle()
 @Controller('ethics')
 @UseGuards(JwtAuthGuard)
 export class EthicsController {
   constructor(private svc: EthicsService) {}
 
-  // Proje kaydedilince YZ analizi baslatir
+  // Proje kaydedilince analiz baslatir - herkes cagirabilir
   @Post('analyze/:projectId')
   analyze(@Param('projectId') id: string) {
     return this.svc.initiateReview(id);
   }
 
+  // FIX #4: Force reanaliz - proje metni degismisse
+  @Post('reanalyze/:projectId')
+  reanalyze(@Param('projectId') id: string) {
+    return this.svc.initiateReview(id, true);
+  }
+
+  // FIX #5: Karar iptal - yeniden pending'e al
+  @Put('reopen/:reviewId')
+  async reopen(@Param('reviewId') id: string, @Request() req: any) {
+    const roleName = req.user.roleName || req.user.role?.name || '';
+    if (!hasEthicsAccess(roleName)) throw new ForbiddenException('Etik kurul yetkisi gereklidir');
+    return this.svc.reopenReview(id);
+  }
+
   // Proje sahibi kendi projesinin etik durumunu gorebilir
   @Get('project/:projectId')
   async getByProject(@Param('projectId') id: string, @Request() req: any) {
-    return this.svc.getReviewByProjectForUser(id, req.user.userId, req.user.role?.name || '');
+    const roleName = req.user.roleName || req.user.role?.name || '';
+    return this.svc.getReviewByProjectForUser(id, req.user.userId, roleName);
   }
 
-  // Sadece etik kurul uyeleri + super admin bekleyen incelemeleri gorur
+  // Bekleyen incelemeler - etik kurul
   @Get('pending')
   async getPending(@Request() req: any) {
-    const role = req.user.role?.name || '';
-    const isEthics = role.toLowerCase().includes('etik') || role === 'Super Admin';
-    if (!isEthics) throw new ForbiddenException('Bu sayfaya erisim yetkiniz yok');
+    const roleName = req.user.roleName || req.user.role?.name || '';
+    if (!hasEthicsAccess(roleName)) throw new ForbiddenException('Etik kurul yetkisi gereklidir');
     return this.svc.getPendingReviews();
   }
 
-  // Sadece etik kurul uyeleri + super admin tum incelemeleri gorur
+  // Tum incelemeler - etik kurul
   @Get('all')
   async getAll(@Request() req: any) {
-    const role = req.user.role?.name || '';
-    const isEthics = role.toLowerCase().includes('etik') || role === 'Super Admin';
-    if (!isEthics) throw new ForbiddenException('Bu sayfaya erisim yetkiniz yok');
+    const roleName = req.user.roleName || req.user.role?.name || '';
+    if (!hasEthicsAccess(roleName)) throw new ForbiddenException('Etik kurul yetkisi gereklidir');
     return this.svc.getAllReviews();
   }
 
-  // Etik kurul karar verir
+  // Karar ver
   @Put('decision/:reviewId')
   async submitDecision(
     @Param('reviewId') id: string,
     @Body() body: { decision: 'approved' | 'rejected'; note: string; approvalNumber?: string },
     @Request() req: any,
   ) {
-    const role = req.user.role?.name || '';
-    const isEthics = role.toLowerCase().includes('etik') || role === 'Super Admin';
-    if (!isEthics) throw new ForbiddenException('Etik kurul karari verme yetkiniz yok');
+    const roleName = req.user.roleName || req.user.role?.name || '';
+    if (!hasEthicsAccess(roleName)) throw new ForbiddenException('Etik kurul yetkisi gereklidir');
     return this.svc.submitDecision(id, req.user.userId, body.decision, body.note, body.approvalNumber);
   }
 
-  // On analiz (proje formu icin - herkes kullanabilir)
+  // On analiz - herkes
   @Post('preview-analyze')
   previewAnalyze(@Body() body: { title: string; description: string; projectText: string; type: string }) {
     return this.svc.analyzeWithAi(body);

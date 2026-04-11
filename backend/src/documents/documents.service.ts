@@ -5,8 +5,8 @@ import { ProjectDocument } from '../database/entities/project-document.entity';
 import { ProjectMember } from '../database/entities/project-member.entity';
 import { Project } from '../database/entities/project.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AuditService } from '../audit/audit.service';
 import * as fs from 'fs';
-import * as path from 'path';
 
 @Injectable()
 export class DocumentsService {
@@ -15,6 +15,7 @@ export class DocumentsService {
     @InjectRepository(ProjectMember) private memberRepo: Repository<ProjectMember>,
     @InjectRepository(Project) private projectRepo: Repository<Project>,
     private notificationsService: NotificationsService,
+    private auditService: AuditService,
   ) {}
 
   async findByProject(projectId: string) {
@@ -23,22 +24,17 @@ export class DocumentsService {
       relations: ['uploadedBy'],
       order: { createdAt: 'DESC' },
     });
-
-    // Versiyonları grupla — aynı originalDocumentId'ye sahip olanları birleştir
     const grouped = new Map<string, ProjectDocument[]>();
     docs.forEach(doc => {
       const key = doc.originalDocumentId || doc.id;
       if (!grouped.has(key)) grouped.set(key, []);
       grouped.get(key)!.push(doc);
     });
-
-    // Her grup için en güncel versiyonu ana kayıt olarak döndür, versiyonlar listesiyle
     const result: any[] = [];
-    grouped.forEach((versions, key) => {
+    grouped.forEach((versions) => {
       const sorted = versions.sort((a, b) => b.version - a.version);
       result.push({ ...sorted[0], versions: sorted });
     });
-
     return result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
@@ -52,10 +48,9 @@ export class DocumentsService {
 
   async create(projectId: string, userId: string, file: Express.Multer.File, dto: any) {
     if (!await this.canUpload(projectId, userId)) {
-      throw new ForbiddenException('Bu projeye belge yükleme yetkiniz yok');
+      throw new ForbiddenException('Bu projeye belge yukleme yetkiniz yok');
     }
 
-    // Aynı isimde dosya var mı? Varsa yeni versiyon oluştur
     const existing = await this.docRepo.findOne({
       where: { projectId, name: dto.name || file.originalname },
       order: { version: 'DESC' },
@@ -79,16 +74,25 @@ export class DocumentsService {
 
     const saved = await this.docRepo.save(doc);
 
-    // Proje sahibine bildirim
     const project = await this.projectRepo.findOne({ where: { id: projectId } });
-    if (project && project.ownerId !== userId) {
-      await this.notificationsService.create({
-        userId: project.ownerId,
-        title: version > 1 ? 'Belge Güncellendi' : 'Yeni Belge Yüklendi',
-        message: `"${project.title}" projesine "${saved.name}" ${version > 1 ? `v${version} ` : ''}yüklendi`,
-        type: 'document',
-        link: `/projects/${projectId}`,
-      });
+    if (project) {
+      // FIX #7: Audit log
+      await this.auditService.log({
+        entityType: 'project', entityId: projectId, entityTitle: project.title,
+        action: 'document_uploaded', userId,
+        detail: { name: saved.name, type: saved.type, version: saved.version },
+      }).catch(() => {});
+
+      // Bildirim sadece proje sahibine (yukleyen kendisi ise gitmiyor)
+      if (project.ownerId !== userId) {
+        await this.notificationsService.create({
+          userId: project.ownerId,
+          title: version > 1 ? 'Belge Guncellendi' : 'Yeni Belge Yuklendi',
+          message: '"' + project.title + '" projesine "' + saved.name + '" ' + (version > 1 ? 'v' + version + ' ' : '') + 'yuklendi',
+          type: 'info',
+          link: '/projects/' + projectId,
+        }).catch(() => {});
+      }
     }
 
     return saved;
@@ -96,9 +100,15 @@ export class DocumentsService {
 
   async remove(id: string) {
     const doc = await this.docRepo.findOne({ where: { id } });
-    if (!doc) throw new NotFoundException('Belge bulunamadı');
+    if (!doc) throw new NotFoundException('Belge bulunamadi');
 
-    // Dosyayı diskten sil
+    // FIX #7: Audit log for document deletion
+    await this.auditService.log({
+      entityType: 'project', entityId: doc.projectId, entityTitle: doc.name,
+      action: 'document_deleted', detail: { name: doc.name, type: doc.type },
+    }).catch(() => {});
+
+    // Dosyayi diskten sil
     try {
       if (doc.filePath && fs.existsSync(doc.filePath)) {
         fs.unlinkSync(doc.filePath);

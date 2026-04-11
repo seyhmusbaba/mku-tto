@@ -5,6 +5,7 @@ import { ProjectReport } from '../database/entities/project-report.entity';
 import { Project } from '../database/entities/project.entity';
 import { ProjectMember } from '../database/entities/project-member.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AuditService } from '../audit/audit.service';
 import { User } from '../database/entities/user.entity';
 
 @Injectable()
@@ -14,6 +15,7 @@ export class ReportsService {
     @InjectRepository(Project) private projectRepo: Repository<Project>,
     @InjectRepository(ProjectMember) private memberRepo: Repository<ProjectMember>,
     private notificationsService: NotificationsService,
+    private auditService: AuditService,
   ) {}
 
   findByProject(projectId: string) {
@@ -77,7 +79,9 @@ export class ReportsService {
     if (metadata !== undefined) {
       try { (report as any).metadata = typeof metadata === 'string' ? metadata : JSON.stringify(metadata); } catch {}
     }
-    return this.reportRepo.save(report);
+    const updatedReport = await this.reportRepo.save(report);
+    await this.auditService.log({ entityType: 'project', entityId: (report as any).projectId, entityTitle: (report as any).title || 'Rapor', action: 'report_updated', detail: { title: (report as any).title } }).catch(() => {});
+    return updatedReport;
   }
 
   async remove(id: string) {

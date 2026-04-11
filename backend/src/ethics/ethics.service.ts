@@ -15,96 +15,161 @@ export class EthicsService {
     private notificationsService: NotificationsService,
   ) {}
 
-  async analyzeWithAi(data: { projectId?: string; title: string; description: string; projectText: string; type: string }) {
+  async analyzeWithAi(data: {
+    projectId?: string; title: string; description: string;
+    projectText: string; type: string;
+  }) {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) return this.ruleBasedAnalysis(data);
 
-    const prompt = `Sen bir araştırma etiği uzmanısın. Aşağıdaki projeyi değerlendir.
-
-PROJE: ${data.title} (${data.type})
-ÖZET: ${data.description || '(yok)'}
-PROJE METNİ: ${data.projectText || '(yok)'}
-
-Kontrol et:
-1. İnsan katılımcı/denek var mı? (anket, görüşme, hasta, gönüllü)
-2. Hayvan deneyi var mı?
-3. Kişisel/hassas veri var mı? (sağlık, kimlik, biyometrik)
-4. Savunmasız gruplar var mı? (çocuk, hasta, hamile)
-5. Tıbbi/klinik prosedür var mı?
-6. Gizlilik riski var mı?
-
-SADECE bu JSON formatında yanıt ver:
-{"required":true,"riskScore":75,"reasons":["neden1"],"recommendation":"açıklama"}`;
+    const prompt = 'Sen bir arastirma etigi uzmanisın. Asagidaki projeyi degerlendir.\n\n' +
+      'PROJE: ' + data.title + ' (' + data.type + ')\n' +
+      'OZET: ' + (data.description || '(yok)') + '\n' +
+      'PROJE METNI: ' + (data.projectText || '(yok)') + '\n\n' +
+      'Kontrol et:\n' +
+      '1. Insan katilimci/denek var mi? (anket, gorusme, hasta, gonullu)\n' +
+      '2. Hayvan deneyi var mi?\n' +
+      '3. Kisisel/hassas veri var mi? (saglik, kimlik, biyometrik)\n' +
+      '4. Savunmasiz gruplar var mi? (cocuk, hasta, hamile)\n' +
+      '5. Tibbi/klinik prosedur var mi?\n' +
+      '6. Gizlilik riski var mi?\n\n' +
+      'SADECE bu JSON formatinda yanit ver:\n' +
+      '{"required":true,"riskScore":75,"reasons":["neden1"],"recommendation":"aciklama"}';
 
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 400, messages: [{ role: 'user', content: prompt }] }),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 400,
+          messages: [{ role: 'user', content: prompt }],
+        }),
         signal: AbortSignal.timeout(20000),
       });
       if (!res.ok) return this.ruleBasedAnalysis(data);
       const d = await res.json();
       const parsed = JSON.parse((d?.content?.[0]?.text || '').replace(/```json|```/g, '').trim());
-      return { required: !!parsed.required, riskScore: Math.max(0, Math.min(100, +parsed.riskScore || 0)), reasons: parsed.reasons || [], recommendation: parsed.recommendation || '' };
-    } catch { return this.ruleBasedAnalysis(data); }
+      return {
+        required: !!parsed.required,
+        riskScore: Math.max(0, Math.min(100, +parsed.riskScore || 0)),
+        reasons: parsed.reasons || [],
+        recommendation: parsed.recommendation || '',
+      };
+    } catch {
+      return this.ruleBasedAnalysis(data);
+    }
   }
 
   private ruleBasedAnalysis(data: any) {
     const text = [data.title, data.description, data.projectText].join(' ').toLowerCase();
-    const checks = [
-      [['insan', 'denek', 'katılımcı', 'gönüllü', 'anket', 'görüşme', 'hasta'], 'İnsan katılımcı içeriyor'],
-      [['hayvan', 'fare', 'sıçan', 'kobay'], 'Hayvan deneyi içeriyor'],
-      [['kişisel veri', 'sağlık verisi', 'kimlik', 'biyometrik'], 'Kişisel/hassas veri işleniyor'],
-      [['çocuk', 'hamile', 'engelli', 'mahkum'], 'Savunmasız grup içeriyor'],
-      [['kan', 'biyopsi', 'ilaç deneme', 'klinik'], 'Tıbbi prosedür içeriyor'],
-    ] as any[];
+    const checks: Array<[string[], string]> = [
+      [['insan', 'denek', 'katilimci', 'gonullu', 'anket', 'gorusme', 'hasta'], 'Insan katilimci iceriyor'],
+      [['hayvan', 'fare', 'sicran', 'kobay'], 'Hayvan deneyi iceriyor'],
+      [['kisisel veri', 'saglik verisi', 'kimlik', 'biyometrik'], 'Kisisel/hassas veri isleniyor'],
+      [['cocuk', 'hamile', 'engelli', 'mahkum'], 'Savunmasiz grup iceriyor'],
+      [['kan', 'biyopsi', 'ilac deneme', 'klinik'], 'Tibbi prosedur iceriyor'],
+    ];
     const found: string[] = [];
-    checks.forEach(([kws, label]: any) => { if (kws.some((k: string) => text.includes(k))) found.push(label); });
+    checks.forEach(([kws, label]) => { if (kws.some(k => text.includes(k))) found.push(label); });
     const score = Math.min(100, found.length * 20);
-    return { required: score > 0, riskScore: score, reasons: found, recommendation: score >= 40 ? 'Etik kurul onayı gereklidir.' : score > 0 ? 'Etik değerlendirme önerilir.' : 'Standart kurallar yeterli.' };
+    return {
+      required: score > 0,
+      riskScore: score,
+      reasons: found,
+      recommendation: score >= 40
+        ? 'Etik kurul onayi gereklidir.'
+        : score > 0
+        ? 'Etik degerlendirme onerilir.'
+        : 'Standart kurallar yeterli.',
+    };
   }
 
-  async initiateReview(projectId: string) {
+  // FIX #4: Mevcut inceleme varsa projectText degismisse yeniden analiz yap
+  async initiateReview(projectId: string, forceReanalyze = false) {
     const project = await this.projectRepo.findOne({ where: { id: projectId } });
-    if (!project) throw new Error('Proje bulunamadı');
+    if (!project) throw new Error('Proje bulunamadi');
 
     const existing = await this.reviewRepo.findOne({ where: { projectId } });
-    if (existing) return existing;
+
+    // FIX #4: Karar verilmemisse veya forceReanalyze ise yeniden analiz yap
+    if (existing && !forceReanalyze && existing.status !== 'pending') {
+      return existing;
+    }
 
     const analysis = await this.analyzeWithAi({
-      projectId, title: project.title,
+      projectId,
+      title: project.title,
       description: project.description || '',
       projectText: (project as any).projectText || '',
       type: project.type,
     });
 
-    const review = this.reviewRepo.create({
-      projectId,
-      aiEthicsRequired: analysis.required,
-      aiEthicsReason: [...analysis.reasons, analysis.recommendation].filter(Boolean).join('. '),
-      aiRiskScore: analysis.riskScore,
-      status: analysis.required ? 'pending' : 'not_required',
-    });
-    const saved = await this.reviewRepo.save(review);
+    let review: EthicsReview;
+    if (existing) {
+      // Mevcut incelemeyi guncelle
+      existing.aiEthicsRequired = analysis.required;
+      existing.aiEthicsReason = [...analysis.reasons, analysis.recommendation].filter(Boolean).join('. ');
+      existing.aiRiskScore = analysis.riskScore;
+      // FIX #5: pending'e al ki kurul yeniden karar verebilsin
+      if (forceReanalyze) existing.status = analysis.required ? 'pending' : 'not_required';
+      review = await this.reviewRepo.save(existing);
+    } else {
+      const newReview = this.reviewRepo.create({
+        projectId,
+        aiEthicsRequired: analysis.required,
+        aiEthicsReason: [...analysis.reasons, analysis.recommendation].filter(Boolean).join('. '),
+        aiRiskScore: analysis.riskScore,
+        status: analysis.required ? 'pending' : 'not_required',
+      });
+      review = await this.reviewRepo.save(newReview);
+    }
 
     await this.projectRepo.update(projectId, { ethicsRequired: analysis.required } as any);
 
+    // Etik kurul uyelerine bildirim (sadece ilk kez veya reanaliz)
     if (analysis.required) {
       try {
-        const members = await this.userRepo.createQueryBuilder('u').innerJoin('u.role', 'r').where("LOWER(r.name) LIKE '%etik%'").getMany();
+        const members = await this.userRepo.createQueryBuilder('u')
+          .innerJoin('u.role', 'r')
+          .where("LOWER(r.name) LIKE '%etik%'")
+          .getMany();
         for (const m of members) {
-          await this.notificationsService.create({ userId: m.id, title: '🔬 Etik İnceleme Bekleniyor', message: project.title + ' — Risk: ' + analysis.riskScore + '/100', type: 'warning', link: '/ethics' }).catch(() => {});
+          await this.notificationsService.create({
+            userId: m.id,
+            title: 'Etik Inceleme Bekleniyor',
+            message: project.title + ' — Risk: ' + analysis.riskScore + '/100',
+            type: 'warning',
+            link: '/ethics',
+          }).catch(() => {});
         }
       } catch {}
     }
 
-    return saved;
+    return review;
   }
 
-  async submitDecision(reviewId: string, reviewerId: string, decision: 'approved' | 'rejected', note: string, approvalNumber?: string) {
+  // FIX #5: reopen metodu eklendi
+  async reopenReview(reviewId: string) {
+    const review = await this.reviewRepo.findOne({ where: { id: reviewId } });
+    if (!review) throw new Error('Inceleme bulunamadi');
+    review.status = 'pending';
+    review.reviewNote = null;
+    review.reviewedAt = null;
+    return this.reviewRepo.save(review);
+  }
+
+  async submitDecision(
+    reviewId: string, reviewerId: string,
+    decision: 'approved' | 'rejected',
+    note: string, approvalNumber?: string,
+  ) {
     const review = await this.reviewRepo.findOne({ where: { id: reviewId }, relations: ['project'] });
-    if (!review) throw new Error('İnceleme bulunamadı');
+    if (!review) throw new Error('Inceleme bulunamadi');
 
     review.status = decision;
     review.reviewerId = reviewerId;
@@ -113,12 +178,15 @@ SADECE bu JSON formatında yanıt ver:
     review.reviewedAt = new Date();
     const saved = await this.reviewRepo.save(review);
 
-    await this.projectRepo.update(review.projectId, { ethicsApproved: decision === 'approved', ethicsApprovalNo: approvalNumber || null } as any);
+    await this.projectRepo.update(review.projectId, {
+      ethicsApproved: decision === 'approved',
+      ethicsApprovalNo: approvalNumber || null,
+    } as any);
 
     if (review.project) {
       await this.notificationsService.create({
         userId: (review.project as any).ownerId,
-        title: decision === 'approved' ? '✅ Etik Kurul Onayı Alındı' : '❌ Etik Kurul Başvurusu Reddedildi',
+        title: decision === 'approved' ? 'Etik Kurul Onayi Alindi' : 'Etik Kurul Basvurusu Reddedildi',
         message: review.project.title + ': ' + note,
         type: decision === 'approved' ? 'success' : 'warning',
         link: '/projects/' + review.projectId,
@@ -129,25 +197,33 @@ SADECE bu JSON formatında yanıt ver:
   }
 
   getPendingReviews() {
-    return this.reviewRepo.find({ where: { status: 'pending' }, relations: ['project', 'project.owner'], order: { createdAt: 'DESC' } });
+    return this.reviewRepo.find({
+      where: { status: 'pending' },
+      relations: ['project', 'project.owner'],
+      order: { createdAt: 'DESC' },
+    });
   }
 
   getReviewByProject(projectId: string) {
     return this.reviewRepo.findOne({ where: { projectId }, relations: ['reviewer'] });
   }
 
-  // Kullanici kontrollu - sadece proje sahibi veya etik kurul gorebilir
+  // FIX #12: Eski projeler icin - yoksa null don, hata verme
   async getReviewByProjectForUser(projectId: string, userId: string, roleName: string) {
-    const isEthics = roleName.toLowerCase().includes('etik') || roleName === 'Super Admin' || roleName === 'Süper Admin';
+    const r = (roleName || '').toLowerCase();
+    const isEthics = r.includes('etik') || r.includes('sper admin') || r.includes('admin') || r.includes('rekt') || r.includes('dekan');
     if (!isEthics) {
-      // Proje sahibi mi?
       const project = await this.projectRepo.findOne({ where: { id: projectId } });
       if (!project || project.ownerId !== userId) return null;
     }
-    return this.reviewRepo.findOne({ where: { projectId }, relations: ['reviewer'] });
+    const review = await this.reviewRepo.findOne({ where: { projectId }, relations: ['reviewer'] });
+    return review || null;
   }
 
   getAllReviews() {
-    return this.reviewRepo.find({ relations: ['project', 'project.owner', 'reviewer'], order: { createdAt: 'DESC' } });
+    return this.reviewRepo.find({
+      relations: ['project', 'project.owner', 'reviewer'],
+      order: { createdAt: 'DESC' },
+    });
   }
 }

@@ -21,7 +21,7 @@ export class DocumentsController {
   @Post()
   @UseInterceptors(FileInterceptor('file', {
     storage: diskStorage({
-      destination: './uploads',
+      destination: process.env.UPLOADS_DIR || './uploads',
       filename: (req, file, cb) => cb(null, `${Date.now()}${extname(file.originalname)}`),
     }),
     limits: { fileSize: MAX_FILE_SIZE },

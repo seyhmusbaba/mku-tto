@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import toast from 'react-hot-toast';
 
 const CFG: Record<string, { label: string; color: string; bg: string; border: string; icon: string }> = {
   pending:      { label: 'Etik Kurul İncelemesi Bekliyor',  color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: '⏳' },
@@ -11,12 +12,27 @@ const CFG: Record<string, { label: string; color: string; bg: string; border: st
 
 export function EthicsStatusPanel2({ projectId }: { projectId: string }) {
   const [review, setReview] = useState<any>(null);
+  const [reanalyzing, setReanalyzing] = useState(false);
 
-  useEffect(() => {
+  const loadReview = () => {
     api.get('/ethics/project/' + projectId)
       .then(r => { if (r.data) setReview(r.data); })
       .catch(() => {});
-  }, [projectId]);
+  };
+
+  useEffect(() => { loadReview(); }, [projectId]);
+
+  // FIX #12: Yeniden analiz butonu
+  const handleReanalyze = async () => {
+    setReanalyzing(true);
+    try {
+      await api.post('/ethics/reanalyze/' + projectId);
+      loadReview();
+      toast.success('YZ etik analizi yenilendi');
+    } catch {
+      toast.error('Yeniden analiz başarısız');
+    } finally { setReanalyzing(false); }
+  };
 
   if (!review) return null;
 
@@ -54,6 +70,11 @@ export function EthicsStatusPanel2({ projectId }: { projectId: string }) {
           </div>
         )}
       </div>
+      {/* FIX #12: Eski projeler için yeniden analiz */}
+      <button type="button" onClick={handleReanalyze} disabled={reanalyzing}
+        className="text-xs text-muted hover:text-navy mt-2 disabled:opacity-50">
+        {reanalyzing ? '⏳ Analiz ediliyor...' : '🔄 YZ Analizini Yenile'}
+      </button>
     </div>
   );
 }

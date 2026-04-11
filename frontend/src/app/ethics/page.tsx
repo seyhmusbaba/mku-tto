@@ -17,7 +17,7 @@ const S: Record<string, { label: string; color: string; bg: string; border: stri
 export default function EthicsPage() {
   const { user } = useAuth();
   const roleName = user?.role?.name || '';
-  const isEthicsCommittee = roleName.toLowerCase().includes('etik') || roleName === 'Süper Admin';
+  const isEthicsCommittee = roleName.toLowerCase().includes('etik') || roleName === 'Süper Admin' || roleName.toLowerCase().includes('rektör') || roleName.toLowerCase().includes('rektor') || roleName.toLowerCase().includes('admin');
 
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,7 +27,12 @@ export default function EthicsPage() {
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
-    if (!isEthicsCommittee) { setLoading(false); return; }
+    // FIX #20: Access check before API call
+    if (!isEthicsCommittee) {
+      setLoading(false);
+      setReviews([]);
+      return;
+    }
     setLoading(true);
     try {
       const r = await api.get(tab === 'pending' ? '/ethics/pending' : '/ethics/all');

@@ -6,9 +6,10 @@ import { ProjectMember } from '../database/entities/project-member.entity';
 import { ReportsService } from './reports.service';
 import { ReportsController } from './reports.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ProjectReport, Project, ProjectMember]), NotificationsModule],
+  imports: [TypeOrmModule.forFeature([ProjectReport, Project, ProjectMember]), NotificationsModule, AuditModule],
   providers: [ReportsService],
   controllers: [ReportsController],
 })

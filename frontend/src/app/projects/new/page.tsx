@@ -52,8 +52,13 @@ export default function NewProjectPage() {
   const [dynamicFields, setDynamicFields] = useState<any[]>([]);
   const [sdgSelected, setSdgSelected] = useState<string[]>([]);
 
-  const [complianceResult, setComplianceResult] = useState<any>(null);
-  const [complianceDone, setComplianceDone] = useState(false);
+  // FIX #16: Persist compliance state in sessionStorage
+  const [complianceResult, setComplianceResult] = useState<any>(() => {
+    try { const s = sessionStorage.getItem('compliance_result'); return s ? JSON.parse(s) : null; } catch { return null; }
+  });
+  const [complianceDone, setComplianceDone] = useState<boolean>(() => {
+    try { return sessionStorage.getItem('compliance_done') === 'true'; } catch { return false; }
+  });
   const [ethicsAnalysis, setEthicsAnalysis] = useState<any>(null);
   const [ethicsLoading, setEthicsLoading] = useState(false);
   const [docReview, setDocReview] = useState<any>(null);
@@ -81,7 +86,9 @@ export default function NewProjectPage() {
   const setDyn = (k: string, v: any) => setForm(f => ({ ...f, dynamicFields: { ...f.dynamicFields, [k]: v } }));
 
   const needsAcceptance = form.status === 'active';
-  const needsIpDoc = ['pending', 'registered', 'published'].includes(form.ipStatus);
+  // FIX #17: 'pending' başvuru aşamasında - zorunlu değil, sadece uyarı
+  const needsIpDoc = ['registered', 'published'].includes(form.ipStatus);
+  const ipDocRecommended = form.ipStatus === 'pending';
   const isLast = step === STEPS.length - 1;
 
   // Son adimda YZ belge incelemesi
@@ -340,7 +347,7 @@ export default function NewProjectPage() {
               <span className="text-xs text-muted font-normal">{form.projectText.length} karakter</span>
             </label>
             <textarea className="input" style={{ minHeight: 260, lineHeight: 1.7 }} value={form.projectText}
-              onChange={e => { set('projectText', e.target.value); setComplianceDone(false); setEthicsAnalysis(null); }}
+              onChange={e => { set('projectText', e.target.value); setComplianceDone(false); setEthicsAnalysis(null); try { sessionStorage.removeItem('compliance_result'); sessionStorage.removeItem('compliance_done'); } catch {}; }}
               placeholder={'Detaylı proje açıklaması...\n\n• Projenin amacı ve önemi\n• Yöntem ve yaklaşım\n• Beklenen çıktılar\n• Zaman çizelgesi'} />
           </div>
           <div className="p-4 rounded-xl" style={{
@@ -354,7 +361,11 @@ export default function NewProjectPage() {
             <ProjectComplianceCheck
               title={form.title} description={form.description}
               projectText={form.projectText} type={form.type}
-              onResult={r => { setComplianceResult(r); setComplianceDone(true); }}
+              onResult={r => {
+                setComplianceResult(r);
+                setComplianceDone(true);
+                try { sessionStorage.setItem('compliance_result', JSON.stringify(r)); sessionStorage.setItem('compliance_done', 'true'); } catch {}
+              }}
             />
           </div>
         </div>

@@ -33,7 +33,13 @@ async function bootstrap() {
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-  app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
+  // FIX #3: Uploads dizinini olustur - yoksa hata verir
+  const uploadsDir = process.env.UPLOADS_DIR || join(process.cwd(), 'uploads');
+  const { mkdirSync, existsSync } = require('fs');
+  if (!existsSync(uploadsDir)) {
+    try { mkdirSync(uploadsDir, { recursive: true }); } catch {}
+  }
+  app.use('/uploads', express.static(uploadsDir));
 
   const config = new DocumentBuilder()
     .setTitle('MKÜ TTO API')

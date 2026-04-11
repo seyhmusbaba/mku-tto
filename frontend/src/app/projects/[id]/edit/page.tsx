@@ -119,11 +119,13 @@ export default function EditProjectPage() {
     if (!form.title) { toast.error('Proje adı zorunlu'); return; }
     setSaving(true);
     try {
+      const { dynamicFields: dynFields, tags: tagsStr, keywords: kwStr, ...restForm } = form;
       const payload = {
-        ...form,
-        tags: form.tags ? form.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [],
-        keywords: form.keywords ? form.keywords.split(',').map((k: string) => k.trim()).filter(Boolean) : [],
+        ...restForm,
+        tags: tagsStr ? tagsStr.split(',').map((t: string) => t.trim()).filter(Boolean) : [],
+        keywords: kwStr ? kwStr.split(',').map((k: string) => k.trim()).filter(Boolean) : [],
         sdgGoals: sdgSelected,
+        dynamicFields: dynFields || {},
         budget: form.budget ? Number(form.budget) : null,
         ipType: form.ipType || null,
         ipRegistrationNo: form.ipRegistrationNo || null,
@@ -301,8 +303,11 @@ export default function EditProjectPage() {
             </div>
           </>}
 
-          {/* ── PROJE METNİ ── */}
+          {/* FIX #11: Proje metni degisince uyari */}
           {tab === 'text' && <>
+            <div className="p-3 rounded-xl text-xs mb-2" style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92651a' }}>
+              ℹ️ Proje metnini değiştirdikten sonra YZ Uygunluk Analizi ve Etik Analizi güncellenmiş olmayacaktır. Proje kaydedildikten sonra yeniden analiz yapılması önerilir.
+            </div>
             <div>
               <label className="label flex justify-between">
                 <span>Proje Metni</span>
@@ -372,7 +377,7 @@ export default function EditProjectPage() {
                 <label className="label">Notlar</label>
                 <textarea className="input" rows={2} value={form.ipNotes || ''} onChange={e => set('ipNotes', e.target.value)} />
               </div>
-              <FileUploadField label="Fikri Mülkiyet Belgesi Güncelle" file={ipFile} onChange={(f: any) => handleFileChange(f, setIpFile, setIpBase64)} hint="Yeni belge eklemek istiyorsanız seçin" />
+              <FileUploadField label="Fikri Mülkiyet Belgesi Güncelle" file={ipFile} onChange={setIpFile} hint="Yeni belge eklemek istiyorsanız seçin" />
             </>}
           </>}
 
@@ -407,7 +412,7 @@ export default function EditProjectPage() {
                     <label className="label">Onay Tarihi</label>
                     <input type="date" className="input" value={form.ethicsApprovalDate || ''} onChange={e => set('ethicsApprovalDate', e.target.value)} />
                   </div>
-                  <FileUploadField label="Etik Kurul Belgesi Güncelle" file={ethicsFile} onChange={(f: any) => handleFileChange(f, setEthicsFile, setEthicsBase64)} hint="Yeni belge eklemek istiyorsanız seçin" />
+                  <FileUploadField label="Etik Kurul Belgesi Güncelle" file={ethicsFile} onChange={setEthicsFile} hint="Yeni belge eklemek istiyorsanız seçin" />
                 </>}
               </div>
             )}
