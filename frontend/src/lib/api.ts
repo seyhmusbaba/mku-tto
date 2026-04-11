@@ -146,6 +146,13 @@ export const aiApi = {
     api.get('/projects/similar', { params: { title, description, excludeId } }),
   getBudgetStats: (type?: string, faculty?: string) =>
     api.get('/projects/budget-stats', { params: { type, faculty } }),
+  extractText: (formData: FormData) =>
+    api.post('/ai/extract-text', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+};
+
+export const auditApi = {
+  getByProject: (projectId: string) => api.get(`/audit/project/${projectId}`),
+  getRecent: (limit?: number) => api.get('/audit/recent', { params: limit ? { limit } : {} }),
 };
 
 export const analyticsApi = {

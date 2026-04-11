@@ -26,11 +26,12 @@ export const PROJECT_STATUS_COLORS: Record<string, string> = {
 };
 
 export const ROLE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  'Süper Admin': { bg: '#fff0f0', text: '#dc2626', border: '#fecaca' },
-  'Dekan': { bg: '#fffbeb', text: '#92400e', border: '#fde68a' },
-  'Bölüm Başkanı': { bg: '#f0f9ff', text: '#075985', border: '#bae6fd' },
-  'Akademisyen': { bg: '#f0fdf4', text: '#14532d', border: '#bbf7d0' },
-  'Araştırma Görevlisi': { bg: '#faf5ff', text: '#581c87', border: '#e9d5ff' },
+  'Süper Admin':        { bg: '#fff0f0', text: '#dc2626', border: '#fecaca' },
+  'Rektör':             { bg: '#fdf4ff', text: '#7e22ce', border: '#e9d5ff' },
+  'Dekan':              { bg: '#fffbeb', text: '#92400e', border: '#fde68a' },
+  'Bölüm Başkanı':      { bg: '#f0f9ff', text: '#075985', border: '#bae6fd' },
+  'Akademisyen':        { bg: '#f0fdf4', text: '#14532d', border: '#bbf7d0' },
+  'Araştırma Görevlisi':{ bg: '#faf5ff', text: '#581c87', border: '#e9d5ff' },
 };
 
 export const MEMBER_ROLE_LABELS: Record<string, string> = {

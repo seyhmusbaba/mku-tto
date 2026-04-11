@@ -69,7 +69,11 @@ export default function EditProjectPage() {
       projectsApi.getOne(id).then(r => {
         const p = r.data;
         setProject(p);
-        setSdgSelected(p.sdgGoals || []);
+        // sdgGoals getter JSON'da gelmeyebilir — sdgGoalsJson'dan da parse et
+        const sdg = p.sdgGoals && Array.isArray(p.sdgGoals) && p.sdgGoals.length > 0
+          ? p.sdgGoals
+          : (() => { try { return p.sdgGoalsJson ? JSON.parse(p.sdgGoalsJson) : []; } catch { return []; } })();
+        setSdgSelected(sdg);
         setForm({
           title: p.title || '',
           description: p.description || '',

@@ -45,10 +45,14 @@ import { ProjectType } from './database/entities/project-type.entity';
 import { Faculty } from './database/entities/faculty.entity';
 import { ReportType } from './database/entities/report-type.entity';
 import { ProjectPartner } from './database/entities/project-partner.entity';
+import { BootstrapService } from './bootstrap.service';
 
 @Module({
   controllers: [AppController],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    BootstrapService,
+  ],
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 60 }]),
@@ -64,6 +68,7 @@ import { ProjectPartner } from './database/entities/project-partner.entity';
       synchronize: true,
       logging: false,
     }),
+    TypeOrmModule.forFeature([Permission, Role]),
     AuthModule, UsersModule, RolesModule, ProjectsModule,
     DocumentsModule, ReportsModule, DashboardModule, SettingsModule,
     DynamicFieldsModule, NotificationsModule, ProjectTypesModule, FacultiesModule, ReportTypesModule, PartnersModule, AiModule, AnalyticsModule, ExportModule, AuditModule, CompetitionsModule, EthicsModule,

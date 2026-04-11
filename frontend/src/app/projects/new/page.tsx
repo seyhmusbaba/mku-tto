@@ -52,17 +52,14 @@ export default function NewProjectPage() {
   const [dynamicFields, setDynamicFields] = useState<any[]>([]);
   const [sdgSelected, setSdgSelected] = useState<string[]>([]);
 
-  // FIX #16: Persist compliance state in sessionStorage
-  const [complianceResult, setComplianceResult] = useState<any>(() => {
-    try { const s = sessionStorage.getItem('compliance_result'); return s ? JSON.parse(s) : null; } catch { return null; }
-  });
-  const [complianceDone, setComplianceDone] = useState<boolean>(() => {
-    try { return sessionStorage.getItem('compliance_done') === 'true'; } catch { return false; }
-  });
+  // FIX: sessionStorage'dan OKU değil — her yeni proje sayfasında temiz başla
+  const [complianceResult, setComplianceResult] = useState<any>(null);
+  const [complianceDone, setComplianceDone] = useState<boolean>(false);
   const [ethicsAnalysis, setEthicsAnalysis] = useState<any>(null);
   const [ethicsLoading, setEthicsLoading] = useState(false);
   const [docReview, setDocReview] = useState<any>(null);
   const [docReviewLoading, setDocReviewLoading] = useState(false);
+  const [extracting, setExtracting] = useState(false);
 
   // Dosya nesneleri - FormData ile yüklenecek
   const [acceptanceFile, setAcceptanceFile] = useState<File | null>(null);
@@ -77,6 +74,11 @@ export default function NewProjectPage() {
   });
 
   useEffect(() => {
+    // Her yeni proje sayfasında önceki sonuçları temizle
+    try {
+      sessionStorage.removeItem('compliance_result');
+      sessionStorage.removeItem('compliance_done');
+    } catch {}
     facultiesApi.getActive().then(r => setFaculties((r.data || []).map((f: any) => f.name))).catch(() => {});
     api.get('/project-types').then(r => setProjectTypes(r.data || [])).catch(() => {});
     api.get('/dynamic-fields').then(r => setDynamicFields(r.data || [])).catch(() => {});
@@ -344,10 +346,52 @@ export default function NewProjectPage() {
           <div>
             <label className="label flex justify-between">
               <span>Proje Metni</span>
-              <span className="text-xs text-muted font-normal">{form.projectText.length} karakter</span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-muted font-normal">{form.projectText.length} karakter</span>
+                <label className="cursor-pointer flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg transition-all"
+                  style={{ background: extracting ? '#eff6ff' : '#f5f3ff', color: extracting ? '#6b7280' : '#7c3aed', border: '1px solid #ddd6fe' }}>
+                  {extracting
+                    ? <><span className="spinner w-3 h-3" /> Çekiliyor...</>
+                    : <>📎 Belgeden Çek</>}
+                  <input type="file" accept=".txt,.pdf,.docx" className="hidden" disabled={extracting}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setExtracting(true);
+                      try {
+                        // .txt dosyaları doğrudan client tarafında oku
+                        if (file.name.endsWith('.txt')) {
+                          const text = await new Promise<string>(res => {
+                            const r = new FileReader();
+                            r.onload = ev => res((ev.target?.result as string) || '');
+                            r.readAsText(file, 'utf-8');
+                          });
+                          set('projectText', text);
+                          setComplianceDone(false); setEthicsAnalysis(null);
+                        } else {
+                          // PDF/DOCX backend'e gönder
+                          const fd = new FormData();
+                          fd.append('file', file);
+                          const res = await api.post('/ai/extract-text', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                          if (res.data?.text) {
+                            set('projectText', res.data.text);
+                            setComplianceDone(false); setEthicsAnalysis(null);
+                          } else if (res.data?.error) {
+                            toast.error(res.data.error);
+                          }
+                        }
+                      } catch {
+                        toast.error('Metin çıkarılamadı. Desteklenen formatlar: .txt, .pdf, .docx');
+                      } finally {
+                        setExtracting(false);
+                        e.target.value = '';
+                      }
+                    }} />
+                </label>
+              </div>
             </label>
             <textarea className="input" style={{ minHeight: 260, lineHeight: 1.7 }} value={form.projectText}
-              onChange={e => { set('projectText', e.target.value); setComplianceDone(false); setEthicsAnalysis(null); try { sessionStorage.removeItem('compliance_result'); sessionStorage.removeItem('compliance_done'); } catch {}; }}
+              onChange={e => { set('projectText', e.target.value); setComplianceDone(false); setEthicsAnalysis(null); }}
               placeholder={'Detaylı proje açıklaması...\n\n• Projenin amacı ve önemi\n• Yöntem ve yaklaşım\n• Beklenen çıktılar\n• Zaman çizelgesi'} />
           </div>
           <div className="p-4 rounded-xl" style={{
@@ -364,7 +408,6 @@ export default function NewProjectPage() {
               onResult={r => {
                 setComplianceResult(r);
                 setComplianceDone(true);
-                try { sessionStorage.setItem('compliance_result', JSON.stringify(r)); sessionStorage.setItem('compliance_done', 'true'); } catch {}
               }}
             />
           </div>

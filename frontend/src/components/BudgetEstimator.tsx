@@ -8,19 +8,22 @@ export function BudgetEstimator({ type, faculty }: Props) {
   const [data, setData] = useState<any>(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [noData, setNoData] = useState(false);
 
-  useEffect(() => { setData(null); setOpen(false); }, [type, faculty]);
+  useEffect(() => { setData(null); setOpen(false); setNoData(false); }, [type, faculty]);
 
   const handleLoad = async () => {
     if (!type || type === 'other') return;
     setLoading(true);
+    setNoData(false);
     try {
       const params: Record<string, string> = { type };
       if (faculty) params.faculty = faculty;
       const r = await api.get('/projects/budget-stats?' + new URLSearchParams(params).toString());
       const d = r.data;
-      if (d && (+d.avg > 0 || +d.min > 0 || +d.count > 0)) { setData(d); setOpen(true); }
-    } catch { setData(null); }
+      if (d && (+d.count > 0)) { setData(d); setOpen(true); }
+      else { setNoData(true); }
+    } catch { setNoData(true); }
     finally { setLoading(false); }
   };
 
@@ -33,6 +36,9 @@ export function BudgetEstimator({ type, faculty }: Props) {
           className="btn-ghost text-xs flex items-center gap-1.5 mt-1">
           {loading ? <><span className="spinner w-3 h-3" /> Yükleniyor...</> : <>💰 Bu proje türü için bütçe istatistiklerini gör</>}
         </button>
+      )}
+      {noData && !loading && (
+        <p className="text-xs text-muted mt-1">📊 Bu proje türü için henüz bütçe verisi bulunmuyor.</p>
       )}
       {open && data && (
         <div className="mt-2 p-3 rounded-xl" style={{ background: '#f0fdf4', border: '1px solid #86efac' }}>

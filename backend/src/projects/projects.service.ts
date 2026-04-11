@@ -84,13 +84,23 @@ export class ProjectsService {
     return { data: unique, total, page: +page, limit: +limit, totalPages: Math.ceil(total / +limit) };
   }
 
+  // Sanal alanlari (getter/setter) JSON ciktisina ekler
+  private serialize(p: Project): any {
+    const obj: any = { ...p };
+    obj.tags = p.tags;
+    obj.keywords = p.keywords;
+    obj.sdgGoals = p.sdgGoals;
+    obj.dynamicFields = p.dynamicFields;
+    return obj;
+  }
+
   async findOne(id: string) {
     const project = await this.projectRepo.findOne({
       where: { id },
-      relations: ['owner', 'owner.role', 'members', 'members.user', 'members.user.role', 'documents', 'documents.uploadedBy', 'reports', 'reports.author'],
+      relations: ['owner', 'owner.role', 'members', 'members.user', 'members.user.role', 'documents', 'documents.uploadedBy', 'reports', 'reports.author', 'partners'],
     });
     if (!project) throw new NotFoundException('Proje bulunamadi');
-    return project;
+    return this.serialize(project);
   }
 
   async findByUser(userId: string) {
@@ -139,7 +149,7 @@ export class ProjectsService {
       entityType: 'project', entityId: saved.id, entityTitle: saved.title,
       action: 'created', userId: ownerId,
     }).catch(() => {});
-    return saved;
+    return this.serialize(saved);
   }
 
   async update(id: string, dto: any, currentUser: any) {
@@ -244,7 +254,7 @@ export class ProjectsService {
       });
     }
 
-    return saved;
+    return this.serialize(saved);
   }
 
   // FIX #13: Rekfor yoksa admin'e bildirim, hata loglanir

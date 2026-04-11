@@ -48,6 +48,8 @@ async function seed() {
     { name: 'roles:manage', module: 'roles', action: 'manage', description: 'Rol yönetimi' },
     { name: 'settings:manage', module: 'settings', action: 'manage', description: 'Sistem ayarları' },
     { name: 'analytics:read', module: 'analytics', action: 'read', description: 'Analizleri görüntüle' },
+    { name: 'ethics:read', module: 'ethics', action: 'read', description: 'Etik kurul başvurularını görüntüle' },
+    { name: 'ethics:manage', module: 'ethics', action: 'manage', description: 'Etik kurul kararı ver (onayla/reddet)' },
   ];
 
   const savedPerms: Permission[] = [];
@@ -62,7 +64,8 @@ async function seed() {
     { name: 'Akademisyen', description: 'Proje sahibi akademik personel', permNames: ['projects:read', 'projects:write'] },
     { name: 'Araştırma Görevlisi', description: 'Araştırmacı', permNames: ['projects:read'] },
     { name: 'Bölüm Başkanı', description: 'Bölüm yöneticisi', permNames: ['projects:read', 'analytics:read'] },
-    { name: 'Dekan', description: 'Fakülte yöneticisi', permNames: ['projects:read', 'analytics:read'] },
+    { name: 'Dekan', description: 'Fakülte yöneticisi', permNames: ['projects:read', 'analytics:read', 'ethics:read'] },
+    { name: 'Rektör', description: 'Üniversite rektörü — tüm projeleri ve etik kurulu yönetir', permNames: ['projects:read', 'analytics:read', 'ethics:read', 'ethics:manage'] },
   ];
 
   const savedRoles: Record<string, Role> = {};

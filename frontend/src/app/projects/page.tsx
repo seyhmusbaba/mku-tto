@@ -67,6 +67,7 @@ export default function ProjectsPage() {
     const sdgGoals = (p as any).sdgGoals || [];
     const daysLeft = p.endDate ? getDaysLeft(p.endDate) : null;
     const isUrgent = daysLeft !== null && daysLeft <= 30 && daysLeft >= 0 && p.status === 'active';
+    const ethicsPending = (p as any).ethicsRequired && !(p as any).ethicsApproved;
     return (
       <Link href={`/projects/${p.id}`} className="card-hover block group">
         <div className="flex items-start justify-between mb-3">
@@ -77,6 +78,11 @@ export default function ProjectsPage() {
             <span className={`badge text-xs ${PROJECT_STATUS_COLORS[(p as any).status] || 'badge-gray'}`}>{PROJECT_STATUS_LABELS[(p as any).status] || p.status}</span>
           </div>
         </div>
+        {ethicsPending && (
+          <div className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg mb-2" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}>
+            ⚖️ Etik Kurul Onayı Bekliyor
+          </div>
+        )}
         <h3 className="font-display font-semibold text-navy text-sm leading-snug mb-1 group-hover:text-blue-700 line-clamp-2">{p.title}</h3>
         <p className="text-xs text-muted mb-3">{p.owner?.firstName} {p.owner?.lastName}</p>
         {sdgGoals.length > 0 && (
@@ -215,12 +221,14 @@ export default function ProjectsPage() {
                         const sdgGoals = (p as any).sdgGoals || [];
                         const daysLeft = p.endDate ? getDaysLeft(p.endDate) : null;
                         const isUrgent = daysLeft !== null && daysLeft <= 30 && daysLeft >= 0 && p.status === 'active';
+                        const ethicsPending = (p as any).ethicsRequired && !(p as any).ethicsApproved;
                         return (
                           <tr key={p.id} className="table-row-hover border-b" style={{ borderColor: '#f5f2ee' }}>
                             <td className="px-5 py-4">
                               <Link href={`/projects/${p.id}`} className="font-semibold text-navy hover:underline line-clamp-1">{p.title}</Link>
                               {p.owner && <p className="text-xs text-muted mt-0.5">{p.owner.firstName} {p.owner.lastName}</p>}
                               {isUrgent && <span className="text-xs font-bold" style={{ color: '#dc2626' }}>⏰ {daysLeft} gün kaldı</span>}
+                              {ethicsPending && <span className="text-xs font-semibold ml-1" style={{ color: '#92400e' }}>⚖️ Etik Onayı Bekliyor</span>}
                             </td>
                             <td className="px-5 py-4">
                               <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: typeColor + '18', color: typeColor }}>{getProjectTypeLabel(p.type, projectTypes)}</span>

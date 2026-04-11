@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Header } from '@/components/layout/Header';
-import { api, projectsApi, reportsApi, documentsApi, usersApi, reportTypesApi } from '@/lib/api';
+import { api, projectsApi, reportsApi, documentsApi, usersApi, reportTypesApi, auditApi } from '@/lib/api';
 import { Project, ProjectReport, User } from '@/types';
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_COLORS, SDG_MAP, getProjectTypeLabel, formatDate, formatCurrency, getInitials, MEMBER_ROLE_LABELS } from '@/lib/utils';
 import { useAuth } from '@/lib/auth-context';
@@ -58,6 +58,16 @@ export default function ProjectDetailPage() {
       reportTypesApi.getActive().then(r => setReportTypes(r.data)).catch(() => {}),
     ]).finally(() => setLoading(false));
   }, [id]);
+
+  // Geçmiş sekmesi açıldığında audit logları yükle
+  useEffect(() => {
+    if (tab !== 'history') return;
+    setAuditLoading(true);
+    auditApi.getByProject(id)
+      .then(r => setAuditLogs(r.data || []))
+      .catch(() => setAuditLogs([]))
+      .finally(() => setAuditLoading(false));
+  }, [tab, id]);
 
   const handleSaveReport = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -185,6 +195,16 @@ export default function ProjectDetailPage() {
         <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: '#f0ede8', color: '#6b7280' }}>{getProjectTypeLabel(project.type)}</span>
         {project.faculty && <span className="text-xs text-muted">{project.faculty}</span>}
         {project.department && <><span className="text-muted text-xs">›</span><span className="text-xs text-muted">{project.department}</span></>}
+        {(project as any).ethicsRequired && !(project as any).ethicsApproved && (
+          <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}>
+            ⚖️ Etik Kurul Onayı Bekliyor
+          </span>
+        )}
+        {(project as any).ethicsRequired && (project as any).ethicsApproved && (
+          <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: '#f0fdf4', color: '#14532d', border: '1px solid #86efac' }}>
+            ✅ Etik Kurul Onaylandı
+          </span>
+        )}
         <div className="ml-auto flex items-center gap-6 text-xs text-muted">
           {project.budget && <span className="font-bold text-navy">{formatCurrency(project.budget)}</span>}
           {project.startDate && <span>{formatDate(project.startDate)} → {project.endDate ? formatDate(project.endDate) : 'Devam'}</span>}
@@ -232,12 +252,33 @@ export default function ProjectDetailPage() {
         {tab === 'overview' && (
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <div className="xl:col-span-2 space-y-5">
+              {/* Proje Metni — üstte, açıklamadan önce */}
+              {(project as any).projectText && (
+                <div className="card p-5" style={{ border: '2px solid #e0e7ff', background: '#fafbff' }}>
+                  <h3 className="font-display text-sm font-semibold text-navy mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-5 rounded-full inline-block" style={{ background: '#1a3a6b' }} />
+                    Proje Metni
+                    <span className="text-xs text-muted font-normal ml-auto">{(project as any).projectText.length} karakter</span>
+                  </h3>
+                  <div className="text-sm text-navy leading-relaxed whitespace-pre-wrap"
+                    style={{ maxHeight: 320, overflowY: 'auto', lineHeight: 1.8 }}>
+                    {(project as any).projectText}
+                  </div>
+                </div>
+              )}
+
+              {/* Proje Açıklaması */}
               {project.description && (
                 <div className="card">
                   <h3 className="font-display text-sm font-semibold text-navy mb-3">Proje Açıklaması</h3>
                   <p className="text-sm leading-relaxed text-muted">{project.description}</p>
                 </div>
               )}
+
+              {/* ── YZ Uygunluk + Fikri Mülkiyet + Etik Kurul (ÖNE ÇIKARILDI) ── */}
+              <ProjectIpEthicsPanel project={project} />
+              <EthicsStatusPanel2 projectId={project.id} />
+
               {/* Stats grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {[
@@ -425,30 +466,6 @@ export default function ProjectDetailPage() {
                 />
               </div>
             )}
-
-            {/* Proje Metni */}
-            {(project as any).projectText && (
-              <div className="card p-5 mt-4">
-                <h3 className="font-display text-sm font-semibold text-navy mb-3 flex items-center gap-2">
-                  <span className="w-1.5 h-5 rounded-full inline-block" style={{ background: '#1a3a6b' }} />
-                  Proje Metni
-                </h3>
-                <div className="text-sm text-navy leading-relaxed whitespace-pre-wrap"
-                  style={{ maxHeight: 300, overflowY: 'auto', lineHeight: 1.8 }}>
-                  {(project as any).projectText}
-                </div>
-              </div>
-            )}
-
-            {/* Fikri Mülkiyet + YZ Uygunluk */}
-            <div className="mt-4">
-              <ProjectIpEthicsPanel project={project} />
-            </div>
-
-            {/* Etik Kurul Durumu */}
-            <div className="mt-4">
-              <EthicsStatusPanel2 projectId={project.id} />
-            </div>
           </div>
         )}
 
@@ -1267,12 +1284,38 @@ export default function ProjectDetailPage() {
                           {new Date(log.createdAt).toLocaleString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
-                      {/* Detay */}
-                      {detail.from && detail.to && (
+                      {/* Detay — tek alan değişikliği */}
+                      {detail.from !== undefined && detail.to !== undefined && (
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#fef2f2', color: '#dc2626' }}>{detail.from}</span>
+                          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#fef2f2', color: '#dc2626' }}>{String(detail.from)}</span>
                           <span className="text-xs text-muted">→</span>
-                          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#f0fdf4', color: '#059669' }}>{detail.to}</span>
+                          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#f0fdf4', color: '#059669' }}>{String(detail.to)}</span>
+                        </div>
+                      )}
+                      {/* Detay — çok alan değişikliği (update logu) */}
+                      {detail.from === undefined && typeof detail === 'object' && Object.keys(detail).length > 0 && (
+                        <div className="mt-1.5 space-y-1">
+                          {Object.entries(detail).slice(0, 5).map(([field, change]: [string, any]) => {
+                            if (!change || typeof change !== 'object') return null;
+                            const FIELD_LABELS: Record<string, string> = {
+                              title: 'Başlık', description: 'Açıklama', status: 'Durum', type: 'Tür',
+                              faculty: 'Fakülte', department: 'Bölüm', budget: 'Bütçe',
+                              fundingSource: 'Fon Kaynağı', startDate: 'Başlangıç', endDate: 'Bitiş',
+                              projectText: 'Proje Metni', ipStatus: 'Fikri Mülkiyet',
+                              ethicsRequired: 'Etik Gerekli', ethicsApproved: 'Etik Onayı',
+                            };
+                            return (
+                              <div key={field} className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-xs text-muted font-medium">{FIELD_LABELS[field] || field}:</span>
+                                <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#fef2f2', color: '#dc2626' }}>{String(change.from ?? '—')}</span>
+                                <span className="text-xs text-muted">→</span>
+                                <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#f0fdf4', color: '#059669' }}>{String(change.to ?? '—')}</span>
+                              </div>
+                            );
+                          })}
+                          {Object.keys(detail).length > 5 && (
+                            <p className="text-xs text-muted">+{Object.keys(detail).length - 5} alan daha değişti</p>
+                          )}
                         </div>
                       )}
                       {detail.name && <p className="text-xs text-muted mt-1">"{detail.name}"</p>}

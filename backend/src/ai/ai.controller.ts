@@ -1,4 +1,6 @@
-import { Controller, Post, Get, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, UseGuards, Request, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { SkipThrottle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { YoksisService } from './yoksis.service';
@@ -179,6 +181,36 @@ SADECE JSON döndür:
       missingDocuments: missing,
       recommendations: missing.length > 0 ? ['Eksik belgeleri Belgeler sekmesinden yükleyin'] : [],
     };
+  }
+
+  // ── BELGEDEN METİN ÇIKAR ─────────────────────────────────────
+  @Post('extract-text')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }))
+  async extractText(@UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('Dosya yüklenmedi');
+    const ext = (file.originalname.split('.').pop() || '').toLowerCase();
+    try {
+      if (ext === 'txt') {
+        return { text: file.buffer.toString('utf-8') };
+      }
+      if (ext === 'pdf') {
+        // pdf-parse ile metin çıkar
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const pdfParse = require('pdf-parse');
+        const data = await pdfParse(file.buffer);
+        return { text: (data.text || '').trim() };
+      }
+      if (ext === 'docx') {
+        // mammoth ile metin çıkar
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const mammoth = require('mammoth');
+        const result = await mammoth.extractRawText({ buffer: file.buffer });
+        return { text: (result.value || '').trim() };
+      }
+      return { text: '', error: 'Bu dosya türü desteklenmiyor (.txt, .pdf, .docx)' };
+    } catch (e: any) {
+      return { text: '', error: 'Metin çıkarılamadı: ' + (e?.message || 'bilinmeyen hata') };
+    }
   }
 
   // ── YÖKSİS ───────────────────────────────────────────────────
