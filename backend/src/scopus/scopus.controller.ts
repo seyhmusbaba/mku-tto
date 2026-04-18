@@ -64,16 +64,28 @@ export class ScopusController {
   }
 
 
-  // Debug: kendi profilini ve Scopus verisini göster
-  // /api/scopus/debug — login gerekir, tarayıcıda açmak için önce giriş yapın
-  @UseGuards(JwtAuthGuard)
+  // Debug: kendi profilini ve Scopus verisini göster — PUBLIC (geçici test)
+  // /api/scopus/debug?userId=USER_ID_BURAYA
   @Get('debug')
-  async debug(@Request() req: any) {
-    const user = await this.userRepo.findOne({ where: { id: req.user.userId } });
-    const scopusId = (user as any)?.scopusAuthorId;
+  async debug(@Query('userId') userId?: string) {
+    if (!userId) {
+      return { 
+        error: 'userId parametresi gerekli',
+        example: '/api/scopus/debug?userId=KULLANICI_UUID' 
+      };
+    }
 
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) return { step: 'FAIL', reason: 'Kullanıcı bulunamadı', userId };
+
+    const scopusId = (user as any)?.scopusAuthorId;
     if (!scopusId) {
-      return { step: 'FAIL', reason: 'scopusAuthorId DB\'de kayıtlı değil', userId: req.user.userId };
+      return { 
+        step: 'FAIL', 
+        reason: 'scopusAuthorId DB\'de kayıtlı değil — profil sayfasından Scopus Author ID girilip kaydedilmeli',
+        userId,
+        userEmail: user.email,
+      };
     }
 
     // Scopus search API doğrudan çağır
@@ -96,6 +108,7 @@ export class ScopusController {
 
     return {
       step: apiStatus === 200 ? 'OK' : 'FAIL',
+      userEmail: user.email,
       scopusId,
       apiStatus,
       totalPublications: total,
