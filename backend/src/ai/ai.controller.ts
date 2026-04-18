@@ -213,8 +213,42 @@ SADECE JSON döndür:
     }
   }
 
-  // ── YÖKSİS ───────────────────────────────────────────────────
-  @Get('yoksis/status')
+  // ── SKH ÖNERİSİ ──────────────────────────────────────────────
+  @Post('suggest-sdg')
+  async suggestSdg(@Body() dto: { title: string; description: string; projectText?: string }) {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      // API yoksa kural tabanlı basit öneri
+      return { suggestions: [] };
+    }
+    try {
+      const prompt = `Aşağıdaki akademik proje için BM Sürdürülebilir Kalkınma Hedefleri (SKH) öner.
+
+Proje: ${dto.title}
+Özet: ${dto.description || ''}
+${dto.projectText ? 'Metin: ' + dto.projectText.substring(0, 500) : ''}
+
+Mevcut SKH kodları: SKH-1, SKH-2, SKH-3, SKH-4, SKH-5, SKH-6, SKH-7, SKH-8, SKH-9, SKH-10, SKH-11, SKH-12, SKH-13, SKH-14, SKH-15, SKH-16, SKH-17
+
+SADECE JSON döndür, başka hiçbir şey yazma:
+{"suggestions":["SKH-X","SKH-Y"],"reasons":{"SKH-X":"kısa açıklama"}}`;
+
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 300, messages: [{ role: 'user', content: prompt }] }),
+        signal: AbortSignal.timeout(20000),
+      });
+      if (!res.ok) return { suggestions: [] };
+      const data = await res.json();
+      const text = data?.content?.find((b: any) => b.type === 'text')?.text || '';
+      const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+      return { suggestions: parsed.suggestions || [], reasons: parsed.reasons || {} };
+    } catch {
+      return { suggestions: [] };
+    }
+  }
+
   yoksisStatus() { return { configured: this.yoksisService.isReady() }; }
 
   @Post('yoksis/sync')

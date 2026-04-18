@@ -81,7 +81,7 @@ export class ProjectsService {
     const total = await qb.getCount();
     const data = await qb.skip((+page - 1) * +limit).take(+limit).getMany();
     const unique = Array.from(new Map(data.map(p => [p.id, p])).values());
-    return { data: unique, total, page: +page, limit: +limit, totalPages: Math.ceil(total / +limit) };
+    return { data: unique.map(p => this.serialize(p)), total, page: +page, limit: +limit, totalPages: Math.ceil(total / +limit) };
   }
 
   // Sanal alanlari (getter/setter) JSON ciktisina ekler

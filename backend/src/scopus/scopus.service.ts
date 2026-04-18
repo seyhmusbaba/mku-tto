@@ -144,28 +144,30 @@ export class ScopusService {
   }) {
     const limit = opts.limit || 10;
     const cacheKey = `related:${opts.title.substring(0, 30)}:${opts.authorScopusIds.join(',')}`;
-    const cached = cache.get(cacheKey) as any[];
-    if (cached) return cached;
+    const cached = cache.get(cacheKey);
+    if (cached && Array.isArray(cached)) return cached;
 
     try {
-      // Arama stratejisi: yazarlar + anahtar kelimeler
       let query = '';
       if (opts.authorScopusIds.length > 0) {
         query = opts.authorScopusIds.map(id => `AU-ID(${id})`).join(' OR ');
-        if (opts.keywords.length > 0) {
-          const kwPart = opts.keywords.slice(0, 3).map(k => `KEY("${k}")`).join(' OR ');
-          query = `(${query}) AND (${kwPart})`;
+        if (opts.keywords.length >= 3) {
+          const kws = opts.keywords.slice(0, 3).map(k => `KEY("${k}")`).join(' OR ');
+          query = `(${query}) AND (${kws})`;
         }
-      } else if (opts.keywords.length > 0) {
-        query = opts.keywords.slice(0, 5).map(k => `KEY("${k}")`).join(' OR ');
+      } else if (opts.keywords.length >= 2) {
+        query = opts.keywords.slice(0, 4).map(k => `KEY("${k}")`).join(' AND ');
+      } else if (opts.keywords.length === 1) {
+        query = `KEY("${opts.keywords[0]}")`;
       } else {
-        query = `TITLE("${opts.title.substring(0, 60)}")`;
+        return [];
       }
 
       const url = `${this.BASE}/content/search/scopus?query=${encodeURIComponent(query)}&count=${Math.min(limit, 25)}&sort=-pubyear&field=dc:title,prism:publicationName,prism:coverDate,citedby-count,prism:doi,dc:identifier,dc:creator`;
       const res = await fetch(url, { headers: this.headers(), signal: AbortSignal.timeout(20000) });
       if (!res.ok) return [];
       const data = await res.json();
+
 
       const entries = data?.['search-results']?.['entry'] || [];
       const pubs = entries.map((e: any) => ({
@@ -195,31 +197,31 @@ export class ScopusService {
   }) {
     const limit = opts.limit || 8;
     const cacheKey = `similar:${opts.title.substring(0, 50)}`;
-    const cached = cache.get(cacheKey) as any[];
-    if (cached) return cached;
+    const cached = cache.get(cacheKey) as any;
+    if (cached && cached.results) return cached;
 
     try {
-      // Başlık + anahtar kelime ile arama
-      const terms = [
-        `TITLE("${opts.title.substring(0, 80)}")`,
-        ...(opts.keywords || []).slice(0, 3).map(k => `KEY("${k}")`),
-      ];
-      const query = terms.join(' OR ');
+      // Başlık kelimelerini quote etmeden ara - daha geniş sonuç
+      const titleWords = opts.title.split(' ').filter(w => w.length > 4).slice(0, 5);
+      const kwParts = (opts.keywords || []).slice(0, 3).map(k => `KEY("${k}")`);
+      const titlePart = titleWords.length > 0 ? `TITLE-ABS-KEY(${titleWords.join(' AND ')})` : '';
+      const parts = [titlePart, ...kwParts].filter(Boolean);
+      const query = parts.length > 0 ? parts.join(' OR ') : `TITLE("${opts.title.substring(0, 60)}")`;
 
-      const url = `${this.BASE}/content/search/scopus?query=${encodeURIComponent(query)}&count=${limit}&sort=-citedby-count&field=dc:title,prism:publicationName,prism:coverDate,citedby-count,prism:doi,dc:identifier,dc:creator,affil`;
+      const url = `${this.BASE}/content/search/scopus?query=${encodeURIComponent(query)}&count=${limit}&sort=-citedby-count&field=dc:title,prism:publicationName,prism:coverDate,citedby-count,prism:doi,dc:identifier,dc:creator`;
       const res = await fetch(url, { headers: this.headers(), signal: AbortSignal.timeout(20000) });
-      if (!res.ok) return [];
+      if (!res.ok) return { total: 0, results: [] };
       const data = await res.json();
       const total = +(data?.['search-results']?.['opensearch:totalResults'] || 0);
 
       const entries = data?.['search-results']?.['entry'] || [];
       const results = entries.map((e: any) => ({
-        scopusId: e['dc:identifier']?.replace('SCOPUS_ID:', '') || '',
-        title: e['dc:title'] || '',
-        journal: e['prism:publicationName'] || '',
-        year: e['prism:coverDate']?.substring(0, 4) || '',
-        citedBy: +(e['citedby-count'] || 0),
-        doi: e['prism:doi'] || '',
+        scopusId:    e['dc:identifier']?.replace('SCOPUS_ID:', '') || '',
+        title:       e['dc:title'] || '',
+        journal:     e['prism:publicationName'] || '',
+        year:        e['prism:coverDate']?.substring(0, 4) || '',
+        citedBy:     +(e['citedby-count'] || 0),
+        doi:         e['prism:doi'] || '',
         firstAuthor: e['dc:creator'] || '',
       }));
 

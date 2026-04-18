@@ -280,7 +280,7 @@ export default function ProjectDetailPage() {
 
               {/* ── YZ Uygunluk + Fikri Mülkiyet + Etik Kurul (ÖNE ÇIKARILDI) ── */}
               <ProjectIpEthicsPanel project={project} />
-              <EthicsStatusPanel2 projectId={project.id} />
+              <EthicsStatusPanel2 projectId={project.id} onDecision={reload} />
 
               {/* Stats grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
