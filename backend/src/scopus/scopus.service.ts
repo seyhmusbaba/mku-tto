@@ -31,36 +31,58 @@ export class ScopusService {
   }
 
   // ── YAZAR PROFİLİ ─────────────────────────────────────────────
-  // h-index, atıf sayısı, toplam yayın, alan bilgisi
+  // Author Retrieval API kurumsal erişim gerektiriyor.
+  // Search API üzerinden yayın listesinden metrikleri kendimiz hesaplıyoruz.
   async getAuthorProfile(scopusAuthorId: string) {
     const cacheKey = `author:${scopusAuthorId}`;
     const cached = cache.get(cacheKey);
     if (cached) return cached;
 
     try {
-      const url = `${this.BASE}/content/author/author_id/${scopusAuthorId}?field=h-index,document-count,cited-by-count,subject-area,affiliation-current,preferred-name,coauthor-count`;
-      const res = await fetch(url, { headers: this.headers(), signal: AbortSignal.timeout(15000) });
+      // Tüm yayınları çek (max 200 — h-index hesabı için yeterli)
+      const url = `${this.BASE}/content/search/scopus?query=AU-ID(${scopusAuthorId})&count=200&sort=-citedby-count&field=dc:title,prism:publicationName,prism:coverDate,citedby-count,prism:doi,dc:identifier,subject-areas`;
+      const res = await fetch(url, { headers: this.headers(), signal: AbortSignal.timeout(20000) });
       if (!res.ok) return null;
       const data = await res.json();
-      const entry = data?.['author-retrieval-response']?.[0];
-      if (!entry) return null;
 
-      const coreData = entry['author-profile']?.['preferred-name'];
-      const metrics = entry?.['h-index'];
+      const entries: any[] = data?.['search-results']?.['entry'] || [];
+      const totalResults = +(data?.['search-results']?.['opensearch:totalResults'] || 0);
+      if (!entries.length) return null;
+
+      // Toplam atıf
+      const citedByCount = entries.reduce((s, e) => s + +(e['citedby-count'] || 0), 0);
+
+      // h-index hesapla: azalan atıf sıralamasında, atıf sayısı >= sıra numarası olan son pozisyon
+      const sorted = entries.map(e => +(e['citedby-count'] || 0)).sort((a, b) => b - a);
+      let hIndex = 0;
+      for (let i = 0; i < sorted.length; i++) {
+        if (sorted[i] >= i + 1) hIndex = i + 1; else break;
+      }
+
+      // Konu alanları — en sık geçenler
+      const areaCounts: Record<string, number> = {};
+      entries.forEach(e => {
+        const areas = e['subject-areas']?.['subject-area'] || [];
+        (Array.isArray(areas) ? areas : [areas]).forEach((a: any) => {
+          const code = a?.['@abbrev'] || '';
+          if (code) areaCounts[code] = (areaCounts[code] || 0) + 1;
+        });
+      });
+      const subjectAreas = Object.entries(areaCounts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 5)
+        .map(([code]) => ASJC_LABELS[code] || code);
 
       const profile = {
-        scopusId: scopusAuthorId,
-        firstName: coreData?.['given-name'] || '',
-        lastName:  coreData?.['surname'] || '',
-        hIndex:    +(entry['h-index'] || 0),
-        citedByCount: +(entry['coredata']?.['cited-by-count'] || 0),
-        documentCount: +(entry['coredata']?.['document-count'] || 0),
-        coauthorCount: +(entry['coauthor-count'] || 0),
-        subjectAreas: (entry['subject-areas']?.['subject-area'] || [])
-          .map((s: any) => s['$'] || s['@abbrev'])
-          .filter(Boolean)
-          .slice(0, 5),
-        affiliation: entry['author-profile']?.['affiliation-current']?.['affiliation']?.['ip-doc']?.['afdispname'] || '',
+        scopusId:     scopusAuthorId,
+        hIndex,
+        citedByCount,
+        documentCount: totalResults,
+        subjectAreas,
+        coauthorCount: 0,
+        affiliation:  '',
+        // hesaplama notu
+        note: totalResults > 200 ? `${totalResults} yayından ilk 200'e göre hesaplandı` : null,
       };
 
       cache.set(cacheKey, profile);
@@ -84,13 +106,13 @@ export class ScopusService {
 
       const entries = data?.['search-results']?.['entry'] || [];
       const pubs = entries.map((e: any) => ({
-        scopusId: e['dc:identifier']?.replace('SCOPUS_ID:', '') || '',
-        title: e['dc:title'] || '',
-        journal: e['prism:publicationName'] || '',
-        year: e['prism:coverDate']?.substring(0, 4) || '',
-        citedBy: +(e['citedby-count'] || 0),
-        doi: e['prism:doi'] || '',
-        keywords: e['authkeywords'] || '',
+        scopusId:  e['dc:identifier']?.replace('SCOPUS_ID:', '') || '',
+        title:     e['dc:title'] || '',
+        journal:   e['prism:publicationName'] || '',
+        year:      e['prism:coverDate']?.substring(0, 4) || '',
+        citedBy:   +(e['citedby-count'] || 0),
+        doi:       e['prism:doi'] || '',
+        keywords:  e['authkeywords'] || '',
       }));
 
       cache.set(cacheKey, pubs);
