@@ -21,7 +21,7 @@ export function FundingMatchPanel({ keywords, tags, projectType, title }: Props)
   const [open, setOpen]       = useState(false);
   const [scopusOff, setScopusOff] = useState(false);
 
-  const allKeywords = [...new Set([...keywords, ...tags])].filter(Boolean);
+  const allKeywords = Array.from(new Set([...keywords, ...tags])).filter(Boolean);
 
   const load = async () => {
     if (data) { setOpen(o => !o); return; }

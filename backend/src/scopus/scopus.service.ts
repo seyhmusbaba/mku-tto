@@ -73,7 +73,7 @@ export class ScopusService {
   // ── YAZAR YAYINLARI ───────────────────────────────────────────
   async getAuthorPublications(scopusAuthorId: string, limit = 20) {
     const cacheKey = `pubs:${scopusAuthorId}:${limit}`;
-    const cached = cache.get<any[]>(cacheKey);
+    const cached = cache.get(cacheKey) as any[];
     if (cached) return cached;
 
     try {
@@ -110,7 +110,7 @@ export class ScopusService {
   }) {
     const limit = opts.limit || 10;
     const cacheKey = `related:${opts.title.substring(0, 30)}:${opts.authorScopusIds.join(',')}`;
-    const cached = cache.get<any[]>(cacheKey);
+    const cached = cache.get(cacheKey) as any[];
     if (cached) return cached;
 
     try {
@@ -161,7 +161,7 @@ export class ScopusService {
   }) {
     const limit = opts.limit || 8;
     const cacheKey = `similar:${opts.title.substring(0, 50)}`;
-    const cached = cache.get<any[]>(cacheKey);
+    const cached = cache.get(cacheKey) as any[];
     if (cached) return cached;
 
     try {
@@ -203,7 +203,7 @@ export class ScopusService {
   async getSubjectAreaMatch(keywords: string[], projectType?: string) {
     if (!keywords.length) return [];
     const cacheKey = `subject:${keywords.slice(0, 4).join(',')}`;
-    const cached = cache.get<any[]>(cacheKey);
+    const cached = cache.get(cacheKey) as any[];
     if (cached) return cached;
 
     try {
