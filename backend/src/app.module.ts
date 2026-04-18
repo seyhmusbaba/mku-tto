@@ -45,6 +45,7 @@ import { ProjectType } from './database/entities/project-type.entity';
 import { Faculty } from './database/entities/faculty.entity';
 import { ReportType } from './database/entities/report-type.entity';
 import { ProjectPartner } from './database/entities/project-partner.entity';
+import { ScopusModule } from './scopus/scopus.module';
 import { BootstrapService } from './bootstrap.service';
 
 @Module({
@@ -71,7 +72,7 @@ import { BootstrapService } from './bootstrap.service';
     TypeOrmModule.forFeature([Permission, Role]),
     AuthModule, UsersModule, RolesModule, ProjectsModule,
     DocumentsModule, ReportsModule, DashboardModule, SettingsModule,
-    DynamicFieldsModule, NotificationsModule, ProjectTypesModule, FacultiesModule, ReportTypesModule, PartnersModule, AiModule, AnalyticsModule, ExportModule, AuditModule, CompetitionsModule, EthicsModule,
+    DynamicFieldsModule, NotificationsModule, ProjectTypesModule, FacultiesModule, ReportTypesModule, PartnersModule, AiModule, AnalyticsModule, ExportModule, AuditModule, CompetitionsModule, EthicsModule, ScopusModule,
   ],
 })
 export class AppModule {}

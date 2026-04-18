@@ -16,8 +16,11 @@ import { ProjectIpEthicsPanel } from '@/components/ProjectIpEthicsPanel';
 import { EthicsStatusPanel2 } from '@/components/EthicsStatusPanel2';
 import { ReportTemplateDownloader } from '@/components/ReportTemplateDownloader';
 import { AiSummaryPanel } from '@/components/AiSummaryPanel';
+import { ScopusPublications } from '@/components/ScopusPublications';
+import { FundingMatchPanel } from '@/components/FundingMatchPanel';
+import { SimilarResearchPanel } from '@/components/SimilarResearchPanel';
 
-type Tab = 'overview' | 'members' | 'documents' | 'reports' | 'partners' | 'history';
+type Tab = 'overview' | 'members' | 'documents' | 'reports' | 'partners' | 'publications' | 'history';
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -163,7 +166,7 @@ export default function ProjectDetailPage() {
     (u.firstName + ' ' + u.lastName + ' ' + u.email).toLowerCase().includes(memberSearch.toLowerCase())
   ).slice(0, 5);
 
-  const tabs: [Tab, string][] = [['overview', 'Genel Bakış'], ['members', 'Ekip'], ['documents', 'Belgeler'], ['reports', 'Raporlar'], ['partners', 'Ortaklar 🤝'], ['history', 'Geçmiş 📋']];
+  const tabs: [Tab, string][] = [['overview', 'Genel Bakış'], ['members', 'Ekip'], ['documents', 'Belgeler'], ['reports', 'Raporlar'], ['partners', 'Ortaklar 🤝'], ['publications', 'Yayınlar 🔬'], ['history', 'Geçmiş 📋']];
 
   // Report chart data
   const reportChartData = [...reports].reverse().map(r => ({ date: new Date(r.createdAt).toLocaleDateString('tr-TR', { month: 'short', day: 'numeric' }), progress: r.progressPercent, title: r.title }));
@@ -466,6 +469,38 @@ export default function ProjectDetailPage() {
                 />
               </div>
             )}
+
+            {/* Scopus: Benzer Dünya Çalışmaları */}
+            <div className="mt-4 space-y-3">
+              <SimilarResearchPanel
+                title={project.title}
+                description={project.description}
+                keywords={(project as any).keywords || []}
+              />
+              <FundingMatchPanel
+                keywords={(project as any).keywords || []}
+                tags={(project as any).tags || []}
+                projectType={project.type}
+                title={project.title}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ===== YAYINLAR (Scopus) ===== */}
+        {tab === 'publications' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-display text-base font-semibold text-navy">Scopus Yayınları</h3>
+                <p className="text-xs text-muted mt-0.5">Proje ekibinin yayınları ve projeye bağlanan çalışmalar</p>
+              </div>
+            </div>
+            <ScopusPublications
+              projectId={id}
+              canEdit={canEdit}
+              projectTitle={project.title}
+            />
           </div>
         )}
 

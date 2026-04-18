@@ -57,6 +57,25 @@ export class User {
   @Column({ type: 'text', nullable: true })
   publicationsJson: string;
 
+  // Scopus entegrasyonu
+  @Column({ nullable: true })
+  scopusAuthorId: string;
+
+  @Column({ nullable: true, type: 'int' })
+  scopusHIndex: number;
+
+  @Column({ nullable: true, type: 'int' })
+  scopusCitedBy: number;
+
+  @Column({ nullable: true, type: 'int' })
+  scopusDocCount: number;
+
+  @Column({ type: 'text', nullable: true })
+  scopusSubjects: string;
+
+  @Column({ nullable: true })
+  scopusLastSync: string;
+
   @Column({ default: 1 })
   isActive: boolean;
 

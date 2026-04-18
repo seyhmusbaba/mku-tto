@@ -98,6 +98,10 @@ export class Project {
   @Column({ type: 'text', nullable: true })
   aiComplianceResult: string;
 
+  // ── SCOPUS BAĞLI YAYINLAR ─────────────────────────────────────
+  @Column({ type: 'text', nullable: true })
+  linkedPublicationsJson: string;
+
   // ── GETTER / SETTER ───────────────────────────────────────────
   get dynamicFields(): Record<string, any> {
     try { return this.dynamicFieldsJson ? JSON.parse(this.dynamicFieldsJson) : {}; } catch { return {}; }

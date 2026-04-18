@@ -10,6 +10,7 @@ import { User, Project } from '@/types';
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_COLORS, SDG_MAP, getProjectTypeLabel, formatDate, formatCurrency, getInitials, ROLE_COLORS, MEMBER_ROLE_LABELS } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import { OrcidPublications } from '@/components/OrcidPublications';
+import { ScopusProfileCard } from '@/components/ScopusProfileCard';
 
 const MEMBER_ROLE_STYLES: Record<string, { color: string; bg: string; icon: string; label: string }> = {
   researcher:  { color: '#1a3a6b', bg: '#eff6ff', icon: '🔬', label: 'Araştırmacı' },
@@ -78,6 +79,7 @@ export default function UserProfilePage() {
         researchGateUrl: editForm.researchGateUrl,
         expertiseArea: editForm.expertiseArea,
         bio: editForm.bio,
+        scopusAuthorId: editForm.scopusAuthorId,
       };
       if (isAdmin) {
         payload.firstName = editForm.firstName;
@@ -226,6 +228,11 @@ export default function UserProfilePage() {
                 <div>
                   <label className="label flex items-center gap-1">🎓 Google Scholar ID</label>
                   <input className="input" placeholder="Profil URL'sindeki ID" value={editForm.googleScholarId||''} onChange={e => set('googleScholarId', e.target.value)} />
+                </div>
+                <div>
+                  <label className="label flex items-center gap-1">🔬 Scopus Author ID</label>
+                  <input className="input" placeholder="Örn: 57205123456" value={editForm.scopusAuthorId||''} onChange={e => set('scopusAuthorId', e.target.value)} />
+                  <p className="text-xs text-muted mt-1">Scopus profilinizin URL'sinde bulunur: scopus.com/authid/…</p>
                 </div>
                 <div className="col-span-2">
                   <label className="label">ResearchGate URL</label>
@@ -381,6 +388,11 @@ export default function UserProfilePage() {
             {/* ORCID Yayınları */}
             {(user as any).orcidId && !editMode && (
               <OrcidPublications orcidId={(user as any).orcidId} />
+            )}
+
+            {/* Scopus Metrikleri */}
+            {(user as any).scopusAuthorId && !editMode && (
+              <ScopusProfileCard user={user} isMe={isMe} />
             )}
 
             {/* Son Ziyaretçiler — sadece kendin veya admin görebilir */}

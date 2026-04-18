@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Header } from '@/components/layout/Header';
-import { api, projectTypesApi, facultiesApi } from '@/lib/api';
+import { api, projectTypesApi, facultiesApi, scopusApi } from '@/lib/api';
 import { ProjectTypeItem, FacultyItem } from '@/types';
 import { formatCurrency, getProjectTypeLabel, getProjectTypeColor } from '@/lib/utils';
 import { GanttChart } from '@/components/GanttChart';
@@ -19,7 +19,7 @@ const STATUS_COLORS: Record<string,string> = {
   suspended:'#6b7280', cancelled:'#dc2626',
 };
 
-type Tab = 'overview' | 'faculty' | 'researcher' | 'funding' | 'timeline' | 'gantt';
+type Tab = 'overview' | 'faculty' | 'researcher' | 'funding' | 'timeline' | 'gantt' | 'scopus';
 
 export default function AnalysisPage() {
   const [tab, setTab] = useState<Tab>('overview');
@@ -74,12 +74,13 @@ export default function AnalysisPage() {
   };
 
   const TABS: { key: Tab; label: string; icon: string }[] = [
-    { key: 'overview',    label: 'Genel Bakış',   icon: '📊' },
-    { key: 'faculty',     label: 'Fakülteler',     icon: '🏛' },
-    { key: 'researcher',  label: 'Araştırmacılar', icon: '🔬' },
-    { key: 'funding',     label: 'Fon Analizi',    icon: '💰' },
-    { key: 'timeline',    label: 'Zaman Serisi',   icon: '📅' },
-    { key: 'gantt',       label: 'Gantt',          icon: '📊' },
+    { key: 'overview',    label: 'Genel Bakış',      icon: '📊' },
+    { key: 'faculty',     label: 'Fakülteler',        icon: '🏛' },
+    { key: 'researcher',  label: 'Araştırmacılar',    icon: '🔬' },
+    { key: 'funding',     label: 'Fon Analizi',       icon: '💰' },
+    { key: 'timeline',    label: 'Zaman Serisi',      icon: '📅' },
+    { key: 'gantt',       label: 'Gantt',             icon: '📊' },
+    { key: 'scopus',      label: 'Scopus Analitik',   icon: '🌍' },
   ];
 
   const years = Array.from({length: 6}, (_, i) => String(new Date().getFullYear() - i));
@@ -343,9 +344,203 @@ export default function AnalysisPage() {
                 }))} />
               </div>
             )}
+
+            {/* ── SCOPUS ANALİTİK ── */}
+            {tab === 'scopus' && <ScopusAnalyticsTab />}
           </>
         )}
       </div>
     </DashboardLayout>
+  );
+}
+
+// ── SCOPUS ANALİTİK SEKMESİ ──────────────────────────────────────────────
+function ScopusAnalyticsTab() {
+  const [faculties, setFaculties]   = useState<any[]>([]);
+  const [selected, setSelected]     = useState('');
+  const [dept, setDept]             = useState('');
+  const [metrics, setMetrics]       = useState<any>(null);
+  const [loading, setLoading]       = useState(false);
+  const [searched, setSearched]     = useState(false);
+  const [configured, setConfigured] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    facultiesApi.getActive()
+      .then(r => setFaculties((r.data || []).map((f: any) => f.name)))
+      .catch(() => {});
+    scopusApi.status()
+      .then(r => setConfigured(r.data?.configured ?? false))
+      .catch(() => setConfigured(false));
+  }, []);
+
+  const handleSearch = async () => {
+    setLoading(true);
+    setSearched(true);
+    try {
+      const r = await scopusApi.getFacultyMetrics(selected || undefined, dept || undefined);
+      setMetrics(r.data);
+    } catch { setMetrics(null); }
+    finally { setLoading(false); }
+  };
+
+  if (configured === false) {
+    return (
+      <div className="card p-8 text-center">
+        <p className="text-3xl mb-3">🔬</p>
+        <p className="font-display font-semibold text-navy text-lg mb-2">Scopus Entegrasyonu Aktif Değil</p>
+        <p className="text-sm text-muted mb-4">
+          Bu özelliği kullanmak için backend <code className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">.env</code> dosyasına
+          Scopus API anahtarını ekleyin.
+        </p>
+        <div className="inline-block text-left p-4 rounded-xl text-xs font-mono"
+          style={{ background: '#1e293b', color: '#94a3b8' }}>
+          SCOPUS_API_KEY=your_key_here<br />
+          SCOPUS_INST_TOKEN=your_token_here
+        </div>
+      </div>
+    );
+  }
+
+  const METRIC_COLORS = ['#7c3aed', '#059669', '#1a3a6b', '#d97706', '#dc2626'];
+
+  return (
+    <div className="space-y-5">
+      {/* Filtre */}
+      <div className="card p-5">
+        <h3 className="font-display text-sm font-semibold text-navy mb-4 flex items-center gap-2">
+          🌍 Scopus Fakülte / Bölüm Analitikleri
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label className="label">Fakülte</label>
+            <select className="input" value={selected} onChange={e => setSelected(e.target.value)}>
+              <option value="">Tüm Fakülteler</option>
+              {faculties.map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">Bölüm (isteğe bağlı)</label>
+            <input className="input" placeholder="Bilgisayar Müh..." value={dept}
+              onChange={e => setDept(e.target.value)} />
+          </div>
+          <div className="flex items-end">
+            <button onClick={handleSearch} disabled={loading}
+              className="btn-primary w-full flex items-center justify-center gap-2">
+              {loading ? <><span className="spinner w-4 h-4" />Hesaplanıyor...</> : '🔍 Analiz Et'}
+            </button>
+          </div>
+        </div>
+        <p className="text-xs text-muted mt-2">
+          ℹ️ Yalnızca Scopus Author ID tanımlı akademisyenler hesaba katılır.
+          Profil sayfasından Scopus Author ID eklenebilir.
+        </p>
+      </div>
+
+      {/* Sonuçlar */}
+      {searched && !loading && metrics && (
+        <>
+          {metrics.noScopusIds ? (
+            <div className="card p-8 text-center">
+              <p className="text-3xl mb-2">📭</p>
+              <p className="font-semibold text-navy text-sm">
+                {selected || dept
+                  ? `${selected || ''} ${dept || ''} için Scopus Author ID tanımlı akademisyen yok`
+                  : 'Hiçbir kullanıcıda Scopus Author ID tanımlı değil'}
+              </p>
+              <p className="text-xs text-muted mt-2">
+                Kullanıcı profilinden Scopus Author ID ekleyerek metrikleri görüntüleyebilirsiniz.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Ana metrik kartları */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {[
+                  { label: 'Toplam Atıf',     value: metrics.totalCitations?.toLocaleString('tr-TR'),  icon: '🔗', color: '#059669' },
+                  { label: 'Toplam Yayın',    value: metrics.totalDocuments?.toLocaleString('tr-TR'),  icon: '📄', color: '#1a3a6b' },
+                  { label: 'Ort. h-index',    value: metrics.avgHIndex,                                icon: '📊', color: '#7c3aed' },
+                  { label: 'Scopus Yazar',    value: metrics.authorCount,                              icon: '👤', color: '#d97706' },
+                ].map(m => (
+                  <div key={m.label} className="card py-5 text-center">
+                    <p className="text-2xl mb-1">{m.icon}</p>
+                    <p className="font-display text-2xl font-bold" style={{ color: m.color }}>
+                      {m.value ?? '—'}
+                    </p>
+                    <p className="text-xs text-muted mt-0.5">{m.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Konu alanları */}
+              {metrics.topSubjects?.length > 0 && (
+                <div className="card p-5">
+                  <h3 className="font-display text-sm font-semibold text-navy mb-4">
+                    🎯 Öne Çıkan Araştırma Alanları
+                    <span className="font-normal text-xs text-muted ml-2">
+                      {selected || 'Tüm fakülteler'}
+                      {dept ? ` › ${dept}` : ''}
+                    </span>
+                  </h3>
+                  <div className="space-y-3">
+                    {metrics.topSubjects.map((s: any, i: number) => {
+                      const maxCount = metrics.topSubjects[0]?.count || 1;
+                      const pct = Math.round((s.count / maxCount) * 100);
+                      return (
+                        <div key={s.code} className="flex items-center gap-3">
+                          <span className="text-xs font-bold w-5 text-muted text-right flex-shrink-0">{i + 1}</span>
+                          <div className="flex-1">
+                            <div className="flex justify-between text-xs mb-1">
+                              <span className="font-semibold text-navy">{s.label}</span>
+                              <span className="text-muted">{s.count} yazar</span>
+                            </div>
+                            <div className="h-2 rounded-full overflow-hidden" style={{ background: '#f0ede8' }}>
+                              <div className="h-2 rounded-full transition-all duration-500"
+                                style={{ width: `${pct}%`, background: METRIC_COLORS[i % METRIC_COLORS.length] }} />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Recharts — konu dağılımı */}
+              {metrics.topSubjects?.length > 0 && (
+                <div className="card p-5">
+                  <h3 className="font-display text-sm font-semibold text-navy mb-4">📊 Alan Dağılımı</h3>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={metrics.topSubjects} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0ede8" />
+                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#6b7280' }} />
+                      <YAxis tick={{ fontSize: 10, fill: '#6b7280' }} />
+                      <Tooltip
+                        contentStyle={{ borderRadius: 12, border: '1px solid #e8e4dc', fontSize: 12 }}
+                        formatter={(v: any) => [v + ' yazar', 'Yazar Sayısı']}
+                      />
+                      <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                        {metrics.topSubjects.map((_: any, i: number) => (
+                          <Cell key={i} fill={METRIC_COLORS[i % METRIC_COLORS.length]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </>
+          )}
+        </>
+      )}
+
+      {!searched && (
+        <div className="card p-10 text-center">
+          <p className="text-4xl mb-3">🌍</p>
+          <p className="font-display font-semibold text-navy text-lg mb-1">Scopus Akademik Analitik</p>
+          <p className="text-sm text-muted">
+            Fakülte veya bölüm seçerek akademisyenlerin Scopus metriklerini görüntüleyin.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }

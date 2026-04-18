@@ -150,6 +150,20 @@ export const aiApi = {
     api.post('/ai/extract-text', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
 };
 
+export const scopusApi = {
+  status:                   ()                    => api.get('/scopus/status'),
+  getAuthorProfile:         (id: string)          => api.get(`/scopus/author/${id}`),
+  getAuthorPublications:    (id: string, limit=20)=> api.get(`/scopus/author/${id}/publications?limit=${limit}`),
+  syncMyProfile:            ()                    => api.post('/scopus/sync-my-profile', {}),
+  getRelatedPublications:   (projectId: string)   => api.get(`/scopus/project/${projectId}/related-publications`),
+  getLinkedPublications:    (projectId: string)   => api.get(`/scopus/project/${projectId}/linked-publications`),
+  linkPublication:          (projectId: string, pub: any) => api.post(`/scopus/project/${projectId}/link-publication`, pub),
+  unlinkPublication:        (projectId: string, scopusId: string) => api.post(`/scopus/project/${projectId}/unlink-publication`, { scopusId }),
+  findSimilarResearch:      (data: any)           => api.post('/scopus/similar-research', data),
+  getFundingMatch:          (data: any)           => api.post('/scopus/funding-match', data),
+  getFacultyMetrics:        (faculty?: string, department?: string) => api.get('/scopus/faculty-metrics', { params: { faculty, department } }),
+};
+
 export const auditApi = {
   getByProject: (projectId: string) => api.get(`/audit/project/${projectId}`),
   getRecent: (limit?: number) => api.get('/audit/recent', { params: limit ? { limit } : {} }),
