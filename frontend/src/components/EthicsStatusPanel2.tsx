@@ -6,8 +6,8 @@ import toast from 'react-hot-toast';
 
 const CFG: Record<string, { label: string; color: string; bg: string; border: string }> = {
   pending:      { label: 'Etik Kurul İncelemesi Bekliyor',  color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
-  approved:     { label: 'Etik Kurul Onayi Alindi',         color: '#059669', bg: '#f0fdf4', border: '#86efac' },
-  rejected:     { label: 'Etik Kurul Basvurusu Reddedildi', color: '#dc2626', bg: '#fef2f2', border: '#fca5a5' },
+  approved:     { label: 'Etik Kurul Onayı Alındı',         color: '#059669', bg: '#f0fdf4', border: '#86efac' },
+  rejected:     { label: 'Etik Kurul Başvurusu Reddedildi', color: '#dc2626', bg: '#fef2f2', border: '#fca5a5' },
   not_required: { label: 'Etik Kurul Gerektirmiyor',        color: '#6b7280', bg: '#f9fafb', border: '#e5e7eb' },
 };
 
@@ -54,7 +54,7 @@ export function EthicsStatusPanel2({ projectId, onDecision }: { projectId: strin
       await api.post('/ethics/reanalyze/' + projectId);
       loadReview();
       toast.success('YZ etik analizi yenilendi');
-    } catch { toast.error('Yeniden analiz basarisiz'); }
+    } catch { toast.error('Yeniden analiz başarısız'); }
     finally { setReanalyzing(false); }
   };
 
@@ -73,7 +73,7 @@ export function EthicsStatusPanel2({ projectId, onDecision }: { projectId: strin
         note:           decideForm.note,
         approvalNumber: decideForm.approvalNumber || null,
       });
-      toast.success(decideForm.decision === 'approved' ? 'Etik kurul onayi kaydedildi' : 'Red karari kaydedildi');
+      toast.success(decideForm.decision === 'approved' ? 'Etik kurul onayı kaydedildi' : 'Red kararı kaydedildi');
       setShowDecide(false);
       setPrivacyAccepted(false);
       loadReview();
@@ -89,11 +89,11 @@ export function EthicsStatusPanel2({ projectId, onDecision }: { projectId: strin
 
   return (
     <>
-      {/* Gizlilik Sozlesmesi Modali */}
+      {/* Gizlilik Sözleşmesi Modali */}
       {showPrivacy && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-4">
-            <h3 className="font-display text-base font-semibold text-navy">Gizlilik ve Tarafsizlik Sozlesmesi</h3>
+            <h3 className="font-display text-base font-semibold text-navy">Gizlilik ve Tarafsızlık Sözleşmesi</h3>
             <div className="p-4 rounded-xl text-xs leading-relaxed whitespace-pre-line overflow-y-auto max-h-64"
               style={{ background: '#f9fafb', border: '1px solid #e5e7eb', color: '#374151', fontFamily: 'monospace' }}>
               {PRIVACY_TEXT}
@@ -103,7 +103,7 @@ export function EthicsStatusPanel2({ projectId, onDecision }: { projectId: strin
                 onChange={e => setPrivacyAccepted(e.target.checked)}
                 className="mt-0.5 flex-shrink-0" />
               <span className="text-xs text-navy leading-relaxed">
-                Yukardaki gizlilik ve tarafsizlik sozlesmesini okudum, anlayip kabul ediyorum.
+                Yukarıdaki gizlilik ve tarafsızlık sözleşmesini okudum, anlayıp kabul ediyorum.
               </span>
             </label>
             <div className="flex gap-3">
@@ -113,7 +113,7 @@ export function EthicsStatusPanel2({ projectId, onDecision }: { projectId: strin
               </button>
               <button type="button" onClick={() => { setShowPrivacy(false); setPrivacyAccepted(false); }}
                 className="btn-secondary text-sm">
-                Iptal
+                İptal
               </button>
             </div>
           </div>
@@ -128,7 +128,7 @@ export function EthicsStatusPanel2({ projectId, onDecision }: { projectId: strin
             {review.aiEthicsReason && <p className="text-xs text-muted mt-1 leading-relaxed">{review.aiEthicsReason}</p>}
             {review.reviewNote && (
               <div className="mt-2 p-2 rounded-lg text-xs" style={{ background: 'rgba(255,255,255,0.7)' }}>
-                <span className="font-semibold">Kurul Karari: </span>{review.reviewNote}
+                <span className="font-semibold">Kurul Kararı: </span>{review.reviewNote}
               </div>
             )}
             {review.approvalNumber && <p className="text-xs text-muted mt-1">Onay No: <strong>{review.approvalNumber}</strong></p>}
@@ -164,7 +164,7 @@ export function EthicsStatusPanel2({ projectId, onDecision }: { projectId: strin
 
         {showDecide && (
           <div className="mt-3 p-4 rounded-xl space-y-3" style={{ background: 'white', border: '1px solid #e8e4dc' }}>
-            <p className="text-xs font-semibold text-navy">Etik Kurul Karari</p>
+            <p className="text-xs font-semibold text-navy">Etik Kurul Kararı</p>
             <div className="flex gap-2">
               {[{ v: 'approved', l: 'Onayla', bg: '#f0fdf4', c: '#059669' }, { v: 'rejected', l: 'Reddet', bg: '#fef2f2', c: '#dc2626' }]
                 .map(opt => (
@@ -185,17 +185,17 @@ export function EthicsStatusPanel2({ projectId, onDecision }: { projectId: strin
                 value={decideForm.approvalNumber}
                 onChange={e => setDecideForm(f => ({ ...f, approvalNumber: e.target.value }))} />
             )}
-            <textarea className="input text-xs" rows={3} placeholder="Karar notu ve gerekce..."
+            <textarea className="input text-xs" rows={3} placeholder="Karar notu ve gerekçe..."
               value={decideForm.note}
               onChange={e => setDecideForm(f => ({ ...f, note: e.target.value }))} />
             <div className="flex gap-2">
               <button type="button" onClick={handleDecide} disabled={deciding}
                 className="btn-primary text-xs flex-1">
-                {deciding ? 'Kaydediliyor...' : 'Karari Kaydet'}
+                {deciding ? 'Kaydediliyor...' : 'Kararı Kaydet'}
               </button>
               <button type="button" onClick={() => { setShowDecide(false); setPrivacyAccepted(false); }}
                 className="btn-secondary text-xs">
-                Iptal
+                İptal
               </button>
             </div>
           </div>

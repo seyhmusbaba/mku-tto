@@ -188,29 +188,68 @@ export class ScopusService {
   }
 
   // ── DÜNYADA BENZER ÇALIŞMALAR ─────────────────────────────────
-  // Proje başlığı + açıklama bazında dünya literatüründe benzer araştırma tespiti
   async findSimilarResearch(opts: {
     title: string;
     description?: string;
+    projectText?: string;
     keywords?: string[];
     limit?: number;
   }) {
-    const limit = opts.limit || 8;
-    const cacheKey = `similar:${opts.title.substring(0, 50)}`;
+    const limit = opts.limit || 10;
+    const cacheKey = `similar:${opts.title.substring(0, 40)}:${(opts.keywords || []).slice(0,2).join(',')}`;
     const cached = cache.get(cacheKey) as any;
     if (cached && cached.results) return cached;
 
     try {
-      // Başlık kelimelerini quote etmeden ara - daha geniş sonuç
-      const titleWords = opts.title.split(' ').filter(w => w.length > 4).slice(0, 5);
-      const kwParts = (opts.keywords || []).slice(0, 3).map(k => `KEY("${k}")`);
-      const titlePart = titleWords.length > 0 ? `TITLE-ABS-KEY(${titleWords.join(' AND ')})` : '';
-      const parts = [titlePart, ...kwParts].filter(Boolean);
-      const query = parts.length > 0 ? parts.join(' OR ') : `TITLE("${opts.title.substring(0, 60)}")`;
+      // Sorgu inşa stratejisi:
+      // 1. Kullanıcının girdiği anahtar kelimeler varsa en güvenilir kaynak
+      // 2. Başlıktan önemli kelimeleri çıkar
+      // 3. Açıklama/proje metninden ek terimler
 
-      const url = `${this.BASE}/content/search/scopus?query=${encodeURIComponent(query)}&count=${limit}&sort=-citedby-count&field=dc:title,prism:publicationName,prism:coverDate,citedby-count,prism:doi,dc:identifier,dc:creator`;
+      const userKeywords = (opts.keywords || []).filter(k => k.length > 3);
+      const titleWords = opts.title
+        .split(/\s+/)
+        .filter(w => w.length > 4 && !/^(ile|ve|veya|için|olan|ise|da|de|bu|bir|olarak|üzerine|üzerinde)$/i.test(w))
+        .slice(0, 6);
+
+      // Proje metninden önemli terimleri çıkar (büyük kelimeler / tekrar edenler)
+      const textWords: string[] = [];
+      const fullText = `${opts.description || ''} ${opts.projectText?.substring(0, 800) || ''}`;
+      if (fullText.trim().length > 50) {
+        const wordFreq: Record<string, number> = {};
+        fullText.split(/\s+/).forEach(w => {
+          const clean = w.replace(/[^a-zA-ZğüşıöçĞÜŞİÖÇ]/g, '').toLowerCase();
+          if (clean.length > 5) wordFreq[clean] = (wordFreq[clean] || 0) + 1;
+        });
+        Object.entries(wordFreq)
+          .filter(([, count]) => count >= 2)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, 4)
+          .forEach(([word]) => textWords.push(word));
+      }
+
+      // Sorgu oluştur — en az 2 farklı yöntem dene, en iyisini seç
+      let query = '';
+      if (userKeywords.length >= 2) {
+        // Kullanıcı anahtar kelimeleri — en güvenilir
+        query = userKeywords.slice(0, 4).map(k => `KEY("${k}")`).join(' AND ');
+      } else if (titleWords.length >= 3) {
+        // Başlık kelimeleri
+        query = `TITLE-ABS-KEY(${titleWords.slice(0, 4).join(' AND ')})`;
+        if (userKeywords.length > 0) {
+          query += ` AND KEY("${userKeywords[0]}")`;
+        }
+      } else if (textWords.length >= 2) {
+        // Metin kelimeleri
+        query = `TITLE-ABS-KEY(${textWords.slice(0, 3).join(' AND ')})`;
+      } else {
+        // Son çare — başlıktan kısa terimler
+        query = `TITLE("${opts.title.substring(0, 70)}")`;
+      }
+
+      const url = `${this.BASE}/content/search/scopus?query=${encodeURIComponent(query)}&count=${Math.min(limit, 25)}&sort=-citedby-count&field=dc:title,prism:publicationName,prism:coverDate,citedby-count,prism:doi,dc:identifier,dc:creator`;
       const res = await fetch(url, { headers: this.headers(), signal: AbortSignal.timeout(20000) });
-      if (!res.ok) return { total: 0, results: [] };
+      if (!res.ok) return { total: 0, results: [], query };
       const data = await res.json();
       const total = +(data?.['search-results']?.['opensearch:totalResults'] || 0);
 
@@ -225,8 +264,8 @@ export class ScopusService {
         firstAuthor: e['dc:creator'] || '',
       }));
 
-      const out = { total, results };
-      cache.set(cacheKey, out, 43200);
+      const out = { total, results, query };
+      if (total > 0) cache.set(cacheKey, out, 43200);
       return out;
     } catch {
       return { total: 0, results: [] };
@@ -236,39 +275,40 @@ export class ScopusService {
   // ── HİBE UYGUNLUK ANALİZİ ─────────────────────────────────────
   // Proje anahtar kelimelerine göre Scopus ASJC konu kodları bulunur,
   // bu kodlar aktif fon kaynaklarıyla eşleştirilir
-  async getSubjectAreaMatch(keywords: string[], projectType?: string) {
-    if (!keywords.length) return [];
-    const cacheKey = `subject:${keywords.slice(0, 4).join(',')}`;
+  async getSubjectAreaMatch(keywords: string[], projectType?: string, title?: string) {
+    const allTerms = [...keywords.filter(k => k.length > 2)];
+    if (!allTerms.length && title) {
+      title.split(/\s+/).filter(w => w.length > 4).slice(0, 5).forEach(w => allTerms.push(w));
+    }
+    if (!allTerms.length) return [];
+
+    const cacheKey = `subject:${allTerms.slice(0, 4).join(',')}`;
     const cached = cache.get(cacheKey) as any[];
     if (cached) return cached;
 
     try {
-      const query = keywords.slice(0, 5).map(k => `KEY("${k}")`).join(' OR ');
-      const url = `${this.BASE}/content/search/scopus?query=${encodeURIComponent(query)}&count=25&field=subject-area`;
+      const query = allTerms.slice(0, 5).map(k => `KEY("${k}")`).join(' OR ');
+      const url = `${this.BASE}/content/search/scopus?query=${encodeURIComponent(query)}&count=25&field=subject-areas`;
       const res = await fetch(url, { headers: this.headers(), signal: AbortSignal.timeout(15000) });
       if (!res.ok) return [];
       const data = await res.json();
 
-      // Konu alanlarını say ve sırala
       const areaCounts: Record<string, number> = {};
       (data?.['search-results']?.['entry'] || []).forEach((e: any) => {
         const areas = e['subject-areas']?.['subject-area'] || [];
-        areas.forEach((a: any) => {
-          const code = a['@abbrev'] || '';
+        (Array.isArray(areas) ? areas : [areas]).forEach((a: any) => {
+          const code = a?.['@abbrev'] || '';
           if (code) areaCounts[code] = (areaCounts[code] || 0) + 1;
         });
       });
 
       const sorted = Object.entries(areaCounts)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 5)
+        .sort(([, a], [, b]) => b - a).slice(0, 5)
         .map(([code, count]) => ({ code, count, label: ASJC_LABELS[code] || code }));
 
-      cache.set(cacheKey, sorted, 86400);
+      if (sorted.length > 0) cache.set(cacheKey, sorted, 86400);
       return sorted;
-    } catch {
-      return [];
-    }
+    } catch { return []; }
   }
 
   // ── FAKÜLTE SCOPUSMETRİKLERİ ──────────────────────────────────

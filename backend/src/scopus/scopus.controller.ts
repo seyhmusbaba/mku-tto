@@ -280,7 +280,7 @@ export class ScopusController {
   @UseGuards(JwtAuthGuard)
   @Post('similar-research')
   async findSimilarResearch(
-    @Body() dto: { title: string; description?: string; keywords?: string[] },
+    @Body() dto: { title: string; description?: string; projectText?: string; keywords?: string[] },
   ) {
     return this.scopus.findSimilarResearch(dto);
   }
@@ -291,13 +291,12 @@ export class ScopusController {
   async getFundingMatch(
     @Body() dto: { keywords: string[]; projectType?: string; title?: string },
   ) {
-    if (!dto.keywords?.length && !dto.title) return { subjectAreas: [], recommendations: [] };
+    const keywords = (dto.keywords || []).filter(k => k.length > 2);
+    // Anahtar kelime yoksa title'dan üret, yoksa tamamen title'a dayan
+    const subjectAreas = await this.scopus.getSubjectAreaMatch(keywords, dto.projectType, dto.title);
+    if (!subjectAreas.length) return { subjectAreas: [], recommendations: [] };
 
-    const keywords = dto.keywords?.length ? dto.keywords : dto.title ? dto.title.split(' ').filter(w => w.length > 4) : [];
-    const subjectAreas = await this.scopus.getSubjectAreaMatch(keywords, dto.projectType);
-
-    // Alan kodlarına göre fon kaynağı önerileri
-    const recommendations = buildFundingRecommendations(subjectAreas.map(a => a.code), dto.projectType);
+    const recommendations = buildFundingRecommendations(subjectAreas.map((a: any) => a.code), dto.projectType);
     return { subjectAreas, recommendations };
   }
 

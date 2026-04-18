@@ -393,7 +393,7 @@ export default function ProjectPrintPage() {
             <div className="info-grid">
               <div className="info-item">
                 <span className="info-label">Durum</span>
-                <span className="info-value">{{ none: 'Yok', pending: 'Basvuru Asamasinda', registered: 'Tescilli', published: 'Yayimlandi' }[(project as any).ipStatus as string] || (project as any).ipStatus}</span>
+                <span className="info-value">{{ none: 'Yok', pending: 'Başvuru Aşamasında', registered: 'Tescilli', published: 'Yayımlandı' }[(project as any).ipStatus as string] || (project as any).ipStatus}</span>
               </div>
               {(project as any).ipType && (
                 <div className="info-item">

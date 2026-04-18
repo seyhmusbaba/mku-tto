@@ -191,7 +191,7 @@ export default function AnalysisPage() {
             ))}
           </div>
           <button onClick={handleExportCsv} disabled={exporting} className="btn-secondary text-sm flex items-center gap-2">
-            {exporting ? <span className="spinner w-3 h-3" /> : null} CSV Indir
+            {exporting ? <span className="spinner w-3 h-3" /> : null} CSV İndir
           </button>
         </div>
 

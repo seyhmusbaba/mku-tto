@@ -202,33 +202,43 @@ SADECE JSON döndür:
       }
 
       if (ext === 'pdf') {
+        // DOMMatrix polyfill — pdf-parse/pdf.js Node.js'de bazı browser API'lerini bekliyor
+        const g = global as any;
+        if (!g.DOMMatrix) g.DOMMatrix = class { constructor() {} static fromFloat64Array() { return new g.DOMMatrix(); } };
+        if (!g.DOMPoint)  g.DOMPoint  = class { constructor() {} };
+        if (!g.DOMRect)   g.DOMRect   = class { constructor() {} };
+        if (!g.Path2D)    g.Path2D    = class { constructor() {} };
+        if (!g.ImageData) g.ImageData = class { constructor() {} };
+
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const pdfParse = require('pdf-parse');
-        const options = {
-          // Sayfa maksimum — büyük PDF'ler için
-          max: 50,
-          // Encoding normalize
-          normalizeWhitespace: true,
-        };
-        const data = await pdfParse(file.buffer, options);
-        let text = (data.text || '').trim();
+        let data: any;
+        try {
+          data = await pdfParse(file.buffer, { max: 30 });
+        } catch {
+          try { data = await pdfParse(file.buffer); } catch (e2: any) {
+            return { text: '', error: 'PDF okunamadı: ' + (e2?.message || 'Bilinmeyen hata') };
+          }
+        }
+        let text = (data?.text || '').trim();
 
-        if (!text || text.length < 50) {
-          // Metin çıkarılamadı — büyük ihtimalle taranmış/resim PDF
+        if (!text || text.length < 30) {
           return {
             text: '',
-            error: 'Bu PDF dosyasından metin çıkarılamadı. Dosya taranmış (görüntü) formatında olabilir. Lütfen metin tabanlı bir PDF veya Word belgesi kullanın.',
-            pageCount: data.numpages || 0,
+            error: 'Bu PDF dosyasından metin çıkarılamadı. Dosya taranmış (görüntü) veya şifreli olabilir. Lütfen metin tabanlı PDF veya .docx yükleyin.',
+            pageCount: data?.numpages || 0,
           };
         }
 
         // Türkçe karakter düzeltme — bazı PDF encoder'lar yanlış kodlar
         text = text
+          .replace(/\uFFFD/g, ' ')
           .replace(/ý/g, 'ı').replace(/þ/g, 'ş').replace(/ð/g, 'ğ')
           .replace(/Ý/g, 'İ').replace(/Þ/g, 'Ş').replace(/Ð/g, 'Ğ')
-          .replace(/\u00fd/g, 'ı').replace(/\u00fe/g, 'ş').replace(/\u00f0/g, 'ğ');
+          .replace(/\u00fd/g, 'ı').replace(/\u00fe/g, 'ş').replace(/\u00f0/g, 'ğ')
+          .replace(/\s{3,}/g, '\n\n').trim();
 
-        return { text, pageCount: data.numpages || 0, charCount: text.length };
+        return { text, pageCount: data?.numpages || 0, charCount: text.length };
       }
 
       if (ext === 'docx') {

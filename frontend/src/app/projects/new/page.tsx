@@ -12,9 +12,11 @@ import { useAuth } from '@/lib/auth-context';
 import toast from 'react-hot-toast';
 
 /* ── Scopus Wizard Paneli ────────────────────────────────────────── */
-function ScopusWizardPanel({ title, keywords }: { title: string; keywords: string[] }) {
-  const [result, setResult]   = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+function ScopusWizardPanel({ title, description, projectText, keywords }: {
+  title: string; description?: string; projectText?: string; keywords: string[]
+}) {
+  const [result, setResult]     = useState<any>(null);
+  const [loading, setLoading]   = useState(false);
   const [searched, setSearched] = useState(false);
 
   const search = async () => {
@@ -22,7 +24,7 @@ function ScopusWizardPanel({ title, keywords }: { title: string; keywords: strin
     setLoading(true);
     setSearched(true);
     try {
-      const r = await scopusApi.findSimilarResearch({ title, keywords });
+      const r = await scopusApi.findSimilarResearch({ title, description, projectText, keywords });
       setResult(r.data);
     } catch { setResult(null); }
     finally { setLoading(false); }
@@ -32,8 +34,8 @@ function ScopusWizardPanel({ title, keywords }: { title: string; keywords: strin
     <div className="card p-5 space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="font-display text-sm font-semibold text-navy">Scopus Veritabani Taramasi</h3>
-          <p className="text-xs text-muted mt-0.5">Proje basligi ve anahtar kelimelere gore dunya literatürü taranir</p>
+          <h3 className="font-display text-sm font-semibold text-navy">Scopus Veritabanı Taraması</h3>
+          <p className="text-xs text-muted mt-0.5">Proje basligi ve anahtar kelimelere gore dunya literatürü taranır</p>
         </div>
         <button type="button" onClick={search} disabled={loading}
           className="btn-primary text-sm px-4">
@@ -114,13 +116,13 @@ function ScopusLiteraturePhase({ title, description, projectText, keywords, tags
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="font-display text-xl font-semibold text-navy mb-1">Literatür Taramasi</h2>
+        <h2 className="font-display text-xl font-semibold text-navy mb-1">Literatür Taraması</h2>
         <p className="text-sm text-muted">Projenizi kaydetmeden önce dünya literatüründe benzer çalışmaları inceleyin ve uygun hibe kaynaklarını görün</p>
       </div>
       <div className="p-3 rounded-xl text-xs" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8' }}>
         Bu adım isteğe bağlıdır. Benzer çalışmalar projenizin özgünlüğünü belirlemenize, hibe önerileri ise fon hedeflemenize yardımcı olur.
       </div>
-      <ScopusWizardPanel title={title} keywords={[...keywords, ...tags]} />
+      <ScopusWizardPanel title={title} description={description} projectText={projectText} keywords={[...keywords, ...tags]} />
       <div className="card p-5">
         <h3 className="font-display text-sm font-semibold text-navy mb-3">Hibe Uygunluk Analizi</h3>
         <p className="text-xs text-muted mb-3">Proje konunuza göre uygun fon kaynaklarını Scopus konu sınıflandırmasıyla analiz edin</p>
@@ -131,7 +133,7 @@ function ScopusLiteraturePhase({ title, description, projectText, keywords, tags
 }
 
 const STATUSES = [
-  { value: 'application', label: 'Basvuru Sürecinde', color: '#d97706', desc: 'Henüz basvuru asamasinda' },
+  { value: 'application', label: 'Başvuru Sürecinde', color: '#d97706', desc: 'Henüz başvuru aşamasında' },
   { value: 'active',      label: 'Aktif',             color: '#059669', desc: 'Proje yürütülüyor' },
 ];
 
@@ -145,18 +147,18 @@ const TYPE_CARDS_DEFAULT = [
 
 const IP_OPTS = [
   { value: 'none',       label: 'Yok',                color: '#6b7280' },
-  { value: 'pending',    label: 'Basvuru Asamasinda', color: '#d97706' },
+  { value: 'pending',    label: 'Başvuru Aşamasında', color: '#d97706' },
   { value: 'registered', label: 'Tescilli',            color: '#059669' },
-  { value: 'published',  label: 'Yayimlandi',          color: '#2563eb' },
+  { value: 'published',  label: 'Yayımlandı',          color: '#2563eb' },
 ];
 
 const IP_TYPES = [
   { value: 'patent',        label: 'Patent' },
-  { value: 'faydali_model', label: 'Faydali Model' },
+  { value: 'faydali_model', label: 'Faydalı Model' },
   { value: 'marka',         label: 'Marka' },
-  { value: 'tasarim',       label: 'Tasarim' },
-  { value: 'telif',         label: 'Telif Hakki' },
-  { value: 'ticari_sir',    label: 'Ticari Sir' },
+  { value: 'tasarim',       label: 'Tasarım' },
+  { value: 'telif',         label: 'Telif Hakkı' },
+  { value: 'ticari_sir',    label: 'Ticari Sır' },
 ];
 
 const PHASES = [
@@ -772,7 +774,7 @@ export default function NewProjectPage() {
                 </div>
                 <FileField label="Fikri Mülkiyet Belgesi" file={ipFile} onChange={setIpFile}
                   required={['registered','published'].includes(form.ipStatus)}
-                  hint="Patent basvuru formu veya tescil belgesi" />
+                  hint="Patent başvuru formu veya tescil belgesi" />
               </div>
             )}
           </div>

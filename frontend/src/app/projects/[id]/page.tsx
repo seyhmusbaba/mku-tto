@@ -187,7 +187,7 @@ export default function ProjectDetailPage() {
     ['reports',      'Raporlar'],
     ['partners',     'Ortaklar'],
     ['publications', 'Yayinlar'],
-    ['history',      'Gecmis'],
+    ['history',      'Geçmiş'],
   ];
 
   // Report chart data
@@ -222,12 +222,12 @@ export default function ProjectDetailPage() {
         {project.department && <><span className="text-muted text-xs">›</span><span className="text-xs text-muted">{project.department}</span></>}
         {(project as any).ethicsRequired && !(project as any).ethicsApproved && !(project as any).ethicsRejected && (
           <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}>
-            Etik Kurul Onayi Bekliyor
+            Etik Kurul Onayı Bekliyor
           </span>
         )}
         {(project as any).ethicsRequired && (project as any).ethicsApproved && (
           <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: '#f0fdf4', color: '#14532d', border: '1px solid #86efac' }}>
-            Etik Kurul Onayi Alindi
+            Etik Kurul Onayı Alindi
           </span>
         )}
         <div className="ml-auto flex items-center gap-6 text-xs text-muted">
