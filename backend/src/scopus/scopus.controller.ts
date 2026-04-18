@@ -93,7 +93,41 @@ export class ScopusController {
       if (!profile) profileError = 'null döndü';
     } catch (e: any) { profileError = e?.message || 'exception'; }
 
-    if (!profile) return { fail: 'getAuthorProfile başarısız: ' + profileError, steps };
+    if (!profile) {
+      // Neden null? Bizzat dene ve ham cevabı göster
+      const testUrl = `https://api.elsevier.com/content/search/scopus?query=AU-ID(${scopusId})&count=200&sort=-citedby-count&field=dc:title,prism:coverDate,citedby-count,dc:identifier`;
+      let rawStatus = 0;
+      let rawBody: any = {};
+      try {
+        const r = await fetch(testUrl, {
+          headers: { 'X-ELS-APIKey': apiKey, 'Accept': 'application/json' },
+          signal: AbortSignal.timeout(15000),
+        });
+        rawStatus = r.status;
+        rawBody = await r.json().catch(() => ({}));
+      } catch(e: any) { rawBody = { fetchError: e?.message }; }
+
+      // count=25 ile de dene
+      const testUrl2 = `https://api.elsevier.com/content/search/scopus?query=AU-ID(${scopusId})&count=25&sort=-citedby-count&field=dc:title,prism:coverDate,citedby-count`;
+      let rawStatus2 = 0;
+      let rawBody2: any = {};
+      try {
+        const r2 = await fetch(testUrl2, {
+          headers: { 'X-ELS-APIKey': apiKey, 'Accept': 'application/json' },
+          signal: AbortSignal.timeout(15000),
+        });
+        rawStatus2 = r2.status;
+        const txt = await r2.text();
+        rawBody2 = { status: rawStatus2, entriesCount: (txt.match(/"dc:title"/g) || []).length };
+      } catch(e: any) { rawBody2 = { fetchError: (e as any)?.message }; }
+
+      return {
+        fail: 'getAuthorProfile başarısız: ' + profileError,
+        steps,
+        count200test: { status: rawStatus, error: (rawBody as any)?.['service-error'] || null, entriesLen: rawBody?.['search-results']?.['entry']?.length },
+        count25test: rawBody2,
+      };
+    }
     steps.push({ step: 4, ok: true, info: `h=${profile.hIndex}, atıf=${profile.citedByCount}, yayın=${profile.documentCount}` });
 
     try {
