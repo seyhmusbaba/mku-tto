@@ -69,54 +69,49 @@ export class ScopusController {
   @Get('debug')
   async debug(@Query('userId') userId?: string) {
     if (!userId) {
-      return { 
-        error: 'userId parametresi gerekli',
-        example: '/api/scopus/debug?userId=KULLANICI_UUID' 
-      };
+      return { error: 'userId parametresi gerekli', example: '/api/scopus/debug?userId=UUID' };
     }
+    const steps: any[] = [];
 
     const user = await this.userRepo.findOne({ where: { id: userId } });
-    if (!user) return { step: 'FAIL', reason: 'Kullanıcı bulunamadı', userId };
+    if (!user) return { fail: 'Kullanıcı bulunamadı', userId };
+    steps.push({ step: 1, ok: true, info: `Kullanıcı: ${user.email}` });
 
     const scopusId = (user as any)?.scopusAuthorId;
-    if (!scopusId) {
-      return { 
-        step: 'FAIL', 
-        reason: 'scopusAuthorId DB\'de kayıtlı değil — profil sayfasından Scopus Author ID girilip kaydedilmeli',
-        userId,
-        userEmail: user.email,
-      };
-    }
+    if (!scopusId) return { fail: 'scopusAuthorId DB\'de yok', steps };
+    steps.push({ step: 2, ok: true, info: `Scopus ID: ${scopusId}` });
 
-    // Scopus search API doğrudan çağır
-    const url = `https://api.elsevier.com/content/search/scopus?query=AU-ID(${scopusId})&count=5&sort=-citedby-count&field=dc:title,citedby-count,prism:coverDate`;
-    let apiStatus = 0;
-    let apiBody: any = {};
+    const apiKey = process.env.SCOPUS_API_KEY || '';
+    if (!apiKey) return { fail: 'SCOPUS_API_KEY env yok', steps };
+    steps.push({ step: 3, ok: true, info: `API key mevcut` });
+
+    let profile: any = null;
+    let profileError = '';
     try {
-      const res = await fetch(url, {
-        headers: { 'X-ELS-APIKey': process.env.SCOPUS_API_KEY || '', 'Accept': 'application/json' },
-        signal: AbortSignal.timeout(15000),
-      });
-      apiStatus = res.status;
-      apiBody = await res.json().catch(() => ({}));
-    } catch (e: any) {
-      return { step: 'FAIL', reason: 'fetch hatası: ' + e?.message, scopusId };
-    }
+      this.scopus.clearCache(`author:${scopusId}`);
+      profile = await this.scopus.getAuthorProfile(scopusId);
+      if (!profile) profileError = 'null döndü';
+    } catch (e: any) { profileError = e?.message || 'exception'; }
 
-    const entries = apiBody?.['search-results']?.['entry'] || [];
-    const total = apiBody?.['search-results']?.['opensearch:totalResults'] || '0';
+    if (!profile) return { fail: 'getAuthorProfile başarısız: ' + profileError, steps };
+    steps.push({ step: 4, ok: true, info: `h=${profile.hIndex}, atıf=${profile.citedByCount}, yayın=${profile.documentCount}` });
 
-    return {
-      step: apiStatus === 200 ? 'OK' : 'FAIL',
-      userEmail: user.email,
-      scopusId,
-      apiStatus,
-      totalPublications: total,
-      sampleTitles: entries.slice(0, 3).map((e: any) => e['dc:title']),
-      error: apiStatus !== 200 ? apiBody : undefined,
-    };
+    try {
+      await this.userRepo.update(userId, {
+        scopusHIndex:   profile.hIndex,
+        scopusCitedBy:  profile.citedByCount,
+        scopusDocCount: profile.documentCount,
+        scopusSubjects: JSON.stringify(profile.subjectAreas || []),
+        scopusLastSync: new Date().toISOString(),
+      } as any);
+      steps.push({ step: 5, ok: true, info: 'DB güncellendi' });
+    } catch (e: any) { return { fail: 'DB yazma hatası: ' + e?.message, steps }; }
+
+    const updated = await this.userRepo.findOne({ where: { id: userId } });
+    steps.push({ step: 6, ok: true, info: `DB doğrulama: hIndex=${(updated as any)?.scopusHIndex}` });
+
+    return { success: true, steps, profile };
   }
-
   @UseGuards(JwtAuthGuard)
   @Get('status')
   status() {
