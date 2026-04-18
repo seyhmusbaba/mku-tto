@@ -61,9 +61,9 @@ export class ExportService {
       ].join(SEP);
     });
     const content = [headers.join(SEP), ...rows].join('\r\n');
-    const utf16 = Buffer.from(content, 'utf16le');
-    const bom = Buffer.from([0xFF, 0xFE]);
-    return Buffer.concat([bom, utf16]);
+    // UTF-8 BOM — Excel'de Türkçe karakterleri doğru gösterir
+    const bom = Buffer.from('\uFEFF', 'utf-8');
+    return Buffer.concat([bom, Buffer.from(content, 'utf-8')]);
   }
 
   async exportProjectsJson(q: any): Promise<any[]> {

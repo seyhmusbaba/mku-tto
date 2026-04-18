@@ -185,31 +185,64 @@ SADECE JSON döndür:
 
   // ── BELGEDEN METİN ÇIKAR ─────────────────────────────────────
   @Post('extract-text')
-  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }))
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } }))
   async extractText(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('Dosya yüklenmedi');
     const ext = (file.originalname.split('.').pop() || '').toLowerCase();
     try {
       if (ext === 'txt') {
-        return { text: file.buffer.toString('utf-8') };
+        // Encoding tespiti — UTF-8, Latin-1, Windows-1254 (Türkçe) dene
+        let text = file.buffer.toString('utf-8');
+        // Bozuk karakter tespiti — yaygın Türkçe harf bozulması
+        if (text.includes('Ã¼') || text.includes('Ã§') || text.includes('Ä±')) {
+          // UTF-8 yanlış decode — Latin-1 ile dene
+          text = file.buffer.toString('latin1');
+        }
+        return { text: text.trim() };
       }
+
       if (ext === 'pdf') {
-        // pdf-parse ile metin çıkar
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const pdfParse = require('pdf-parse');
-        const data = await pdfParse(file.buffer);
-        return { text: (data.text || '').trim() };
+        const options = {
+          // Sayfa maksimum — büyük PDF'ler için
+          max: 50,
+          // Encoding normalize
+          normalizeWhitespace: true,
+        };
+        const data = await pdfParse(file.buffer, options);
+        let text = (data.text || '').trim();
+
+        if (!text || text.length < 50) {
+          // Metin çıkarılamadı — büyük ihtimalle taranmış/resim PDF
+          return {
+            text: '',
+            error: 'Bu PDF dosyasından metin çıkarılamadı. Dosya taranmış (görüntü) formatında olabilir. Lütfen metin tabanlı bir PDF veya Word belgesi kullanın.',
+            pageCount: data.numpages || 0,
+          };
+        }
+
+        // Türkçe karakter düzeltme — bazı PDF encoder'lar yanlış kodlar
+        text = text
+          .replace(/ý/g, 'ı').replace(/þ/g, 'ş').replace(/ð/g, 'ğ')
+          .replace(/Ý/g, 'İ').replace(/Þ/g, 'Ş').replace(/Ð/g, 'Ğ')
+          .replace(/\u00fd/g, 'ı').replace(/\u00fe/g, 'ş').replace(/\u00f0/g, 'ğ');
+
+        return { text, pageCount: data.numpages || 0, charCount: text.length };
       }
+
       if (ext === 'docx') {
-        // mammoth ile metin çıkar
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const mammoth = require('mammoth');
         const result = await mammoth.extractRawText({ buffer: file.buffer });
-        return { text: (result.value || '').trim() };
+        const text = (result.value || '').trim();
+        if (!text) return { text: '', error: 'Word belgesinden metin çıkarılamadı.' };
+        return { text, charCount: text.length };
       }
-      return { text: '', error: 'Bu dosya türü desteklenmiyor (.txt, .pdf, .docx)' };
+
+      return { text: '', error: 'Desteklenmeyen dosya türü. Desteklenen formatlar: .txt, .pdf, .docx' };
     } catch (e: any) {
-      return { text: '', error: 'Metin çıkarılamadı: ' + (e?.message || 'bilinmeyen hata') };
+      return { text: '', error: 'Metin çıkarma hatası: ' + (e?.message || 'Bilinmeyen hata') };
     }
   }
 

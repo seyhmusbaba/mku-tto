@@ -11,42 +11,161 @@ import { FundingMatchPanel } from '@/components/FundingMatchPanel';
 import { useAuth } from '@/lib/auth-context';
 import toast from 'react-hot-toast';
 
+/* ── Scopus Wizard Paneli ────────────────────────────────────────── */
+function ScopusWizardPanel({ title, keywords }: { title: string; keywords: string[] }) {
+  const [result, setResult]   = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
+
+  const search = async () => {
+    if (!title.trim()) { toast.error('Önce proje başlığı girin'); return; }
+    setLoading(true);
+    setSearched(true);
+    try {
+      const r = await scopusApi.findSimilarResearch({ title, keywords });
+      setResult(r.data);
+    } catch { setResult(null); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="card p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-display text-sm font-semibold text-navy">Scopus Veritabani Taramasi</h3>
+          <p className="text-xs text-muted mt-0.5">Proje basligi ve anahtar kelimelere gore dunya literatürü taranir</p>
+        </div>
+        <button type="button" onClick={search} disabled={loading}
+          className="btn-primary text-sm px-4">
+          {loading ? <><span className="spinner w-4 h-4 mr-2" />Taranıyor...</> : 'Tara'}
+        </button>
+      </div>
+
+      {!searched && (
+        <div className="py-8 text-center text-sm text-muted">
+          "Tara" butonuna basarak dünyadaki benzer akademik çalışmaları görün.
+        </div>
+      )}
+
+      {searched && !loading && !result && (
+        <div className="py-6 text-center text-sm text-muted">
+          Scopus bağlantısı kurulamadı veya sonuç bulunamadı.
+        </div>
+      )}
+
+      {result && !loading && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 p-3 rounded-xl"
+            style={{ background: result.total > 50 ? '#fef3c7' : result.total > 0 ? '#f0fdf4' : '#faf8f4', border: '1px solid #e8e4dc' }}>
+            <div>
+              <p className="text-sm font-semibold text-navy">Scopus'ta {result.total?.toLocaleString('tr-TR')} benzer çalışma bulundu</p>
+              <p className="text-xs text-muted mt-0.5">
+                {result.total > 100 ? 'Bu alan çok aktif — literatür taraması kritik önem taşıyor.' :
+                 result.total > 20  ? 'Orta yoğunlukta çalışma var — özgünlük vurgulayın.' :
+                 result.total > 0   ? 'Nispeten az çalışma — niş bir alan olabilir.' :
+                 'Henüz yayın bulunamadı — potansiyel olarak yeni bir alan.'}
+              </p>
+            </div>
+            {result.total > 100 && (
+              <span className="text-xs font-semibold px-2 py-1 rounded-full ml-auto flex-shrink-0"
+                style={{ background: '#fde68a', color: '#92400e' }}>
+                Yüksek Rekabet
+              </span>
+            )}
+            {result.total > 0 && result.total <= 20 && (
+              <span className="text-xs font-semibold px-2 py-1 rounded-full ml-auto flex-shrink-0"
+                style={{ background: '#d1fae5', color: '#065f46' }}>
+                Niş Alan
+              </span>
+            )}
+          </div>
+
+          {(result.results || []).length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted uppercase tracking-wider">En Çok Atıf Alan Çalışmalar</p>
+              {result.results.slice(0, 6).map((p: any, i: number) => (
+                <div key={i} className="p-3 rounded-xl text-xs space-y-1"
+                  style={{ background: '#faf8f4', border: '1px solid #e8e4dc' }}>
+                  <p className="font-semibold text-navy leading-snug">{p.title}</p>
+                  <div className="flex items-center gap-3 text-muted flex-wrap">
+                    {p.firstAuthor && <span>{p.firstAuthor}</span>}
+                    {p.journal && <span>{p.journal}</span>}
+                    {p.year && <span>{p.year}</span>}
+                    {p.citedBy > 0 && <span className="font-semibold" style={{ color: '#059669' }}>{p.citedBy} atıf</span>}
+                    {p.doi && (
+                      <a href={`https://doi.org/${p.doi}`} target="_blank" rel="noopener noreferrer"
+                        className="font-medium hover:underline" style={{ color: '#1a3a6b' }}>
+                        DOI
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Sabitler ──────────────────────────────────────────────────────── */
+function ScopusLiteraturePhase({ title, description, projectText, keywords, tags, projectType }: any) {
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="font-display text-xl font-semibold text-navy mb-1">Literatür Taramasi</h2>
+        <p className="text-sm text-muted">Projenizi kaydetmeden önce dünya literatüründe benzer çalışmaları inceleyin ve uygun hibe kaynaklarını görün</p>
+      </div>
+      <div className="p-3 rounded-xl text-xs" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8' }}>
+        Bu adım isteğe bağlıdır. Benzer çalışmalar projenizin özgünlüğünü belirlemenize, hibe önerileri ise fon hedeflemenize yardımcı olur.
+      </div>
+      <ScopusWizardPanel title={title} keywords={[...keywords, ...tags]} />
+      <div className="card p-5">
+        <h3 className="font-display text-sm font-semibold text-navy mb-3">Hibe Uygunluk Analizi</h3>
+        <p className="text-xs text-muted mb-3">Proje konunuza göre uygun fon kaynaklarını Scopus konu sınıflandırmasıyla analiz edin</p>
+        <FundingMatchPanel keywords={keywords} tags={tags} projectType={projectType} title={title} />
+      </div>
+    </div>
+  );
+}
+
 const STATUSES = [
-  { value: 'application', label: 'Başvuru Sürecinde', color: '#d97706', desc: 'Henüz başvuru aşamasında' },
+  { value: 'application', label: 'Basvuru Sürecinde', color: '#d97706', desc: 'Henüz basvuru asamasinda' },
   { value: 'active',      label: 'Aktif',             color: '#059669', desc: 'Proje yürütülüyor' },
 ];
 
-const TYPE_CARDS = [
-  { key: 'tubitak',  label: 'TÜBİTAK',       icon: '🔬', color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe', desc: 'Temel ve uygulamalı araştırma', budget: '200K – 2M ₺', duration: '1-3 yıl' },
-  { key: 'bap',      label: 'BAP',            icon: '🏛',  color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe', desc: 'Üniversite iç araştırma fonu', budget: '10K – 200K ₺', duration: '6 ay – 2 yıl' },
-  { key: 'eu',       label: 'AB Projesi',     icon: '🇪🇺', color: '#d97706', bg: '#fffbeb', border: '#fde68a', desc: 'Horizon Europe ve AB destekleri', budget: '500K – 5M €', duration: '2-5 yıl' },
-  { key: 'industry', label: 'Sanayi',         icon: '🏭', color: '#ea580c', bg: '#fff7ed', border: '#fed7aa', desc: 'Sanayi-üniversite iş birliği', budget: '100K – 5M ₺', duration: '1-3 yıl' },
-  { key: 'other',    label: 'Diğer',          icon: '📁', color: '#64748b', bg: '#f8fafc', border: '#e2e8f0', desc: 'Diğer fon kaynakları', budget: '—', duration: '—' },
+const TYPE_CARDS_DEFAULT = [
+  { key: 'tubitak',  label: 'TÜBİTAK',    color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe', desc: 'Temel ve uygulamalı araştırma', budget: '200K – 2M TL', duration: '1-3 yıl' },
+  { key: 'bap',      label: 'BAP',         color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe', desc: 'Üniversite iç araştırma fonu',  budget: '10K – 200K TL', duration: '6 ay – 2 yıl' },
+  { key: 'eu',       label: 'AB Projesi',  color: '#d97706', bg: '#fffbeb', border: '#fde68a', desc: 'Horizon Europe ve AB destekleri', budget: '500K – 5M EUR', duration: '2-5 yıl' },
+  { key: 'industry', label: 'Sanayi',      color: '#ea580c', bg: '#fff7ed', border: '#fed7aa', desc: 'Sanayi-üniversite iş birligi',  budget: '100K – 5M TL', duration: '1-3 yıl' },
+  { key: 'other',    label: 'Diger',       color: '#64748b', bg: '#f8fafc', border: '#e2e8f0', desc: 'Diger fon kaynakları',          budget: '—', duration: '—' },
 ];
 
 const IP_OPTS = [
   { value: 'none',       label: 'Yok',                color: '#6b7280' },
-  { value: 'pending',    label: 'Başvuru Aşamasında', color: '#d97706' },
+  { value: 'pending',    label: 'Basvuru Asamasinda', color: '#d97706' },
   { value: 'registered', label: 'Tescilli',            color: '#059669' },
-  { value: 'published',  label: 'Yayımlandı',          color: '#2563eb' },
+  { value: 'published',  label: 'Yayimlandi',          color: '#2563eb' },
 ];
 
 const IP_TYPES = [
-  { value: 'patent',        label: '🔬 Patent' },
-  { value: 'faydali_model', label: '⚙️ Faydalı Model' },
-  { value: 'marka',         label: '™ Marka' },
-  { value: 'tasarim',       label: '🎨 Tasarım' },
-  { value: 'telif',         label: '© Telif Hakkı' },
-  { value: 'ticari_sir',    label: '🔒 Ticari Sır' },
+  { value: 'patent',        label: 'Patent' },
+  { value: 'faydali_model', label: 'Faydali Model' },
+  { value: 'marka',         label: 'Marka' },
+  { value: 'tasarim',       label: 'Tasarim' },
+  { value: 'telif',         label: 'Telif Hakki' },
+  { value: 'ticari_sir',    label: 'Ticari Sir' },
 ];
 
 const PHASES = [
-  { key: 'type',    label: 'Proje Türü',      icon: '🎯', desc: 'Ne tür bir proje?' },
-  { key: 'basic',   label: 'Temel & Ekip',    icon: '👥', desc: 'Başlık, ekip, kurum' },
-  { key: 'content', label: 'İçerik & Uyum',   icon: '📄', desc: 'Metin ve YZ analizi' },
-  { key: 'classify',label: 'Sınıflandırma',   icon: '🏷',  desc: 'SKH, etiketler, IP' },
-  { key: 'finalize',label: 'Finansal & Onay', icon: '💰', desc: 'Bütçe ve kayıt' },
+  { key: 'type',     label: 'Proje Türü',      desc: 'Ne tür bir proje?' },
+  { key: 'basic',    label: 'Temel ve Ekip',   desc: 'Başlık, ekip, kurum' },
+  { key: 'content',  label: 'İçerik ve Uyum',  desc: 'Metin ve YZ analizi' },
+  { key: 'classify', label: 'Sınıflandırma',   desc: 'SKH, etiketler, IP' },
+  { key: 'scopus',   label: 'Literatür Tarama', desc: 'Benzer çalışmalar' },
+  { key: 'finalize', label: 'Finansal ve Onay', desc: 'Bütçe ve kayıt' },
 ];
 
 /* ─── Ana Bileşen ───────────────────────────────────────────────────── */
@@ -250,6 +369,26 @@ export default function NewProjectPage() {
 
   /* ─── Faz İçerikleri ──────────────────────────────────────────── */
   const renderPhase = () => {
+    // DB'den gelen + default türleri birleştir
+    const allTypeCards = (() => {
+      const defaults = [...TYPE_CARDS_DEFAULT];
+      // DB'de olup TYPE_CARDS_DEFAULT'ta olmayan türler
+      projectTypes.forEach(dt => {
+        if (!defaults.find(d => d.key === dt.key)) {
+          defaults.push({
+            key: dt.key, label: dt.label,
+            color: dt.color || '#64748b', bg: '#f8fafc', border: '#e2e8f0',
+            desc: 'Proje türü', budget: '—', duration: '—',
+          });
+        } else {
+          // DB label'ını güncelle
+          const idx = defaults.findIndex(d => d.key === dt.key);
+          if (idx !== -1) defaults[idx] = { ...defaults[idx], label: dt.label, color: dt.color || defaults[idx].color };
+        }
+      });
+      return defaults;
+    })();
+
     switch (PHASES[phase].key) {
 
       /* FAZ 1 — TÜR SEÇİMİ */
@@ -260,10 +399,7 @@ export default function NewProjectPage() {
             <p className="text-sm text-muted">Seçtiğiniz türe göre form ve gereksinimler otomatik uyarlanır</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {TYPE_CARDS.map(tc => {
-              // DB'den gelen label varsa kullan
-              const dbType = projectTypes.find(t => t.key === tc.key);
-              const label  = dbType?.label || tc.label;
+            {allTypeCards.map(tc => {
               const active = selectedType === tc.key;
               return (
                 <button key={tc.key} type="button" onClick={() => setSelectedType(tc.key)}
@@ -274,14 +410,20 @@ export default function NewProjectPage() {
                     boxShadow:  active ? `0 4px 20px ${tc.color}22` : '0 1px 3px rgba(0,0,0,0.04)',
                   }}>
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-3xl">{tc.icon}</span>
-                    {active && <span className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ background: tc.color }}>✓</span>}
+                    <span className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-base font-bold flex-shrink-0"
+                      style={{ background: tc.color }}>
+                      {tc.label.charAt(0)}
+                    </span>
+                    {active && (
+                      <span className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                        style={{ background: tc.color }}>✓</span>
+                    )}
                   </div>
-                  <p className="font-display font-semibold text-base mb-0.5" style={{ color: active ? tc.color : '#0f2444' }}>{label}</p>
+                  <p className="font-display font-semibold text-base mb-0.5" style={{ color: active ? tc.color : '#0f2444' }}>{tc.label}</p>
                   <p className="text-xs text-muted mb-3 leading-relaxed">{tc.desc}</p>
-                  <div className="flex gap-3 text-xs" style={{ color: tc.color }}>
-                    <span>💰 {tc.budget}</span>
-                    <span>⏱ {tc.duration}</span>
+                  <div className="flex gap-3 text-xs font-medium" style={{ color: tc.color }}>
+                    <span>{tc.budget}</span>
+                    <span>{tc.duration}</span>
                   </div>
                 </button>
               );
@@ -630,14 +772,27 @@ export default function NewProjectPage() {
                 </div>
                 <FileField label="Fikri Mülkiyet Belgesi" file={ipFile} onChange={setIpFile}
                   required={['registered','published'].includes(form.ipStatus)}
-                  hint="Patent başvuru formu veya tescil belgesi" />
+                  hint="Patent basvuru formu veya tescil belgesi" />
               </div>
             )}
           </div>
         </div>
       );
 
-      /* FAZ 5 — FİNANSAL & ONAY */
+      /* FAZ 5 — SCOPUS LİTERATÜR TARAMA */
+      /* FAZ 5 — SCOPUS LİTERATÜR TARAMA */
+      case 'scopus': return (
+        <ScopusLiteraturePhase
+          title={form.title}
+          description={form.description}
+          projectText={form.projectText}
+          keywords={form.keywords ? form.keywords.split(',').map((k: string) => k.trim()).filter(Boolean) : []}
+          tags={form.tags ? form.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : []}
+          projectType={selectedType}
+        />
+      );
+
+      /* FAZ 6 — FİNANSAL & ONAY */
       case 'finalize': return (
         <div className="space-y-5">
           <div>
@@ -719,7 +874,7 @@ export default function NewProjectPage() {
           <div className="card p-5 space-y-2" style={{ background: '#f0ede8', border: '1px solid #e8e4dc' }}>
             <p className="text-xs font-bold uppercase tracking-wider text-navy">📋 Proje Özeti</p>
             {[
-              ['Tür',    TYPE_CARDS.find(t => t.key === selectedType)?.label || selectedType],
+              ['Tür',    TYPE_CARDS_DEFAULT.find(t => t.key === selectedType)?.label || selectedType],
               ['Başlık', form.title],
               ['Durum',  STATUSES.find(s => s.value === form.status)?.label],
               form.faculty    ? ['Fakülte', form.faculty]    : null,
@@ -768,7 +923,7 @@ export default function NewProjectPage() {
                       color:      done || active ? 'white' : '#9ca3af',
                       cursor:     i < phase ? 'pointer' : 'default',
                     }}>
-                    {done ? '✓' : p.icon}
+                    {done ? '✓' : String(i + 1)}
                   </button>
                   <p className="text-xs font-medium leading-tight text-center"
                     style={{ color: active ? '#0f2444' : done ? '#059669' : '#9ca3af', maxWidth: 64 }}>

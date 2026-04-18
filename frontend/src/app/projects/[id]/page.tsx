@@ -43,7 +43,19 @@ export default function ProjectDetailPage() {
   const [uploading, setUploading] = useState(false);
   const [memberModal, setMemberModal] = useState<{ userId: string; role: string; canUpload: boolean } | null>(null);
 
-  const reload = () => projectsApi.getOne(id).then(r => setProject(r.data));
+  const reload = async () => {
+    const r = await projectsApi.getOne(id);
+    // Ethics review durumunu da çek ve projeye birleştir
+    try {
+      const ethicsR = await api.get(`/ethics/project/${id}`);
+      if (ethicsR.data) {
+        const review = ethicsR.data;
+        r.data.ethicsApproved = review.status === 'approved';
+        r.data.ethicsRejected = review.status === 'rejected';
+      }
+    } catch {}
+    setProject(r.data);
+  };
   const daysUntilEnd = project?.endDate && project.status === 'active'
     ? Math.ceil((new Date(project.endDate).getTime() - Date.now()) / 86400000)
     : null;
@@ -166,7 +178,17 @@ export default function ProjectDetailPage() {
     (u.firstName + ' ' + u.lastName + ' ' + u.email).toLowerCase().includes(memberSearch.toLowerCase())
   ).slice(0, 5);
 
-  const tabs: [Tab, string][] = [['overview', 'Genel Bakış'], ['members', 'Ekip'], ['documents', 'Belgeler'], ['reports', 'Raporlar'], ['partners', 'Ortaklar 🤝'], ['publications', 'Yayınlar 🔬'], ['history', 'Geçmiş 📋']];
+  const memberCount      = project?.members?.length ?? 0;
+  const documentCount    = project?.documents?.length ?? 0;
+  const tabs: [Tab, string][] = [
+    ['overview',     'Genel Bakis'],
+    ['members',      `Ekip${memberCount > 0 ? ` (${memberCount})` : ''}`],
+    ['documents',    `Belgeler${documentCount > 0 ? ` (${documentCount})` : ''}`],
+    ['reports',      'Raporlar'],
+    ['partners',     'Ortaklar'],
+    ['publications', 'Yayinlar'],
+    ['history',      'Gecmis'],
+  ];
 
   // Report chart data
   const reportChartData = [...reports].reverse().map(r => ({ date: new Date(r.createdAt).toLocaleDateString('tr-TR', { month: 'short', day: 'numeric' }), progress: r.progressPercent, title: r.title }));
@@ -198,14 +220,14 @@ export default function ProjectDetailPage() {
         <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: '#f0ede8', color: '#6b7280' }}>{getProjectTypeLabel(project.type)}</span>
         {project.faculty && <span className="text-xs text-muted">{project.faculty}</span>}
         {project.department && <><span className="text-muted text-xs">›</span><span className="text-xs text-muted">{project.department}</span></>}
-        {(project as any).ethicsRequired && !(project as any).ethicsApproved && (
+        {(project as any).ethicsRequired && !(project as any).ethicsApproved && !(project as any).ethicsRejected && (
           <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}>
-            ⚖️ Etik Kurul Onayı Bekliyor
+            Etik Kurul Onayi Bekliyor
           </span>
         )}
         {(project as any).ethicsRequired && (project as any).ethicsApproved && (
           <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: '#f0fdf4', color: '#14532d', border: '1px solid #86efac' }}>
-            ✅ Etik Kurul Onaylandı
+            Etik Kurul Onayi Alindi
           </span>
         )}
         <div className="ml-auto flex items-center gap-6 text-xs text-muted">

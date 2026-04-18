@@ -12,9 +12,10 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function ProjectPrintPage() {
   const { id } = useParams<{ id: string }>();
-  const [project, setProject] = useState<Project | null>(null);
-  const [reports, setReports] = useState<ProjectReport[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [project, setProject]     = useState<Project | null>(null);
+  const [reports, setReports]     = useState<ProjectReport[]>([]);
+  const [linkedPubs, setLinkedPubs] = useState<any[]>([]);
+  const [loading, setLoading]     = useState(true);
 
   useEffect(() => {
     const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -24,6 +25,7 @@ export default function ProjectPrintPage() {
     Promise.all([
       axios.get(`${base}/projects/${id}`, { headers }).then(r => setProject(r.data)),
       axios.get(`${base}/projects/${id}/reports`, { headers }).then(r => setReports(r.data)).catch(() => {}),
+      axios.get(`${base}/scopus/project/${id}/linked-publications`, { headers }).then(r => setLinkedPubs(r.data || [])).catch(() => {}),
     ]).finally(() => {
       setLoading(false);
     });
@@ -347,10 +349,136 @@ export default function ProjectPrintPage() {
           </div>
         )}
 
+        {/* Etik Kurul Durumu */}
+        {((project as any).ethicsRequired) && (
+          <div className="section">
+            <div className="section-title">Etik Kurul Durumu</div>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <div className="info-item">
+                <span className="info-label">Etik Kurul Gerekli</span>
+                <span className="info-value">{(project as any).ethicsRequired ? 'Evet' : 'Hayır'}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Onay Durumu</span>
+                <span className="info-value" style={{ color: (project as any).ethicsApproved ? '#059669' : '#d97706' }}>
+                  {(project as any).ethicsApproved ? 'Onaylandi' : 'Bekleniyor'}
+                </span>
+              </div>
+              {(project as any).ethicsCommittee && (
+                <div className="info-item">
+                  <span className="info-label">Kurul</span>
+                  <span className="info-value">{(project as any).ethicsCommittee}</span>
+                </div>
+              )}
+              {(project as any).ethicsApprovalNo && (
+                <div className="info-item">
+                  <span className="info-label">Onay No</span>
+                  <span className="info-value">{(project as any).ethicsApprovalNo}</span>
+                </div>
+              )}
+              {(project as any).ethicsApprovalDate && (
+                <div className="info-item">
+                  <span className="info-label">Onay Tarihi</span>
+                  <span className="info-value">{formatDate((project as any).ethicsApprovalDate)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Fikri Mülkiyet */}
+        {(project as any).ipStatus && (project as any).ipStatus !== 'none' && (
+          <div className="section">
+            <div className="section-title">Fikri Mülkiyet</div>
+            <div className="info-grid">
+              <div className="info-item">
+                <span className="info-label">Durum</span>
+                <span className="info-value">{{ none: 'Yok', pending: 'Basvuru Asamasinda', registered: 'Tescilli', published: 'Yayimlandi' }[(project as any).ipStatus] || (project as any).ipStatus}</span>
+              </div>
+              {(project as any).ipType && (
+                <div className="info-item">
+                  <span className="info-label">Tür</span>
+                  <span className="info-value">{(project as any).ipType}</span>
+                </div>
+              )}
+              {(project as any).ipRegistrationNo && (
+                <div className="info-item">
+                  <span className="info-label">Tescil No</span>
+                  <span className="info-value">{(project as any).ipRegistrationNo}</span>
+                </div>
+              )}
+              {(project as any).ipDate && (
+                <div className="info-item">
+                  <span className="info-label">Tarih</span>
+                  <span className="info-value">{formatDate((project as any).ipDate)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* SKH Hedefleri */}
+        {(project as any).sdgGoals?.length > 0 && (
+          <div className="section">
+            <div className="section-title">Sürdürülebilir Kalkinma Hedefleri</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {(project as any).sdgGoals.map((code: string) => (
+                <span key={code} style={{ padding: '3px 10px', borderRadius: 99, fontSize: '8.5pt', fontWeight: 600, background: '#e0e7ff', color: '#3730a3' }}>
+                  {code}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Proje Metni */}
+        {(project as any).projectText && (
+          <div className="section">
+            <div className="section-title">Proje Metni</div>
+            <p style={{ fontSize: '9.5pt', color: '#374151', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+              {(project as any).projectText.substring(0, 3000)}{(project as any).projectText.length > 3000 ? '...' : ''}
+            </p>
+          </div>
+        )}
+
+        {/* YZ Uygunluk Skoru */}
+        {(project as any).aiComplianceScore != null && (
+          <div className="section">
+            <div className="section-title">YZ Uygunluk Analizi</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 50, height: 50, borderRadius: '50%', border: '3px solid #1a3a6b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '14pt', color: '#1a3a6b', flexShrink: 0 }}>
+                {(project as any).aiComplianceScore}
+              </div>
+              <div>
+                <p style={{ fontSize: '9pt', fontWeight: 600, color: '#0f2444' }}>Uygunluk Skoru: {(project as any).aiComplianceScore}/100</p>
+                <p style={{ fontSize: '8.5pt', color: '#6b7280' }}>YZ tarafindan degerlendirilmistir</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Scopus Bağlı Yayınlar */}
+        {linkedPubs.length > 0 && (
+          <div className="section">
+            <div className="section-title">Proje Çıktıları — Scopus Yayınları ({linkedPubs.length})</div>
+            {linkedPubs.map((p: any, i: number) => (
+              <div key={i} style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: 8, marginBottom: 8 }}>
+                <p style={{ fontSize: '9.5pt', fontWeight: 600, color: '#0f2444', lineHeight: 1.4 }}>{p.title}</p>
+                <div style={{ display: 'flex', gap: 12, marginTop: 3, fontSize: '8.5pt', color: '#6b7280', flexWrap: 'wrap' }}>
+                  {p.journal && <span>{p.journal}</span>}
+                  {p.year && <span>{p.year}</span>}
+                  {p.citedBy > 0 && <span style={{ color: '#059669', fontWeight: 600 }}>{p.citedBy} atıf</span>}
+                  {p.doi && <span>DOI: {p.doi}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Altbilgi */}
         <div className="footer">
           <span>MKÜ Teknoloji Transfer Ofisi · Proje Yönetim Sistemi</span>
-          <span>Oluşturma: {new Date().toLocaleString('tr-TR')}</span>
+          <span>Olusturma: {new Date().toLocaleString('tr-TR')}</span>
         </div>
       </div>
     </>

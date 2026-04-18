@@ -80,7 +80,7 @@ export default function ProjectsPage() {
         </div>
         {ethicsPending && (
           <div className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg mb-2" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}>
-            ⚖️ Etik Kurul Onayı Bekliyor
+            Etik Kurul Onayi Bekliyor
           </div>
         )}
         <h3 className="font-display font-semibold text-navy text-sm leading-snug mb-1 group-hover:text-blue-700 line-clamp-2">{p.title}</h3>
@@ -228,7 +228,7 @@ export default function ProjectsPage() {
                               <Link href={`/projects/${p.id}`} className="font-semibold text-navy hover:underline line-clamp-1">{p.title}</Link>
                               {p.owner && <p className="text-xs text-muted mt-0.5">{p.owner.firstName} {p.owner.lastName}</p>}
                               {isUrgent && <span className="text-xs font-bold" style={{ color: '#dc2626' }}>⏰ {daysLeft} gün kaldı</span>}
-                              {ethicsPending && <span className="text-xs font-semibold ml-1" style={{ color: '#92400e' }}>⚖️ Etik Onayı Bekliyor</span>}
+                              {ethicsPending && <span className="text-xs font-semibold ml-1" style={{ color: '#92400e' }}>Etik Onayi Bekliyor</span>}
                             </td>
                             <td className="px-5 py-4">
                               <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: typeColor + '18', color: typeColor }}>{getProjectTypeLabel(p.type, projectTypes)}</span>
