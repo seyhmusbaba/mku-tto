@@ -1,16 +1,15 @@
 import { Controller, Get, Post, Query, Param, Body, UseGuards, Request } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { SkipThrottle } from '@nestjs/throttler';
 import { ScopusService } from './scopus.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../database/entities/user.entity';
 import { Project } from '../database/entities/project.entity';
 import { ProjectMember } from '../database/entities/project-member.entity';
-import { SkipThrottle } from '@nestjs/throttler';
 
 @SkipThrottle()
 @Controller('scopus')
-@UseGuards(JwtAuthGuard)
 export class ScopusController {
   constructor(
     private readonly scopus: ScopusService,
@@ -19,18 +18,68 @@ export class ScopusController {
     @InjectRepository(ProjectMember) private memberRepo: Repository<ProjectMember>,
   ) {}
 
+  // ── GUARD GEREKTİRMEYEN ───────────────────────────────────────
+  // Tarayıcıdan direkt /api/scopus/test ile test edilebilir
+  @Get('test')
+  async test() {
+    if (!this.scopus.isConfigured()) {
+      return { ok: false, error: 'SCOPUS_API_KEY tanımlı değil' };
+    }
+    try {
+      const url = `https://api.elsevier.com/content/search/scopus?query=TITLE(artificial+intelligence)&count=1&field=dc:title,citedby-count`;
+      const res = await fetch(url, {
+        headers: {
+          'X-ELS-APIKey': process.env.SCOPUS_API_KEY || '',
+          'Accept': 'application/json',
+          ...(process.env.SCOPUS_INST_TOKEN ? { 'X-ELS-Insttoken': process.env.SCOPUS_INST_TOKEN } : {}),
+        },
+        signal: AbortSignal.timeout(10000),
+      });
+      const status = res.status;
+      const body = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        return {
+          ok: false,
+          httpStatus: status,
+          error: (body as any)?.['service-error']?.status?.statusText || 'API hatası',
+          raw: body,
+        };
+      }
+
+      const entry = (body as any)?.['search-results']?.['entry']?.[0];
+      return {
+        ok: true,
+        httpStatus: status,
+        tokenUsed: !!process.env.SCOPUS_INST_TOKEN,
+        sampleResult: entry ? {
+          title: entry['dc:title'],
+          citedBy: entry['citedby-count'],
+        } : null,
+        message: 'Scopus API bağlantısı başarılı ✅',
+      };
+    } catch (e: any) {
+      return { ok: false, error: e?.message || 'Bağlantı hatası' };
+    }
+  }
+
+  // ── GUARD GEREKTİREN ──────────────────────────────────────────
+
   // Scopus API yapılandırılmış mı?
+  @UseGuards(JwtAuthGuard)
   @Get('status')
   status() {
     return { configured: this.scopus.isConfigured() };
   }
 
   // ── 1. ARAŞTIRMACI PROFİLİ ────────────────────────────────────
+  @UseGuards(JwtAuthGuard)
   @Get('author/:authorId')
   getAuthorProfile(@Param('authorId') authorId: string) {
     return this.scopus.getAuthorProfile(authorId);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('author/:authorId/publications')
   getAuthorPublications(
     @Param('authorId') authorId: string,
@@ -40,6 +89,7 @@ export class ScopusController {
   }
 
   // Giriş yapan kullanıcının kendi Scopus profilini güncelle
+  @UseGuards(JwtAuthGuard)
   @Post('sync-my-profile')
   async syncMyProfile(@Request() req: any) {
     const user = await this.userRepo.findOne({ where: { id: req.user.userId } });
@@ -61,6 +111,7 @@ export class ScopusController {
   }
 
   // ── 2. PROJE — YAYIN EŞLEŞTİRME ──────────────────────────────
+  @UseGuards(JwtAuthGuard)
   @Get('project/:projectId/related-publications')
   async getProjectRelatedPublications(@Param('projectId') projectId: string) {
     const project = await this.projectRepo.findOne({
@@ -92,6 +143,7 @@ export class ScopusController {
   }
 
   // Yayını projeye bağla (project_publications JSON alanına yaz)
+  @UseGuards(JwtAuthGuard)
   @Post('project/:projectId/link-publication')
   async linkPublication(
     @Param('projectId') projectId: string,
@@ -111,6 +163,7 @@ export class ScopusController {
   }
 
   // Projeye bağlı yayınları getir
+  @UseGuards(JwtAuthGuard)
   @Get('project/:projectId/linked-publications')
   async getLinkedPublications(@Param('projectId') projectId: string) {
     const project = await this.projectRepo.findOne({ where: { id: projectId } });
@@ -121,6 +174,7 @@ export class ScopusController {
   }
 
   // Yayın bağlantısını kaldır
+  @UseGuards(JwtAuthGuard)
   @Post('project/:projectId/unlink-publication')
   async unlinkPublication(
     @Param('projectId') projectId: string,
@@ -135,6 +189,7 @@ export class ScopusController {
   }
 
   // ── 3. BENZER ÇALIŞMA TESPİTİ ────────────────────────────────
+  @UseGuards(JwtAuthGuard)
   @Post('similar-research')
   async findSimilarResearch(
     @Body() dto: { title: string; description?: string; keywords?: string[] },
@@ -143,6 +198,7 @@ export class ScopusController {
   }
 
   // ── 4. HİBE UYGUNLUK ANALİZİ ─────────────────────────────────
+  @UseGuards(JwtAuthGuard)
   @Post('funding-match')
   async getFundingMatch(
     @Body() dto: { keywords: string[]; projectType?: string; title?: string },
@@ -158,6 +214,7 @@ export class ScopusController {
   }
 
   // ── 5. FAKÜLTE / BÖLÜM ANALİTİĞİ ────────────────────────────
+  @UseGuards(JwtAuthGuard)
   @Get('faculty-metrics')
   async getFacultyMetrics(@Query('faculty') faculty?: string, @Query('department') department?: string) {
     const where: any = {};
