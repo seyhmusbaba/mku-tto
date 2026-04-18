@@ -40,16 +40,15 @@ export class ScopusService {
   }
 
   // ── YAZAR PROFİLİ ─────────────────────────────────────────────
-  // Author Retrieval API kurumsal erişim gerektiriyor.
-  // Search API üzerinden yayın listesinden metrikleri kendimiz hesaplıyoruz.
+  // Ücretsiz API max count=25. İki ayrı istek: atıf sırası + konu alanı.
   async getAuthorProfile(scopusAuthorId: string) {
     const cacheKey = `author:${scopusAuthorId}`;
     const cached = cache.get(cacheKey);
     if (cached) return cached;
 
     try {
-      // subject-areas field parametresi hata verdiği için hariç tutuyoruz
-      const url = `${this.BASE}/content/search/scopus?query=AU-ID(${scopusAuthorId})&count=200&sort=-citedby-count&field=dc:title,prism:coverDate,citedby-count,dc:identifier`;
+      // İstek 1: en çok atıf alan 25 yayın (h-index için)
+      const url = `${this.BASE}/content/search/scopus?query=AU-ID(${scopusAuthorId})&count=25&sort=-citedby-count&field=dc:title,prism:coverDate,citedby-count,dc:identifier`;
       const res = await fetch(url, { headers: this.headers(), signal: AbortSignal.timeout(20000) });
       if (!res.ok) return null;
       const data = await res.json();
@@ -58,25 +57,44 @@ export class ScopusService {
       const totalResults = +(data?.['search-results']?.['opensearch:totalResults'] || 0);
       if (!entries.length) return null;
 
-      // Toplam atıf
       const citedByCount = entries.reduce((s, e) => s + +(e['citedby-count'] || 0), 0);
 
-      // h-index: azalan sırada, atıf >= sıra olan son nokta
-      const sorted = entries.map(e => +(e['citedby-count'] || 0)).sort((a, b) => b - a);
+      const sortedCites = entries.map(e => +(e['citedby-count'] || 0)).sort((a, b) => b - a);
       let hIndex = 0;
-      for (let i = 0; i < sorted.length; i++) {
-        if (sorted[i] >= i + 1) hIndex = i + 1; else break;
+      for (let i = 0; i < sortedCites.length; i++) {
+        if (sortedCites[i] >= i + 1) hIndex = i + 1; else break;
       }
+
+      // İstek 2: konu alanları (opsiyonel)
+      let subjectAreas: string[] = [];
+      try {
+        const url2 = `${this.BASE}/content/search/scopus?query=AU-ID(${scopusAuthorId})&count=25&sort=-pubyear&field=subject-areas`;
+        const res2 = await fetch(url2, { headers: this.headers(), signal: AbortSignal.timeout(15000) });
+        if (res2.ok) {
+          const data2 = await res2.json();
+          const areaCounts: Record<string, number> = {};
+          (data2?.['search-results']?.['entry'] || []).forEach((e: any) => {
+            const areas = e['subject-areas']?.['subject-area'] || [];
+            (Array.isArray(areas) ? areas : [areas]).forEach((a: any) => {
+              const code = a?.['@abbrev'] || '';
+              if (code) areaCounts[code] = (areaCounts[code] || 0) + 1;
+            });
+          });
+          subjectAreas = Object.entries(areaCounts)
+            .sort(([, a], [, b]) => b - a).slice(0, 5)
+            .map(([code]) => ASJC_LABELS[code] || code);
+        }
+      } catch { /* opsiyonel */ }
 
       const profile = {
         scopusId:      scopusAuthorId,
         hIndex,
         citedByCount,
         documentCount: totalResults,
-        subjectAreas:  [],
+        subjectAreas,
         coauthorCount: 0,
         affiliation:   '',
-        note: totalResults > 200 ? `${totalResults} yayından ilk 200'e göre hesaplandı` : null,
+        note: totalResults > 25 ? `${totalResults} yayından ilk 25'e göre hesaplandı` : null,
       };
 
       cache.set(cacheKey, profile);
@@ -93,7 +111,7 @@ export class ScopusService {
     if (cached) return cached;
 
     try {
-      const url = `${this.BASE}/content/search/scopus?query=AU-ID(${scopusAuthorId})&count=${limit}&sort=-pubyear&field=dc:title,prism:publicationName,prism:coverDate,citedby-count,prism:doi,dc:identifier,authkeywords`;
+      const url = `${this.BASE}/content/search/scopus?query=AU-ID(${scopusAuthorId})&count=${Math.min(limit, 25)}&sort=-pubyear&field=dc:title,prism:publicationName,prism:coverDate,citedby-count,prism:doi,dc:identifier,authkeywords`;
       const res = await fetch(url, { headers: this.headers(), signal: AbortSignal.timeout(15000) });
       if (!res.ok) return [];
       const data = await res.json();
@@ -144,7 +162,7 @@ export class ScopusService {
         query = `TITLE("${opts.title.substring(0, 60)}")`;
       }
 
-      const url = `${this.BASE}/content/search/scopus?query=${encodeURIComponent(query)}&count=${limit}&sort=-pubyear&field=dc:title,prism:publicationName,prism:coverDate,citedby-count,prism:doi,dc:identifier,dc:creator`;
+      const url = `${this.BASE}/content/search/scopus?query=${encodeURIComponent(query)}&count=${Math.min(limit, 25)}&sort=-pubyear&field=dc:title,prism:publicationName,prism:coverDate,citedby-count,prism:doi,dc:identifier,dc:creator`;
       const res = await fetch(url, { headers: this.headers(), signal: AbortSignal.timeout(20000) });
       if (!res.ok) return [];
       const data = await res.json();
