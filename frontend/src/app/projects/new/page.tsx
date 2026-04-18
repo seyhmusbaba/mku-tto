@@ -566,7 +566,7 @@ export default function NewProjectPage() {
                   })}
                 </div>
                 {sdgSuggestions.some(s => !sdgSelected.includes(s)) && (
-                  <button type="button" onClick={() => setSdgSelected(s => [...new Set([...s, ...sdgSuggestions])])}
+                  <button type="button" onClick={() => setSdgSelected(s => Array.from(new Set([...s, ...sdgSuggestions])))}
                     className="mt-2 text-xs text-green-700 font-semibold hover:underline">
                     Tümünü Ekle →
                   </button>
