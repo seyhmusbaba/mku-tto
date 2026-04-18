@@ -30,6 +30,15 @@ export class ScopusService {
     return !!this.apiKey;
   }
 
+  // Önbellek temizle (sync sırasında kullanılır)
+  clearCache(key: string) {
+    cache.del(key);
+  }
+
+  clearAllCache() {
+    cache.flushAll();
+  }
+
   // ── YAZAR PROFİLİ ─────────────────────────────────────────────
   // Author Retrieval API kurumsal erişim gerektiriyor.
   // Search API üzerinden yayın listesinden metrikleri kendimiz hesaplıyoruz.
@@ -39,8 +48,8 @@ export class ScopusService {
     if (cached) return cached;
 
     try {
-      // Tüm yayınları çek (max 200 — h-index hesabı için yeterli)
-      const url = `${this.BASE}/content/search/scopus?query=AU-ID(${scopusAuthorId})&count=200&sort=-citedby-count&field=dc:title,prism:publicationName,prism:coverDate,citedby-count,prism:doi,dc:identifier,subject-areas`;
+      // subject-areas field parametresi hata verdiği için hariç tutuyoruz
+      const url = `${this.BASE}/content/search/scopus?query=AU-ID(${scopusAuthorId})&count=200&sort=-citedby-count&field=dc:title,prism:coverDate,citedby-count,dc:identifier`;
       const res = await fetch(url, { headers: this.headers(), signal: AbortSignal.timeout(20000) });
       if (!res.ok) return null;
       const data = await res.json();
@@ -52,36 +61,21 @@ export class ScopusService {
       // Toplam atıf
       const citedByCount = entries.reduce((s, e) => s + +(e['citedby-count'] || 0), 0);
 
-      // h-index hesapla: azalan atıf sıralamasında, atıf sayısı >= sıra numarası olan son pozisyon
+      // h-index: azalan sırada, atıf >= sıra olan son nokta
       const sorted = entries.map(e => +(e['citedby-count'] || 0)).sort((a, b) => b - a);
       let hIndex = 0;
       for (let i = 0; i < sorted.length; i++) {
         if (sorted[i] >= i + 1) hIndex = i + 1; else break;
       }
 
-      // Konu alanları — en sık geçenler
-      const areaCounts: Record<string, number> = {};
-      entries.forEach(e => {
-        const areas = e['subject-areas']?.['subject-area'] || [];
-        (Array.isArray(areas) ? areas : [areas]).forEach((a: any) => {
-          const code = a?.['@abbrev'] || '';
-          if (code) areaCounts[code] = (areaCounts[code] || 0) + 1;
-        });
-      });
-      const subjectAreas = Object.entries(areaCounts)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 5)
-        .map(([code]) => ASJC_LABELS[code] || code);
-
       const profile = {
-        scopusId:     scopusAuthorId,
+        scopusId:      scopusAuthorId,
         hIndex,
         citedByCount,
         documentCount: totalResults,
-        subjectAreas,
+        subjectAreas:  [],
         coauthorCount: 0,
-        affiliation:  '',
-        // hesaplama notu
+        affiliation:   '',
         note: totalResults > 200 ? `${totalResults} yayından ilk 200'e göre hesaplandı` : null,
       };
 

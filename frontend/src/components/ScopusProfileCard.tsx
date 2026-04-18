@@ -21,20 +21,26 @@ export function ScopusProfileCard({ user, isMe }: Props) {
   useEffect(() => {
     if (!authorId) return;
 
-    // Önce kaydedilmiş Scopus metriklerini göster (anlık)
+    // DB'de kayıtlı metrikler varsa hemen göster
     if (user.scopusHIndex || user.scopusCitedBy || user.scopusDocCount) {
       setProfile({
-        hIndex:       user.scopusHIndex || 0,
-        citedByCount: user.scopusCitedBy || 0,
-        documentCount:user.scopusDocCount || 0,
+        hIndex:        user.scopusHIndex || 0,
+        citedByCount:  user.scopusCitedBy || 0,
+        documentCount: user.scopusDocCount || 0,
         subjectAreas: (() => { try { return JSON.parse(user.scopusSubjects || '[]'); } catch { return []; } })(),
-        lastSync:     user.scopusLastSync,
+        lastSync:      user.scopusLastSync,
       });
       setLoading(false);
     } else {
-      // Kayıt yoksa API'den çek
-      scopusApi.getAuthorProfile(authorId)
-        .then(r => { if (r.data && !r.data.error) setProfile(r.data); })
+      // DB'de veri yok — sync endpoint'ini çağır (önbelleksiz, taze veri)
+      scopusApi.syncMyProfile()
+        .then(r => {
+          if (r.data?.success && r.data?.profile) {
+            setProfile(r.data.profile);
+          } else if (r.data?.error) {
+            console.warn('Scopus sync hatası:', r.data.error);
+          }
+        })
         .catch(() => {})
         .finally(() => setLoading(false));
     }

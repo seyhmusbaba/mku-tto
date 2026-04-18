@@ -117,6 +117,8 @@ export class ScopusController {
     };
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get('status')
   status() {
     return { configured: this.scopus.isConfigured() };
   }
@@ -145,17 +147,25 @@ export class ScopusController {
     if (!user || !(user as any).scopusAuthorId) {
       return { error: 'Scopus Author ID bulunamadı. Profilinizden ekleyin.' };
     }
-    const profile = await this.scopus.getAuthorProfile((user as any).scopusAuthorId);
-    if (!profile) return { error: 'Scopus verisi alınamadı.' };
 
-    // Scopus metriklerini kullanıcıya kaydet
+    const authorId = (user as any).scopusAuthorId;
+
+    // Önbelleği temizle — her senkronizasyonda taze veri çek
+    this.scopus.clearCache(`author:${authorId}`);
+
+    const profile = await this.scopus.getAuthorProfile(authorId);
+    if (!profile) {
+      return { error: 'Scopus verisi alınamadı. Author ID doğru mu? API erişimi var mı?' };
+    }
+
     await this.userRepo.update(user.id, {
-      scopusHIndex:      profile.hIndex,
-      scopusCitedBy:     profile.citedByCount,
-      scopusDocCount:    profile.documentCount,
-      scopusSubjects:    JSON.stringify(profile.subjectAreas),
-      scopusLastSync:    new Date().toISOString(),
+      scopusHIndex:   profile.hIndex,
+      scopusCitedBy:  profile.citedByCount,
+      scopusDocCount: profile.documentCount,
+      scopusSubjects: JSON.stringify(profile.subjectAreas || []),
+      scopusLastSync: new Date().toISOString(),
     } as any);
+
     return { success: true, profile };
   }
 
