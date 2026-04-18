@@ -64,9 +64,46 @@ export class ScopusController {
   }
 
 
-  // Scopus API yapılandırılmış mı?
+  // Debug: kendi profilini ve Scopus verisini göster
+  // /api/scopus/debug — login gerekir, tarayıcıda açmak için önce giriş yapın
   @UseGuards(JwtAuthGuard)
-  @Get('status')
+  @Get('debug')
+  async debug(@Request() req: any) {
+    const user = await this.userRepo.findOne({ where: { id: req.user.userId } });
+    const scopusId = (user as any)?.scopusAuthorId;
+
+    if (!scopusId) {
+      return { step: 'FAIL', reason: 'scopusAuthorId DB\'de kayıtlı değil', userId: req.user.userId };
+    }
+
+    // Scopus search API doğrudan çağır
+    const url = `https://api.elsevier.com/content/search/scopus?query=AU-ID(${scopusId})&count=5&sort=-citedby-count&field=dc:title,citedby-count,prism:coverDate`;
+    let apiStatus = 0;
+    let apiBody: any = {};
+    try {
+      const res = await fetch(url, {
+        headers: { 'X-ELS-APIKey': process.env.SCOPUS_API_KEY || '', 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(15000),
+      });
+      apiStatus = res.status;
+      apiBody = await res.json().catch(() => ({}));
+    } catch (e: any) {
+      return { step: 'FAIL', reason: 'fetch hatası: ' + e?.message, scopusId };
+    }
+
+    const entries = apiBody?.['search-results']?.['entry'] || [];
+    const total = apiBody?.['search-results']?.['opensearch:totalResults'] || '0';
+
+    return {
+      step: apiStatus === 200 ? 'OK' : 'FAIL',
+      scopusId,
+      apiStatus,
+      totalPublications: total,
+      sampleTitles: entries.slice(0, 3).map((e: any) => e['dc:title']),
+      error: apiStatus !== 200 ? apiBody : undefined,
+    };
+  }
+
   status() {
     return { configured: this.scopus.isConfigured() };
   }
