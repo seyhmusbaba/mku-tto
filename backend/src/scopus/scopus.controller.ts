@@ -63,7 +63,33 @@ export class ScopusController {
     }
   }
 
-  // ── GUARD GEREKTİREN ──────────────────────────────────────────
+  // Yazar API testi — /api/scopus/test-author/57193674847
+  @Get('test-author/:authorId')
+  async testAuthor(@Param('authorId') authorId: string) {
+    const apiKey = process.env.SCOPUS_API_KEY || '';
+    const instToken = process.env.SCOPUS_INST_TOKEN || '';
+
+    // Önce author retrieval API dene
+    const url1 = `https://api.elsevier.com/content/author/author_id/${authorId}?field=h-index,document-count,cited-by-count,preferred-name`;
+    const res1 = await fetch(url1, {
+      headers: { 'X-ELS-APIKey': apiKey, 'Accept': 'application/json', ...(instToken ? { 'X-ELS-Insttoken': instToken } : {}) },
+      signal: AbortSignal.timeout(10000),
+    });
+    const body1 = await res1.json().catch(() => ({}));
+
+    // Alternatif: search API ile yazar ara
+    const url2 = `https://api.elsevier.com/content/search/author?query=au-id(${authorId})&field=h-index,document-count,cited-by-count,preferred-name`;
+    const res2 = await fetch(url2, {
+      headers: { 'X-ELS-APIKey': apiKey, 'Accept': 'application/json', ...(instToken ? { 'X-ELS-Insttoken': instToken } : {}) },
+      signal: AbortSignal.timeout(10000),
+    });
+    const body2 = await res2.json().catch(() => ({}));
+
+    return {
+      authorRetrievalAPI: { status: res1.status, body: body1 },
+      authorSearchAPI:    { status: res2.status, body: body2 },
+    };
+  }
 
   // Scopus API yapılandırılmış mı?
   @UseGuards(JwtAuthGuard)
