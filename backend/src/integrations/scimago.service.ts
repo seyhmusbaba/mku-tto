@@ -1,5 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { HttpCache } from './http-cache';
+import * as fs from 'fs';
+import * as path from 'path';
 
 /**
  * SCImago Journal Rank — dergi kalite ölçümleri.
@@ -127,8 +129,66 @@ export class ScimagoService implements OnModuleInit {
     return this.loading;
   }
 
+  /**
+   * Yerel CSV dosyası yolu — Railway IP'leri SCImago'ya 403 gördüğü için
+   * repo'da commit edilmiş snapshot öncelikli. Yol SCIMAGO_LOCAL_PATH env ile değiştirilebilir.
+   */
+  private getLocalPath(): string {
+    if (process.env.SCIMAGO_LOCAL_PATH) return process.env.SCIMAGO_LOCAL_PATH;
+    // Railway'de çalışma dizini: /app — bu da __dirname + assets/scimago-sjr.csv
+    const candidates = [
+      path.resolve(process.cwd(), 'assets/scimago-sjr.csv'),
+      path.resolve(process.cwd(), 'backend/assets/scimago-sjr.csv'),
+      path.resolve(__dirname, '../../assets/scimago-sjr.csv'),
+      path.resolve(__dirname, '../../../assets/scimago-sjr.csv'),
+    ];
+    for (const c of candidates) {
+      if (fs.existsSync(c)) return c;
+    }
+    return candidates[0]; // ilkini döndür — yoksa yok sayılır
+  }
+
+  private async tryLocalFile(): Promise<boolean> {
+    const p = this.getLocalPath();
+    const attempt: typeof this.lastAttempt[0] = { url: `file://${p}` };
+    try {
+      if (!fs.existsSync(p)) {
+        attempt.error = 'Dosya bulunamadı — scripts/fetch-scimago.mjs ile indirip commit edin';
+        this.lastAttempt.push(attempt);
+        return false;
+      }
+      const stat = fs.statSync(p);
+      attempt.status = 200;
+      attempt.contentType = `text/csv (${Math.round(stat.size / 1024)} KB)`;
+
+      const text = fs.readFileSync(p, 'utf-8');
+      attempt.bodyPreview = text.slice(0, 300).replace(/\n/g, ' ');
+
+      const table = this.parseCsv(text);
+      if (table.size === 0) {
+        attempt.error = 'CSV parse edildi ancak 0 kayıt — başlık kolonları eşleşmemiş';
+        this.lastAttempt.push(attempt);
+        return false;
+      }
+      this.table = table;
+      this.lastLoaded = Date.now();
+      this.lastAttempt.push(attempt);
+      this.logger.log(`SCImago yüklendi (yerel dosya): ${table.size} dergi kaydı — ${p}`);
+      return true;
+    } catch (e: any) {
+      attempt.error = e.message;
+      this.lastAttempt.push(attempt);
+      return false;
+    }
+  }
+
   private async loadTable(): Promise<void> {
     this.lastAttempt = [];
+
+    // 1) Yerel dosyayı dene (tercih edilir — Railway'de bu çalışır)
+    if (await this.tryLocalFile()) return;
+
+    // 2) URL'leri dene (lokal geliştirmede kullanışlı; Railway'de 403 yer)
     for (const url of this.candidateUrls) {
       const attempt: typeof this.lastAttempt[0] = { url };
       try {

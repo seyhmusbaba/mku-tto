@@ -59,6 +59,37 @@ git push -u origin main
 
 > ⚠ `JWT_SECRET` ayarlanmazsa backend başlamaz — bu bilinçli bir güvenlik önlemidir.
 
+### Akademik entegrasyonlar (opsiyonel, analitik paneli için)
+
+Her biri opsiyonel — yoksa ilgili panel "yapılandırılmadı" der, başka yeri bozmaz.
+
+| Değişken | Değer | Not |
+|---|---|---|
+| `SCOPUS_API_KEY` | Elsevier Developer | Atıf, h-index, yayın listesi |
+| `WOS_API_KEY` | Clarivate Developer Portal | Web of Science Starter API |
+| `EPO_CONSUMER_KEY` + `EPO_CONSUMER_SECRET` | developers.epo.org | Patent doğrulama |
+| `CROSSREF_MAILTO` | kurum email | Polite pool için önerilir |
+| `UNPAYWALL_MAILTO` | kurum email | Açık erişim tespiti |
+| `OPENALEX_MAILTO` | kurum email | 240M+ yayın indeksi |
+| `PUBMED_MAILTO` | kurum email | NCBI E-utilities politika |
+| `SEMANTIC_SCHOLAR_KEY` | api.semanticscholar.org | Yüksek rate limit için opsiyonel |
+| `MKU_OPENALEX_ID` | `I1234...` | Kurumsal bibliyometri için |
+
+### SCImago Journal Rank (Q1-Q4 verisi)
+
+SCImago, Railway IP'lerine 403 dönüyor — bu yüzden CSV **yerel olarak indirilip repo'ya commit edilmelidir**:
+
+```bash
+cd backend
+node scripts/fetch-scimago.mjs       # yerel makinenizde çalıştırın
+git add backend/assets/scimago-sjr.csv
+git commit -m "data: SCImago snapshot"
+git push
+```
+
+Railway dosya sisteminden okuyacak. Dosya yoksa analiz panelindeki Q1-Q4
+dağılımı "Bilinmiyor" gösterir — panel yine çalışır.
+
 4. **Settings** → **Networking** → **Generate Domain** tıkla
 5. Sana `https://backend-xxx.up.railway.app` gibi bir URL verir — bunu kopyala
 
