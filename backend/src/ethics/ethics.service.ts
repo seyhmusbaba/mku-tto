@@ -211,7 +211,7 @@ export class EthicsService {
   // FIX #12: Eski projeler icin - yoksa null don, hata verme
   async getReviewByProjectForUser(projectId: string, userId: string, roleName: string) {
     const r = (roleName || '').toLowerCase();
-    const isEthics = r.includes('etik') || r.includes('sper admin') || r.includes('admin') || r.includes('rekt') || r.includes('dekan');
+    const isEthics = r.includes('etik') || r.includes('admin') || r.includes('rekt') || r.includes('dekan');
     if (!isEthics) {
       const project = await this.projectRepo.findOne({ where: { id: projectId } });
       if (!project || project.ownerId !== userId) return null;

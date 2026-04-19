@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Project } from '../database/entities/project.entity';
@@ -31,6 +31,8 @@ const ALLOWED_UPDATE_FIELDS = [
 
 @Injectable()
 export class ProjectsService {
+  private readonly logger = new Logger(ProjectsService.name);
+
   constructor(
     @InjectRepository(Project) private projectRepo: Repository<Project>,
     @InjectRepository(ProjectMember) private memberRepo: Repository<ProjectMember>,
@@ -38,6 +40,10 @@ export class ProjectsService {
     private notificationsService: NotificationsService,
     private auditService: AuditService,
   ) {}
+
+  private logSwallowed(context: string, err: unknown) {
+    this.logger.warn(`[${context}] ${(err as any)?.message || err}`);
+  }
 
   async findAll(query: any, currentUser: any) {
     const { search, type, faculty, department, status, sdg, budgetMin, budgetMax, dateFrom, dateTo, page = 1, limit = 20 } = query || {};
@@ -48,15 +54,18 @@ export class ProjectsService {
       .leftJoinAndSelect('members.user', 'memberUser');
 
     const user = await this.userRepo.findOne({ where: { id: currentUser.userId }, relations: ['role'] });
-    const roleName = user?.role?.name;
+    if (!user) throw new ForbiddenException('Kullanıcı bulunamadı');
+    const roleName = user.role?.name;
 
     if (roleName === 'Akademisyen') {
       qb.andWhere('(project.ownerId = :uid OR members.userId = :uid)', { uid: currentUser.userId });
     } else if (roleName === 'Araştırma Görevlisi') {
       qb.andWhere('members.userId = :uid', { uid: currentUser.userId });
     } else if (roleName === 'Bölüm Başkanı') {
+      if (!user.department) return { data: [], total: 0, page: +page, limit: +limit, totalPages: 0 };
       qb.andWhere('project.department = :dept', { dept: user.department });
     } else if (roleName === 'Dekan') {
+      if (!user.faculty) return { data: [], total: 0, page: +page, limit: +limit, totalPages: 0 };
       qb.andWhere('project.faculty = :fac', { fac: user.faculty });
     }
 
@@ -148,7 +157,7 @@ export class ProjectsService {
     await this.auditService.log({
       entityType: 'project', entityId: saved.id, entityTitle: saved.title,
       action: 'created', userId: ownerId,
-    }).catch(() => {});
+    }).catch(e => this.logSwallowed('audit:create', e));
     return this.serialize(saved);
   }
 
@@ -157,7 +166,7 @@ export class ProjectsService {
 
     // FIX #1: Tek sorgu - yukarida cekilen user'i tekrar cekme
     const user = await this.userRepo.findOne({ where: { id: currentUser.userId }, relations: ['role'] });
-    const isAdmin = user?.role?.name === 'Sper Admin' || user?.role?.name === 'Süper Admin';
+    const isAdmin = user?.role?.name === 'Süper Admin';
 
     if (!isAdmin && project.ownerId !== currentUser.userId) {
       throw new ForbiddenException('Bu projeyi duzenleme yetkiniz yok');
@@ -219,12 +228,12 @@ export class ProjectsService {
         entityType: 'project', entityId: id, entityTitle: project.title,
         action: changes.status ? 'status_changed' : 'updated',
         userId: currentUser.userId, detail: changes,
-      }).catch(() => {});
+      }).catch(e => this.logSwallowed('audit:update', e));
     }
 
     // FIX #19: Durum degisikliginde degisikligi yapan kisi haric bildiri
     if (safeDto.status && safeDto.status !== oldStatus) {
-      await this.notifyStatusChange(project, safeDto.status, currentUser.userId).catch(() => {});
+      await this.notifyStatusChange(project, safeDto.status, currentUser.userId).catch(e => this.logSwallowed('notify:statusChange', e));
       await this.notifyRectors({
         title: 'Proje Durumu: ' + (STATUS_LABELS[safeDto.status] || safeDto.status),
         message: project.title + (project.owner ? ' — ' + project.owner.firstName + ' ' + project.owner.lastName : ''),
@@ -269,9 +278,11 @@ export class ProjectsService {
         .where("r.name = 'Süper Admin'")
         .getMany();
       for (const t of targets) {
-        await this.notificationsService.create({ userId: t.id, ...notif }).catch(() => {});
+        await this.notificationsService.create({ userId: t.id, ...notif }).catch(e => this.logSwallowed('notify:rector', e));
       }
-    } catch {}
+    } catch (e) {
+      this.logSwallowed('notify:rector:lookup', e);
+    }
   }
 
   // FIX #19: changedByUserId eklendi
@@ -287,31 +298,36 @@ export class ProjectsService {
         message: '"' + project.title + '" projesinin durumu "' + (STATUS_LABELS[newStatus] || newStatus) + '" olarak guncellendi.',
         type: newStatus === 'active' ? 'success' : newStatus === 'cancelled' ? 'error' : 'info',
         link: '/projects/' + project.id,
-      }).catch(() => {});
+      }).catch(e => this.logSwallowed('notify:statusChange:item', e));
     }
   }
 
   async remove(id: string) {
     const project = await this.findOne(id);
     // FIX #14: Audit log kayitlarini temizle (orphan onlemek icin)
-    await this.auditService.deleteByEntity('project', id).catch(() => {});
+    await this.auditService.deleteByEntity('project', id).catch(e => this.logSwallowed('audit:deleteByEntity', e));
     await this.projectRepo.remove(project);
     return { deleted: true, id };
   }
 
   async addMember(projectId: string, dto: { userId: string; role?: string; canUpload?: boolean }, addedBy?: any) {
-    const existing = await this.memberRepo.findOne({ where: { projectId, userId: dto.userId } });
-    if (existing) {
-      existing.role = dto.role || existing.role;
-      (existing as any).canUpload = dto.canUpload ? 1 : existing.canUpload;
-      return this.memberRepo.save(existing);
-    }
-    const member = new ProjectMember();
-    member.projectId = projectId;
-    member.userId = dto.userId;
-    member.role = dto.role || 'researcher';
-    (member as any).canUpload = dto.canUpload ? 1 : 0;
-    const saved = await this.memberRepo.save(member);
+    // Race condition önleme: tek transaction içinde find + upsert
+    const saved = await this.memberRepo.manager.transaction(async manager => {
+      const repo = manager.getRepository(ProjectMember);
+      const existing = await repo.findOne({ where: { projectId, userId: dto.userId } });
+      if (existing) {
+        existing.role = dto.role || existing.role;
+        if (dto.canUpload !== undefined) (existing as any).canUpload = dto.canUpload ? 1 : 0;
+        return repo.save(existing);
+      }
+      const member = new ProjectMember();
+      member.projectId = projectId;
+      member.userId = dto.userId;
+      member.role = dto.role || 'researcher';
+      (member as any).canUpload = dto.canUpload ? 1 : 0;
+      return repo.save(member);
+    });
+
     try {
       const project = await this.projectRepo.findOne({ where: { id: projectId } });
       if (project) {
@@ -322,16 +338,18 @@ export class ProjectsService {
         await this.auditService.log({
           entityType: 'project', entityId: projectId, entityTitle: project.title,
           action: 'member_added', detail: { userId: dto.userId, role: dto.role },
-        });
+        }).catch(e => this.logSwallowed('audit:member_added', e));
         await this.notificationsService.create({
           userId: dto.userId,
           title: 'Projeye Eklendiniz',
           message: '"' + project.title + '" projesine ' + (ROLE_LABELS[dto.role || 'researcher'] || dto.role) + ' olarak eklendiniz.',
           type: 'success',
           link: '/projects/' + projectId,
-        });
+        }).catch(e => this.logSwallowed('notify:member_added', e));
       }
-    } catch {}
+    } catch (e) {
+      this.logSwallowed('addMember:postSave', e);
+    }
     return saved;
   }
 
@@ -434,7 +452,10 @@ export class ProjectsService {
 
     const budgets = projects.map(p => p.budget || 0).sort((a, b) => a - b);
     const avg = budgets.reduce((s, b) => s + b, 0) / budgets.length;
-    const median = budgets[Math.floor(budgets.length / 2)];
+    const mid = Math.floor(budgets.length / 2);
+    const median = budgets.length % 2 === 0
+      ? (budgets[mid - 1] + budgets[mid]) / 2
+      : budgets[mid];
     let estimate = median;
 
     if (durationMonths) {

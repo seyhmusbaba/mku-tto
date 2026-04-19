@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Query, Param, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Query, Param, Body, UseGuards, Request, ForbiddenException } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SkipThrottle } from '@nestjs/throttler';
 import { ScopusService } from './scopus.service';
@@ -10,6 +10,7 @@ import { ProjectMember } from '../database/entities/project-member.entity';
 
 @SkipThrottle()
 @Controller('scopus')
+@UseGuards(JwtAuthGuard)
 export class ScopusController {
   constructor(
     private readonly scopus: ScopusService,
@@ -18,8 +19,7 @@ export class ScopusController {
     @InjectRepository(ProjectMember) private memberRepo: Repository<ProjectMember>,
   ) {}
 
-  // ── GUARD GEREKTİRMEYEN ───────────────────────────────────────
-  // Tarayıcıdan direkt /api/scopus/test ile test edilebilir
+  // Scopus API bağlantı testi — sadece oturum açmış kullanıcılar
   @Get('test')
   async test() {
     if (!this.scopus.isConfigured()) {
@@ -64,10 +64,14 @@ export class ScopusController {
   }
 
 
-  // Debug: kendi profilini ve Scopus verisini göster — PUBLIC (geçici test)
+  // Debug: Scopus sync adımlarını detaylı göster — sadece admin
   // /api/scopus/debug?userId=USER_ID_BURAYA
   @Get('debug')
-  async debug(@Query('userId') userId?: string) {
+  async debug(@Query('userId') userId: string | undefined, @Request() req: any) {
+    const roleName = (req.user?.roleName || '').toLowerCase();
+    if (!roleName.includes('admin') && !roleName.includes('rekt')) {
+      throw new ForbiddenException('Bu endpoint için yönetici yetkisi gereklidir');
+    }
     if (!userId) {
       return { error: 'userId parametresi gerekli', example: '/api/scopus/debug?userId=UUID' };
     }

@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Param, UseGuards, Request, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, UseGuards, Request, UseInterceptors, UploadedFile, BadRequestException, HttpException, HttpStatus, ServiceUnavailableException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { SkipThrottle } from '@nestjs/throttler';
@@ -59,7 +59,7 @@ export class AiController {
   @Post('generate')
   async generate(@Body() dto: { system: string; userContent: string; maxTokens?: number }) {
     const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) return { error: 'ANTHROPIC_API_KEY tanımlı değil.' };
+    if (!apiKey) throw new ServiceUnavailableException('ANTHROPIC_API_KEY tanımlı değil.');
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -68,12 +68,16 @@ export class AiController {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        return { error: 'Anthropic API hatası: ' + ((err as any)?.error?.message || res.status) };
+        throw new HttpException(
+          'Anthropic API hatası: ' + ((err as any)?.error?.message || res.status),
+          HttpStatus.BAD_GATEWAY,
+        );
       }
       const data = await res.json();
       return { text: data?.content?.find((b: any) => b.type === 'text')?.text || '' };
     } catch (e: any) {
-      return { error: e.message || 'Bağlantı hatası' };
+      if (e instanceof HttpException) throw e;
+      throw new HttpException(e?.message || 'Bağlantı hatası', HttpStatus.BAD_GATEWAY);
     }
   }
 
@@ -292,6 +296,7 @@ SADECE JSON döndür, başka hiçbir şey yazma:
     }
   }
 
+  @Get('yoksis/status')
   yoksisStatus() { return { configured: this.yoksisService.isReady() }; }
 
   @Post('yoksis/sync')

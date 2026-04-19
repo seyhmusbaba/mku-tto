@@ -56,7 +56,11 @@ import { BootstrapService } from './bootstrap.service';
   ],
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ThrottlerModule.forRoot([{ ttl: 60000, limit: 60 }]),
+    ThrottlerModule.forRoot([
+      { name: 'short', ttl: 1000, limit: 10 },
+      { name: 'medium', ttl: 10_000, limit: 50 },
+      { name: 'long', ttl: 60_000, limit: 200 },
+    ]),
     ScheduleModule.forRoot(),
     TypeOrmModule.forRoot({
       type: 'postgres',

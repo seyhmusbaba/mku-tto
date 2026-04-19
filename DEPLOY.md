@@ -50,10 +50,14 @@ git push -u origin main
 | Değişken | Değer |
 |---|---|
 | `DATABASE_URL` | PostgreSQL servisinden kopyaladığın URL |
-| `JWT_SECRET` | Rastgele uzun bir şifre (örn: `mku-tto-gizli-anahtar-2025`) |
+| `JWT_SECRET` | **ZORUNLU** — en az 16 karakterli rastgele güçlü bir anahtar (örn: `openssl rand -hex 32` çıktısı) |
 | `JWT_EXPIRES_IN` | `7d` |
+| `FRONTEND_URL` | **ZORUNLU (prod'da)** — frontend'in tam URL'i (örn: `https://frontend-xxx.up.railway.app`) — CORS beyaz listesi ve QR kodları için kullanılır |
+| `CORS_ALLOWED_ORIGINS` | (opsiyonel) virgülle ayrılmış ek kabul edilebilir origin listesi |
 | `NODE_ENV` | `production` |
 | `ANTHROPIC_API_KEY` | `sk-ant-...` (isteğe bağlı, YZ için) |
+
+> ⚠ `JWT_SECRET` ayarlanmazsa backend başlamaz — bu bilinçli bir güvenlik önlemidir.
 
 4. **Settings** → **Networking** → **Generate Domain** tıkla
 5. Sana `https://backend-xxx.up.railway.app` gibi bir URL verir — bunu kopyala

@@ -9,22 +9,26 @@ import { join } from 'path';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // CORS — localhost + Railway frontend URL'leri
-  const allowedOrigins = [
+  // CORS — localhost + beyaz liste (CORS_ALLOWED_ORIGINS virgülle ayrılmış liste)
+  const envOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+  const allowedOrigins = Array.from(new Set([
     'http://localhost:3000',
     'http://127.0.0.1:3000',
-    // Railway frontend URL'ini FRONTEND_URL env değişkeni ile ekle
     process.env.FRONTEND_URL,
-  ].filter(Boolean) as string[];
+    ...envOrigins,
+  ].filter(Boolean) as string[]));
 
   app.enableCors({
     origin: (origin, callback) => {
       // origin yoksa (curl, Postman, sunucu-sunucu) izin ver
       if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin) || origin.endsWith('.railway.app')) {
+      if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
-      callback(new Error('CORS: izin verilmedi'));
+      callback(new Error('CORS: izin verilmedi — ' + origin));
     },
     credentials: true,
   });

@@ -7,12 +7,36 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import toast from 'react-hot-toast';
 
-const S: Record<string, { label: string; color: string; bg: string; border: string; icon: string }> = {
-  pending:      { label: 'İnceleme Bekliyor', color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: '⏳' },
-  approved:     { label: 'Onaylandı',          color: '#059669', bg: '#f0fdf4', border: '#86efac', icon: '✅' },
-  rejected:     { label: 'Reddedildi',         color: '#dc2626', bg: '#fef2f2', border: '#fca5a5', icon: '❌' },
-  not_required: { label: 'Gerekmiyor',         color: '#6b7280', bg: '#f9fafb', border: '#e5e7eb', icon: '—' },
+const S: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  pending:      { label: 'İnceleme Bekliyor', color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
+  approved:     { label: 'Onaylandı',          color: '#059669', bg: '#f0fdf4', border: '#86efac' },
+  rejected:     { label: 'Reddedildi',         color: '#dc2626', bg: '#fef2f2', border: '#fca5a5' },
+  not_required: { label: 'Gerekmiyor',         color: '#6b7280', bg: '#f9fafb', border: '#e5e7eb' },
 };
+
+const StatusIcon = ({ status, className }: { status: string; className?: string }) => {
+  const common = { className: className || 'w-3.5 h-3.5', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 2.2 } as const;
+  if (status === 'approved')
+    return <svg {...common}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>;
+  if (status === 'rejected')
+    return <svg {...common}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>;
+  if (status === 'pending')
+    return <svg {...common}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+  return <svg {...common}><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" /></svg>;
+};
+
+const PRIVACY_TEXT = `GİZLİLİK VE TARAFSIZLIK SÖZLEŞMESİ
+
+Bu inceleme kapsamında tarafıma sunulan tüm proje bilgileri, araştırma verileri ve ilgili dökümanlar gizli nitelik taşımaktadır.
+
+YÜKÜMLÜLÜKLER:
+1. İnceleme sürecinde edinilen bilgileri üçüncü şahıslarla paylaşmayacağımı beyan ederim.
+2. Değerlendirmeyi tarafsız, bilimsel etik ilkelere ve kurumsal yönetmeliklere uygun olarak yapacağımı taahhüt ederim.
+3. Proje yürütücüsü veya ekibiyle çıkar çatışmam bulunmadığını beyan ederim.
+4. Kararımın yalnızca bilimsel ve etik kriterlere dayandığını taahhüt ederim.
+5. Bu taahhütlere aykırı davranışın disiplin sürecini başlatacağını kabul ederim.
+
+Bu sözleşmeyi onaylayarak yukarıdaki yükümlülükleri eksiksiz kabul ettiğinizi beyan edersiniz.`;
 
 export default function EthicsPage() {
   const { user } = useAuth();
@@ -23,6 +47,8 @@ export default function EthicsPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'pending' | 'all'>('pending');
   const [modal, setModal] = useState<any>(null);
+  const [privacyReview, setPrivacyReview] = useState<any>(null);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [form, setForm] = useState({ decision: 'approved', note: '', approvalNumber: '' });
   const [saving, setSaving] = useState(false);
 
@@ -61,13 +87,27 @@ export default function EthicsPage() {
     finally { setSaving(false); }
   };
 
+  const openDecisionFor = (rev: any) => {
+    setPrivacyReview(rev);
+    setPrivacyAccepted(false);
+  };
+
+  const acceptPrivacyAndOpen = () => {
+    setModal(privacyReview);
+    setForm({ decision: 'approved', note: '', approvalNumber: '' });
+    setPrivacyReview(null);
+    setPrivacyAccepted(false);
+  };
+
   // Etik kurul uyesi degilse erisim engelle
   if (!isEthicsCommittee) {
     return (
       <DashboardLayout>
         <Header title="Etik Kurul" />
         <div className="p-8 flex flex-col items-center justify-center py-20">
-          <div className="text-6xl mb-4">🔒</div>
+          <svg className="w-16 h-16 mb-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
           <p className="text-lg font-semibold text-navy mb-2">Erişim Kısıtlı</p>
           <p className="text-sm text-muted text-center max-w-sm">
             Bu sayfa yalnızca Etik Kurul üyeleri ve Sistem Yöneticileri tarafından görüntülenebilir.
@@ -104,13 +144,17 @@ export default function EthicsPage() {
 
         {/* Sekmeler */}
         <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: '#f0ede8' }}>
-          {[['pending', '⏳ Bekleyenler'], ['all', '📋 Tümü']].map(([k, l]) => (
-            <button key={k} onClick={() => setTab(k as any)}
-              className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+          {([
+            ['pending', 'Bekleyenler', <svg key="p" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>],
+            ['all',     'Tümü',       <svg key="a" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>],
+          ] as const).map(([k, l, ic]) => (
+            <button key={k as string} onClick={() => setTab(k as any)}
+              className="px-4 py-2 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-1.5"
               style={{ background: tab === k ? 'white' : 'transparent', color: tab === k ? '#0f2444' : '#9ca3af', boxShadow: tab === k ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>
+              {ic}
               {l}
               {k === 'pending' && pending.length > 0 && (
-                <span className="ml-1.5 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{pending.length}</span>
+                <span className="ml-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{pending.length}</span>
               )}
             </button>
           ))}
@@ -121,8 +165,10 @@ export default function EthicsPage() {
           <div className="flex justify-center py-16"><div className="spinner" /></div>
         ) : reviews.length === 0 ? (
           <div className="empty-state py-16">
-            <div className="empty-state-icon">🔬</div>
-            <p className="text-sm font-medium text-navy">{tab === 'pending' ? 'Bekleyen inceleme yok' : 'Henüz inceleme kaydı yok'}</p>
+            <svg className="empty-state-icon w-10 h-10 mx-auto text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            <p className="text-sm font-medium text-navy mt-2">{tab === 'pending' ? 'Bekleyen inceleme yok' : 'Henüz inceleme kaydı yok'}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -138,15 +184,29 @@ export default function EthicsPage() {
                           className="font-display font-semibold text-navy hover:underline truncate">
                           {p?.title || 'Proje'}
                         </Link>
-                        <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                        <span className="text-xs px-2 py-0.5 rounded-full font-semibold inline-flex items-center gap-1"
                           style={{ background: cfg.bg, color: cfg.color, border: '1px solid ' + cfg.border }}>
-                          {cfg.icon} {cfg.label}
+                          <StatusIcon status={rev.status} className="w-3 h-3" />
+                          {cfg.label}
                         </span>
                       </div>
-                      <div className="flex gap-3 text-xs text-muted flex-wrap">
-                        {p?.faculty && <span>🏛 {p.faculty}</span>}
-                        {p?.owner && <span>👤 {p.owner.title} {p.owner.firstName} {p.owner.lastName}</span>}
-                        <span>📅 {new Date(rev.createdAt).toLocaleDateString('tr-TR')}</span>
+                      <div className="flex gap-3 text-xs text-muted flex-wrap items-center">
+                        {p?.faculty && (
+                          <span className="inline-flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                            {p.faculty}
+                          </span>
+                        )}
+                        {p?.owner && (
+                          <span className="inline-flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                            {p.owner.title} {p.owner.firstName} {p.owner.lastName}
+                          </span>
+                        )}
+                        <span className="inline-flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                          {new Date(rev.createdAt).toLocaleDateString('tr-TR')}
+                        </span>
                       </div>
                     </div>
                     {/* Risk skoru */}
@@ -166,7 +226,10 @@ export default function EthicsPage() {
                   {/* YZ Analizi */}
                   {rev.aiEthicsReason && (
                     <div className="mt-3 p-3 rounded-xl text-xs" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
-                      <p className="font-semibold text-amber-800 mb-1">🤖 YZ Analiz Sonucu:</p>
+                      <p className="font-semibold text-amber-800 mb-1 inline-flex items-center gap-1.5">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                        YZ Analiz Sonucu:
+                      </p>
                       <p className="text-amber-700">{rev.aiEthicsReason}</p>
                     </div>
                   )}
@@ -175,8 +238,9 @@ export default function EthicsPage() {
                   {rev.reviewNote && (
                     <div className="mt-2 p-3 rounded-xl text-xs"
                       style={{ background: rev.status === 'approved' ? '#f0fdf4' : '#fef2f2', border: '1px solid ' + (rev.status === 'approved' ? '#86efac' : '#fca5a5') }}>
-                      <p className="font-semibold mb-1" style={{ color: rev.status === 'approved' ? '#059669' : '#dc2626' }}>
-                        📋 Kurul Kararı {rev.approvalNumber ? '(No: ' + rev.approvalNumber + ')' : ''}:
+                      <p className="font-semibold mb-1 inline-flex items-center gap-1.5" style={{ color: rev.status === 'approved' ? '#059669' : '#dc2626' }}>
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                        Kurul Kararı {rev.approvalNumber ? '(No: ' + rev.approvalNumber + ')' : ''}:
                       </p>
                       <p style={{ color: rev.status === 'approved' ? '#059669' : '#dc2626' }}>{rev.reviewNote}</p>
                       {rev.reviewer && (
@@ -191,12 +255,11 @@ export default function EthicsPage() {
                   {/* Karar Butonlari */}
                   {rev.status === 'pending' && (
                     <div className="mt-3 pt-3 border-t flex gap-2" style={{ borderColor: '#f0ede8' }}>
-                      <button onClick={() => { setModal(rev); setForm({ decision: 'approved', note: '', approvalNumber: '' }); }}
-                        className="btn-primary text-xs">
+                      <button onClick={() => openDecisionFor(rev)} className="btn-primary text-xs">
                         Karar Ver
                       </button>
                       <Link href={'/projects/' + p?.id} className="btn-secondary text-xs">
-                        Projeyi İncele →
+                        Projeyi İncele
                       </Link>
                     </div>
                   )}
@@ -207,13 +270,53 @@ export default function EthicsPage() {
         )}
       </div>
 
+      {/* Gizlilik Sözleşmesi Modali */}
+      {privacyReview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-4" style={{ border: '1px solid #e8e4dc' }}>
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-navy" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              <h3 className="font-display text-base font-semibold text-navy">Gizlilik ve Tarafsızlık Sözleşmesi</h3>
+            </div>
+            <div className="p-4 rounded-xl text-xs leading-relaxed whitespace-pre-line overflow-y-auto max-h-64"
+              style={{ background: '#f9fafb', border: '1px solid #e5e7eb', color: '#374151', fontFamily: 'monospace' }}>
+              {PRIVACY_TEXT}
+            </div>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input type="checkbox" checked={privacyAccepted}
+                onChange={e => setPrivacyAccepted(e.target.checked)}
+                className="mt-0.5 flex-shrink-0" />
+              <span className="text-xs text-navy leading-relaxed">
+                Yukarıdaki gizlilik ve tarafsızlık sözleşmesini okudum, anlayıp kabul ediyorum.
+              </span>
+            </label>
+            <div className="flex gap-3">
+              <button type="button" onClick={acceptPrivacyAndOpen} disabled={!privacyAccepted}
+                className="btn-primary flex-1 text-sm disabled:opacity-40">
+                Onayla ve Karar Ekranına Geç
+              </button>
+              <button type="button" onClick={() => { setPrivacyReview(null); setPrivacyAccepted(false); }}
+                className="btn-secondary text-sm">
+                İptal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Karar Modal */}
       {modal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg" style={{ border: '1px solid #e8e4dc' }}>
             <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: '#e8e4dc' }}>
               <h2 className="font-display font-semibold text-navy">Etik Kurul Kararı</h2>
-              <button onClick={() => setModal(null)} className="text-muted hover:text-navy text-xl leading-none">✕</button>
+              <button onClick={() => setModal(null)} className="text-muted hover:text-navy p-1 rounded-lg hover:bg-gray-100" aria-label="Kapat">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
             <div className="p-5 space-y-4">
               {/* Proje bilgisi */}
@@ -227,12 +330,13 @@ export default function EthicsPage() {
                 <label className="label">Karar *</label>
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { v: 'approved', l: '✅ Onaylandı',   c: '#059669', bg: '#f0fdf4' },
-                    { v: 'rejected', l: '❌ Reddedildi', c: '#dc2626', bg: '#fef2f2' },
+                    { v: 'approved', l: 'Onayla',  c: '#059669', bg: '#f0fdf4' },
+                    { v: 'rejected', l: 'Reddet',  c: '#dc2626', bg: '#fef2f2' },
                   ].map(o => (
                     <button key={o.v} type="button" onClick={() => setForm(f => ({ ...f, decision: o.v }))}
-                      className="p-3 rounded-xl border-2 font-semibold text-sm transition-all"
+                      className="p-3 rounded-xl border-2 font-semibold text-sm transition-all inline-flex items-center justify-center gap-2"
                       style={{ borderColor: form.decision === o.v ? o.c : '#e8e4dc', background: form.decision === o.v ? o.bg : 'white', color: form.decision === o.v ? o.c : '#374151' }}>
+                      <StatusIcon status={o.v} className="w-4 h-4" />
                       {o.l}
                     </button>
                   ))}

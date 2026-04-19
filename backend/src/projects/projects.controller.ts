@@ -20,7 +20,11 @@ export class ProjectsController {
   async qrCode(@Param('id') id: string, @Res() res: any) {
     try {
       const QRCode = require('qrcode');
-      const frontendUrl = process.env.FRONTEND_URL || 'https://mku-tto-testnet.up.railway.app';
+      const frontendUrl = process.env.FRONTEND_URL
+        || (process.env.NODE_ENV === 'production' ? null : 'http://localhost:3000');
+      if (!frontendUrl) {
+        return res.status(500).json({ error: 'FRONTEND_URL tanımlı değil' });
+      }
       const url = `${frontendUrl}/projects/${id}`;
       const buffer = await QRCode.toBuffer(url, { width: 300, margin: 2 });
       res.setHeader('Content-Type', 'image/png');

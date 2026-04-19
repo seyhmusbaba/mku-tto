@@ -15,10 +15,16 @@ import { Role } from '../database/entities/role.entity';
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get('JWT_SECRET', 'mku-tto-secret'),
-        signOptions: { expiresIn: config.get('JWT_EXPIRES_IN', '7d') },
-      }),
+      useFactory: (config: ConfigService) => {
+        const secret = config.get<string>('JWT_SECRET');
+        if (!secret || secret.length < 16) {
+          throw new Error('JWT_SECRET env değişkeni tanımlı değil veya çok kısa (min 16 karakter). Güvenli bir secret ayarlayın.');
+        }
+        return {
+          secret,
+          signOptions: { expiresIn: config.get('JWT_EXPIRES_IN', '7d') },
+        };
+      },
       inject: [ConfigService],
     }),
   ],
