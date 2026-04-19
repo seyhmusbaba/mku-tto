@@ -48,7 +48,7 @@ export class IntegrationsStatusController {
       patent:          { configured: this.patent.isConfigured(),   requiresKey: true,  note: 'EPO OPS (TR patentleri dahil) — EPO_CONSUMER_KEY + EPO_CONSUMER_SECRET' },
       openalex:        { configured: this.openalex.isConfigured(), requiresKey: false, note: 'Ücretsiz, OPENALEX_MAILTO önerilir' },
       dergipark:       { configured: this.dergipark.isConfigured(),requiresKey: false, note: 'Türk akademik dergileri (OAI-PMH)' },
-      cordis:          { configured: this.cordis.isConfigured(),   requiresKey: false, note: 'AB açık veri — Horizon Europe, H2020, FP7' },
+      cordis:          { configured: this.cordis.isConfigured(),   requiresKey: false, note: 'OpenAIRE üzerinden AB projeleri (Horizon Europe / H2020 / FP7 dahil)' },
       pubmed:          { configured: true,                         requiresKey: false, note: 'NCBI E-utilities — PUBMED_MAILTO önerilir' },
       arxiv:           { configured: true,                         requiresKey: false, note: 'STEM preprint' },
       semanticScholar: { configured: true,                         requiresKey: false, note: 'SEMANTIC_SCHOLAR_KEY opsiyonel (yüksek rate için)' },

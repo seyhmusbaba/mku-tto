@@ -2,31 +2,33 @@ import { Injectable, Logger } from '@nestjs/common';
 import { HttpCache, RateLimiter, fetchJson } from './http-cache';
 
 /**
- * CORDIS — Community Research and Development Information Service.
- * AB araştırma projelerinin resmi açık veri portalı.
- * Horizon Europe, Horizon 2020, FP7 projelerini indeksler.
+ * AB araştırma projeleri entegrasyonu — OpenAIRE Graph API üzerinden.
  *
- * Docs: https://cordis.europa.eu/about/open-data
- * API: https://api.cordis.europa.eu/
+ * Neden OpenAIRE, CORDIS direkt değil?
+ * CORDIS'in resmi public JSON API'si yok — web sitesi HTML dönüyor.
+ * OpenAIRE ise CORDIS verilerini + diğer AB/ulusal fon kaynaklarını
+ * aggregate eden, resmi public JSON API'si olan serbest erişimli servis.
+ * AB Komisyonu tarafından resmi olarak destekleniyor.
+ *
+ * Docs: https://graph.openaire.eu/develop/api.html
+ * Base: https://api.openaire.eu/search/projects
  *
  * Ücretsiz, anahtarsız.
  *
- * Kullanım:
- *  - Türk kurumlarının katıldığı AB projelerini listelemek
- *  - Açık çağrı (topic) fırsatlarını feed olarak getirmek
- *  - Projenin konu alanına yakın önceki AB projeleri önermek
+ * NOT: Service sınıf adı backward compat için CordisService kaldı —
+ * frontend zaten bu endpoint'leri çağırıyor.
  */
 
 export interface CordisProject {
-  id: string;                     // gradId (grant agreement ID, örn. 101087527)
+  id: string;
   acronym: string;
   title: string;
-  framework: string;              // HORIZON, H2020, FP7
+  framework: string;              // HORIZON, H2020, FP7, vs.
   startDate?: string;
   endDate?: string;
-  totalCost?: number;             // EUR
+  totalCost?: number;
   ecMaxContribution?: number;
-  status?: 'SIGNED' | 'CLOSED' | 'TERMINATED';
+  status?: string;
   coordinator?: { name: string; country: string };
   partners: Array<{ name: string; country: string; role?: string; contribution?: number }>;
   topics?: string[];
@@ -35,7 +37,7 @@ export interface CordisProject {
 }
 
 export interface CordisCall {
-  id: string;                     // call identifier (örn. HORIZON-CL1-2024-...)
+  id: string;
   title: string;
   programme: string;
   deadline?: string;
@@ -47,15 +49,17 @@ export interface CordisCall {
 @Injectable()
 export class CordisService {
   private readonly logger = new Logger(CordisService.name);
-  private readonly cache = new HttpCache('cordis');
+  private readonly cache = new HttpCache('openaire');
   private readonly limiter = new RateLimiter(5, 1000);
+  private readonly baseUrl = 'https://api.openaire.eu/search/projects';
 
   isConfigured(): boolean {
     return process.env.CORDIS_DISABLED !== 'true';
   }
 
   /**
-   * Türk katılımcıları olan AB projeleri — MKÜ için özellikle anlamlı.
+   * Ülke koduna göre proje araması.
+   * OpenAIRE parametre: `country=TR` (2 harfli ISO kodu).
    */
   async searchProjectsByCountry(countryCode = 'TR', limit = 50): Promise<CordisProject[]> {
     if (!this.isConfigured()) return [];
@@ -65,20 +69,25 @@ export class CordisService {
 
     try {
       await this.limiter.acquire();
-      // CORDIS public search — query DSL kullanır
-      const url = `https://cordis.europa.eu/search/api/projects?query=contentType=project AND participants/country/code=${countryCode}&num=${limit}`;
-      const data = await fetchJson(url, { timeoutMs: 20000 });
-      const items = (data?.hits?.hits || data?.results || []).map((h: any) => this.mapProject(h._source || h)).filter(Boolean) as CordisProject[];
-      this.cache.set(cacheKey, items, 60 * 60 * 24); // 24 saat
+      const params = new URLSearchParams({
+        country: countryCode.toUpperCase(),
+        size: String(Math.min(limit, 100)),
+        format: 'json',
+        sortBy: 'projectstartdate,descending',
+      });
+      const url = `${this.baseUrl}?${params}`;
+      const data = await fetchJson(url, { timeoutMs: 25000 });
+      const items = this.parseOpenAire(data);
+      this.cache.set(cacheKey, items, 60 * 60 * 24);
       return items;
     } catch (e: any) {
-      this.logger.warn(`CORDIS country search failed: ${e.message}`);
+      this.logger.warn(`OpenAIRE country search failed: ${e.message}`);
       return [];
     }
   }
 
   /**
-   * Bir organizasyonun (kurum adı) katıldığı projeleri bul.
+   * Organizasyon adıyla arama.
    */
   async searchProjectsByOrganization(orgName: string, limit = 25): Promise<CordisProject[]> {
     if (!this.isConfigured() || !orgName) return [];
@@ -88,19 +97,28 @@ export class CordisService {
 
     try {
       await this.limiter.acquire();
-      const url = `https://cordis.europa.eu/search/api/projects?query=contentType=project AND participants/name="${encodeURIComponent(orgName)}"&num=${limit}`;
-      const data = await fetchJson(url, { timeoutMs: 20000 });
-      const items = (data?.hits?.hits || []).map((h: any) => this.mapProject(h._source || h)).filter(Boolean) as CordisProject[];
+      // OpenAIRE'da organizasyon adı araması için `participantAcronyms` veya
+      // `partnerCountries` yerine keyword üzerinden de yapılabilir.
+      // En sağlam: keywords'e org adını koy.
+      const params = new URLSearchParams({
+        keywords: orgName,
+        size: String(Math.min(limit, 100)),
+        format: 'json',
+        sortBy: 'projectstartdate,descending',
+      });
+      const url = `${this.baseUrl}?${params}`;
+      const data = await fetchJson(url, { timeoutMs: 25000 });
+      const items = this.parseOpenAire(data);
       this.cache.set(cacheKey, items, 60 * 60 * 24);
       return items;
     } catch (e: any) {
-      this.logger.warn(`CORDIS org search failed: ${e.message}`);
+      this.logger.warn(`OpenAIRE org search failed: ${e.message}`);
       return [];
     }
   }
 
   /**
-   * Anahtar kelimeye göre açık/kapalı çağrı arama.
+   * Anahtar kelime araması.
    */
   async searchProjects(query: string, limit = 25): Promise<CordisProject[]> {
     if (!this.isConfigured() || !query) return [];
@@ -110,44 +128,121 @@ export class CordisService {
 
     try {
       await this.limiter.acquire();
-      const url = `https://cordis.europa.eu/search/api/projects?query=contentType=project AND (title=~"${encodeURIComponent(query)}" OR objective=~"${encodeURIComponent(query)}")&num=${limit}`;
-      const data = await fetchJson(url, { timeoutMs: 20000 });
-      const items = (data?.hits?.hits || []).map((h: any) => this.mapProject(h._source || h)).filter(Boolean) as CordisProject[];
+      const params = new URLSearchParams({
+        keywords: query,
+        size: String(Math.min(limit, 100)),
+        format: 'json',
+        sortBy: 'projectstartdate,descending',
+      });
+      const url = `${this.baseUrl}?${params}`;
+      const data = await fetchJson(url, { timeoutMs: 25000 });
+      const items = this.parseOpenAire(data);
       this.cache.set(cacheKey, items, 60 * 60 * 12);
       return items;
     } catch (e: any) {
-      this.logger.warn(`CORDIS query search failed: ${e.message}`);
+      this.logger.warn(`OpenAIRE query search failed: ${e.message}`);
       return [];
     }
   }
 
-  private mapProject(p: any): CordisProject | null {
-    const id = p?.id || p?.rcn || p?.gradId;
-    const title = p?.title;
-    if (!id || !title) return null;
-    return {
-      id: String(id),
-      acronym: p.acronym || '',
-      title: String(title),
-      framework: p.frameworkProgramme || p.fundingScheme || 'HORIZON',
-      startDate: p.startDate,
-      endDate: p.endDate,
-      totalCost: p.totalCost ? +p.totalCost : undefined,
-      ecMaxContribution: p.ecMaxContribution ? +p.ecMaxContribution : undefined,
-      status: p.status,
-      coordinator: p.coordinator ? {
-        name: p.coordinator.name || p.coordinator.shortName || '',
-        country: p.coordinator.country?.code || p.coordinator.country || '',
-      } : undefined,
-      partners: (p.participants || p.partners || []).map((x: any) => ({
-        name: x.name || x.shortName || '',
-        country: x.country?.code || x.country || '',
-        role: x.role,
-        contribution: x.ecContribution ? +x.ecContribution : undefined,
-      })),
-      topics: p.topics || p.keywords,
-      objective: p.objective,
-      url: `https://cordis.europa.eu/project/id/${id}`,
-    };
+  /**
+   * OpenAIRE JSON cevabını mapla.
+   * Format: `response.results.result[i].metadata['oaf:entity']['oaf:project']`
+   * İç yapı karmaşık, defensive parsing yapıyoruz.
+   */
+  private parseOpenAire(data: any): CordisProject[] {
+    const results = data?.response?.results?.result;
+    if (!results) return [];
+    const arr = Array.isArray(results) ? results : [results];
+    return arr
+      .map((r: any) => this.mapOpenAireProject(r))
+      .filter(Boolean) as CordisProject[];
+  }
+
+  private mapOpenAireProject(r: any): CordisProject | null {
+    try {
+      const meta = r?.metadata?.['oaf:entity']?.['oaf:project'];
+      if (!meta) return null;
+
+      const code = meta.code?.$ || meta.code || '';
+      const acronym = meta.acronym?.$ || meta.acronym || '';
+      const title = meta.title?.$ || meta.title || '';
+      if (!title) return null;
+
+      const startDate = meta.startdate?.$ || meta.startdate;
+      const endDate = meta.enddate?.$ || meta.enddate;
+      const totalCost = this.asNumber(meta.totalcost?.$ || meta.totalcost);
+      const funding = meta.fundedamount?.$ || meta.fundedamount;
+      const ecMaxContribution = this.asNumber(funding);
+
+      // Fon programı
+      const fundingtree = meta.fundingtree;
+      const frameworkName = this.extractFramework(fundingtree);
+
+      // Koordinatör + ortaklar
+      const relProjects = r?.metadata?.['oaf:entity']?.['oaf:project']?.rels?.rel;
+      const relArr = relProjects ? (Array.isArray(relProjects) ? relProjects : [relProjects]) : [];
+      const partners: CordisProject['partners'] = [];
+      let coordinator: CordisProject['coordinator'] = undefined;
+
+      for (const rel of relArr) {
+        if (rel?.to?.$ && rel?.['to']?.class === 'hasParticipant') {
+          const orgName = rel.legalname?.$ || rel.legalname || '';
+          const country = rel.country?.classid || rel.country || '';
+          const isCoordinator = rel.relClass === 'isProjectCoordinator' || rel.iscoordinator === 'true';
+          if (orgName) {
+            if (isCoordinator && !coordinator) {
+              coordinator = { name: orgName, country };
+            } else {
+              partners.push({ name: orgName, country, role: isCoordinator ? 'coordinator' : 'participant' });
+            }
+          }
+        }
+      }
+
+      // Anahtar kelimeler / konular
+      const subjects = meta.subjects?.subject;
+      const topics = subjects
+        ? (Array.isArray(subjects) ? subjects : [subjects]).map((s: any) => s?.$ || s).filter(Boolean)
+        : [];
+
+      const objective = meta.summary?.$ || meta.summary || '';
+
+      return {
+        id: code,
+        acronym: typeof acronym === 'string' ? acronym : '',
+        title: typeof title === 'string' ? title : String(title),
+        framework: frameworkName || 'UNKNOWN',
+        startDate: typeof startDate === 'string' ? startDate : undefined,
+        endDate: typeof endDate === 'string' ? endDate : undefined,
+        totalCost,
+        ecMaxContribution,
+        coordinator,
+        partners,
+        topics,
+        objective: typeof objective === 'string' ? objective : '',
+        url: code ? `https://cordis.europa.eu/project/id/${code}` : undefined,
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /** Funding tree'den framework adını çıkar (HORIZON / H2020 / FP7 vs) */
+  private extractFramework(tree: any): string {
+    if (!tree) return 'UNKNOWN';
+    const str = JSON.stringify(tree).toUpperCase();
+    if (str.includes('HORIZON')) return 'HORIZON';
+    if (str.includes('H2020')) return 'H2020';
+    if (str.includes('FP7')) return 'FP7';
+    if (str.includes('ERC')) return 'ERC';
+    if (str.includes('MARIE')) return 'MSCA';
+    return 'AB';
+  }
+
+  private asNumber(v: any): number | undefined {
+    if (v === null || v === undefined || v === '') return undefined;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : undefined;
   }
 }
