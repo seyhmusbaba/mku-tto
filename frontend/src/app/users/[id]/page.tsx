@@ -174,6 +174,24 @@ export default function UserProfilePage() {
       <Header title={`${user.firstName} ${user.lastName}`}
         actions={
           <div className="flex gap-2">
+            {(user as any).orcidId && !editMode && (
+              <button
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    const token = localStorage.getItem('tto_token');
+                    if (token) sessionStorage.setItem('tto_print_token', token);
+                  }
+                  window.open(`/users/${id}/scorecard`, '_blank');
+                }}
+                className="btn-secondary text-sm inline-flex items-center gap-1.5"
+                title="Çok kaynaklı bibliyometrik CV — PDF olarak yazdırılabilir"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Akademik Scorecard
+              </button>
+            )}
             {canEdit && !editMode && (
               <button onClick={() => setEditMode(true)} className="btn-secondary text-sm inline-flex items-center gap-1.5">
                 <Icon name="pencil" className="w-3.5 h-3.5" />
