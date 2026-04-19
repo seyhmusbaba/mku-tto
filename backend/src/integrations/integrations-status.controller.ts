@@ -43,6 +43,18 @@ export class IntegrationsStatusController {
     return this.cordis.getDiagnostic();
   }
 
+  // Public live-test — anında bir Türkiye sorgusu atar ve sonucu döner
+  @Get('cordis/test')
+  async cordisLiveTest() {
+    const projects = await this.cordis.searchProjectsByCountry('TR', 5);
+    return {
+      requestedCountry: 'TR',
+      itemsReturned: projects.length,
+      firstItem: projects[0] || null,
+      diagnostic: this.cordis.getDiagnostic(),
+    };
+  }
+
   @Get('status')
   getStatus() {
     return {
