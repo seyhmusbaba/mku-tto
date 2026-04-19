@@ -1,8 +1,9 @@
-import { Controller, Get, Query, UseGuards, ServiceUnavailableException, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Query, UseGuards, ServiceUnavailableException, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CrossrefService } from './crossref.service';
+import { ScimagoService } from './scimago.service';
 
 @SkipThrottle()
 @ApiTags('integrations')
@@ -10,16 +11,42 @@ import { CrossrefService } from './crossref.service';
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class IntegrationsController {
-  constructor(private readonly crossref: CrossrefService) {}
+  constructor(
+    private readonly crossref: CrossrefService,
+    private readonly scimago: ScimagoService,
+  ) {}
 
   // Her entegrasyonun yapılandırma durumunu tek yerden raporla
   @Get('status')
   getStatus() {
     return {
       crossref: { configured: this.crossref.isConfigured(), requiresKey: false, note: 'CROSSREF_MAILTO email için önerilir (polite pool)' },
+      scimago:  { configured: this.scimago.isConfigured(),  requiresKey: false, journalCount: this.scimago.getSize() },
       scopus:   { configured: !!process.env.SCOPUS_API_KEY,  requiresKey: true },
       wos:      { configured: !!process.env.WOS_API_KEY,     requiresKey: true },
     };
+  }
+
+  // ── SCIMAGO ───────────────────────────────────────────────────────────
+  @Get('scimago/issn')
+  async scimagoByIssn(@Query('issn') issn: string) {
+    if (!issn) throw new BadRequestException('issn parametresi zorunlu');
+    const q = await this.scimago.getQualityByIssn(issn);
+    if (!q) throw new ServiceUnavailableException('Dergi bulunamadı veya SCImago tablosu henüz yüklenmedi');
+    return q;
+  }
+
+  @Get('scimago/title')
+  async scimagoByTitle(@Query('title') title: string) {
+    if (!title) throw new BadRequestException('title parametresi zorunlu');
+    const q = await this.scimago.findByTitle(title);
+    if (!q) throw new ServiceUnavailableException('Dergi bulunamadı');
+    return q;
+  }
+
+  @Post('scimago/refresh')
+  async scimagoRefresh() {
+    return this.scimago.refresh();
   }
 
   // ── CROSSREF ──────────────────────────────────────────────────────────
