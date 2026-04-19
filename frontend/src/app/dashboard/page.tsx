@@ -517,7 +517,7 @@ function AdminDashboard({ stats, user, auditLogs }: { stats: any; user: any; aud
                   <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 12, fill: '#9ca3af' }} axisLine={false} tickLine={false} allowDecimals={false} />
                   <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e8e4dc', fontSize: 13 }}
-                    labelFormatter={(n) => byFaculty.find(x => x.name === n)?.full || n} />
+                    labelFormatter={(n) => byFaculty.find((x: any) => x.name === n)?.full || n} />
                   <Bar dataKey="count" name="Proje" radius={[7, 7, 0, 0]}>
                     {byFaculty.map((_: any, i: number) => {
                       const c = ['#0f2444', '#1a3a6b', '#c8a45a', '#7c3aed', '#059669', '#0891b2'];
