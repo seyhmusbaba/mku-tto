@@ -5,6 +5,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CrossrefService } from './crossref.service';
 import { ScimagoService } from './scimago.service';
 import { OpenAccessService } from './open-access.service';
+import { WosService } from './wos.service';
 
 @SkipThrottle()
 @ApiTags('integrations')
@@ -16,6 +17,7 @@ export class IntegrationsController {
     private readonly crossref: CrossrefService,
     private readonly scimago: ScimagoService,
     private readonly oa: OpenAccessService,
+    private readonly wos: WosService,
   ) {}
 
   // Her entegrasyonun yapılandırma durumunu tek yerden raporla
@@ -25,8 +27,8 @@ export class IntegrationsController {
       crossref:    { configured: this.crossref.isConfigured(), requiresKey: false, note: 'CROSSREF_MAILTO email için önerilir (polite pool)' },
       scimago:     { configured: this.scimago.isConfigured(),  requiresKey: false, journalCount: this.scimago.getSize() },
       openAccess:  { configured: this.oa.isConfigured(),       requiresKey: false, note: 'UNPAYWALL_MAILTO önerilir' },
-      scopus:      { configured: !!process.env.SCOPUS_API_KEY,  requiresKey: true },
-      wos:         { configured: !!process.env.WOS_API_KEY,     requiresKey: true },
+      scopus:      { configured: !!process.env.SCOPUS_API_KEY, requiresKey: true },
+      wos:         { configured: this.wos.isConfigured(),      requiresKey: true, note: 'WOS_API_KEY Clarivate Developer Portal' },
     };
   }
 
@@ -97,5 +99,46 @@ export class IntegrationsController {
     if (!issn) throw new BadRequestException('issn parametresi zorunlu');
     const info = await this.oa.getDoajJournal(issn);
     return info || { listed: false };
+  }
+
+  // ── WEB OF SCIENCE ────────────────────────────────────────────────────
+  @Get('wos/author')
+  async wosAuthor(@Query('id') id: string) {
+    if (!this.wos.isConfigured()) {
+      throw new ServiceUnavailableException('Web of Science yapılandırılmadı (WOS_API_KEY eksik)');
+    }
+    if (!id) throw new BadRequestException('id parametresi zorunlu (ResearcherID veya ORCID)');
+    const profile = await this.wos.getAuthorProfile(id);
+    if (!profile) throw new ServiceUnavailableException('WoS\'ta yazar bulunamadı');
+    return profile;
+  }
+
+  @Get('wos/publications')
+  async wosPublications(@Query('id') id: string, @Query('limit') limit?: string) {
+    if (!this.wos.isConfigured()) {
+      throw new ServiceUnavailableException('Web of Science yapılandırılmadı');
+    }
+    if (!id) throw new BadRequestException('id parametresi zorunlu');
+    return this.wos.getAuthorPublications(id, limit ? +limit : 50);
+  }
+
+  @Get('wos/doi')
+  async wosByDoi(@Query('doi') doi: string) {
+    if (!this.wos.isConfigured()) {
+      throw new ServiceUnavailableException('Web of Science yapılandırılmadı');
+    }
+    if (!doi) throw new BadRequestException('doi parametresi zorunlu');
+    const p = await this.wos.getByDoi(doi);
+    if (!p) throw new ServiceUnavailableException('WoS\'ta kayıt bulunamadı');
+    return p;
+  }
+
+  @Get('wos/affiliation')
+  async wosAffiliation(@Query('name') name: string, @Query('limit') limit?: string) {
+    if (!this.wos.isConfigured()) {
+      throw new ServiceUnavailableException('Web of Science yapılandırılmadı');
+    }
+    if (!name) throw new BadRequestException('name parametresi zorunlu');
+    return this.wos.searchByAffiliation(name, limit ? +limit : 100);
   }
 }

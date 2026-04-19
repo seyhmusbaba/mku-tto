@@ -76,6 +76,22 @@ export class User {
   @Column({ nullable: true })
   scopusLastSync: string;
 
+  // Web of Science entegrasyonu
+  @Column({ nullable: true })
+  wosResearcherId: string;
+
+  @Column({ nullable: true, type: 'int' })
+  wosHIndex: number;
+
+  @Column({ nullable: true, type: 'int' })
+  wosCitedBy: number;
+
+  @Column({ nullable: true, type: 'int' })
+  wosDocCount: number;
+
+  @Column({ nullable: true })
+  wosLastSync: string;
+
   @Column({ default: 1 })
   isActive: boolean;
 
