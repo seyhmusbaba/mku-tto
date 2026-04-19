@@ -46,7 +46,7 @@ export class ProjectsService {
   }
 
   async findAll(query: any, currentUser: any) {
-    const { search, type, faculty, department, status, sdg, budgetMin, budgetMax, dateFrom, dateTo, page = 1, limit = 20 } = query || {};
+    const { search, type, faculty, department, status, sdg, budgetMin, budgetMax, dateFrom, dateTo, page = 1, limit = 20, sortBy = 'createdAt', sortDir = 'DESC' } = query || {};
     const qb = this.projectRepo.createQueryBuilder('project')
       .leftJoinAndSelect('project.owner', 'owner')
       .leftJoinAndSelect('owner.role', 'ownerRole')
@@ -86,11 +86,43 @@ export class ProjectsService {
     if (dateTo) qb.andWhere('project.startDate <= :dt', { dt: dateTo });
     if (sdg) qb.andWhere('project.sdgGoalsJson ILIKE :sdg', { sdg: '%' + sdg + '%' });
 
-    qb.orderBy('project.createdAt', 'DESC');
+    // Beyaz listeli sort — SQL injection riski yok
+    const ALLOWED_SORT: Record<string, string> = {
+      createdAt: 'project.createdAt',
+      title: 'project.title',
+      budget: 'project.budget',
+      startDate: 'project.startDate',
+      endDate: 'project.endDate',
+      status: 'project.status',
+    };
+    const sortColumn = ALLOWED_SORT[sortBy] || 'project.createdAt';
+    const sortDirection = String(sortDir).toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+    qb.orderBy(sortColumn, sortDirection as 'ASC' | 'DESC');
+    if (sortColumn !== 'project.createdAt') qb.addOrderBy('project.createdAt', 'DESC');
+
     const total = await qb.getCount();
     const data = await qb.skip((+page - 1) * +limit).take(+limit).getMany();
     const unique = Array.from(new Map(data.map(p => [p.id, p])).values());
-    return { data: unique.map(p => this.serialize(p)), total, page: +page, limit: +limit, totalPages: Math.ceil(total / +limit) };
+
+    // Etik review status'ünü topluca çek (N+1 önleme)
+    const ids = unique.map(p => p.id);
+    const reviewMap: Record<string, string> = {};
+    if (ids.length > 0) {
+      const reviews = await this.projectRepo.manager.query(
+        `SELECT "projectId", "status" FROM "ethics_reviews" WHERE "projectId" = ANY($1::uuid[])`,
+        [ids],
+      ).catch(() => [] as any[]);
+      for (const r of reviews) reviewMap[r.projectId] = r.status;
+    }
+
+    return {
+      data: unique.map(p => {
+        const serialized = this.serialize(p);
+        serialized.ethicsReviewStatus = reviewMap[p.id] || null;
+        return serialized;
+      }),
+      total, page: +page, limit: +limit, totalPages: Math.ceil(total / +limit),
+    };
   }
 
   // Sanal alanlari (getter/setter) JSON ciktisina ekler

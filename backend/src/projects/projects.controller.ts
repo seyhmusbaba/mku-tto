@@ -1,11 +1,15 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards, Request, Res } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 import { ProjectsService } from './projects.service';
+
+const CAN_CREATE = ['Süper Admin', 'Akademisyen', 'Rektör', 'Dekan', 'Bölüm Başkanı'];
 
 @ApiTags('projects')
 @Controller('projects')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class ProjectsController {
   constructor(private projectsService: ProjectsService) {}
@@ -36,6 +40,7 @@ export class ProjectsController {
   }
 
   @Get(':id') findOne(@Param('id') id: string) { return this.projectsService.findOne(id); }
+  @Roles(...CAN_CREATE)
   @Post() create(@Body() dto: any, @Request() req: any) { return this.projectsService.create(dto, req.user.userId); }
   @Put(':id') update(@Param('id') id: string, @Body() dto: any, @Request() req: any) { return this.projectsService.update(id, dto, req.user); }
   @Delete(':id') remove(@Param('id') id: string) { return this.projectsService.remove(id); }
