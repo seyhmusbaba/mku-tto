@@ -8,6 +8,34 @@ import { formatCurrency, getProjectTypeLabel, getProjectTypeColor } from '@/lib/
 import { GanttChart } from '@/components/GanttChart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
 
+/* ─── Icon helper ───────────────────────────────────── */
+type AIconName = 'folder' | 'dollar' | 'check' | 'chart' | 'beaker' | 'target' | 'lock' | 'alert' | 'download' | 'globe' | 'search' | 'info' | 'link' | 'document' | 'user' | 'inbox';
+const A_I: Record<AIconName, string> = {
+  folder:   'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z',
+  dollar:   'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+  check:    'M5 13l4 4L19 7',
+  chart:    'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+  beaker:   'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z',
+  target:   'M10 21h7a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v11m0 5l4.879-4.879m0 0a3 3 0 104.243-4.242 3 3 0 00-4.243 4.242z',
+  lock:     'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z',
+  alert:    'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
+  download: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4',
+  globe:    'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+  search:   'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+  info:     'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+  link:     'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1',
+  document: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+  user:     'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
+  inbox:    'M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4',
+};
+function AIcon({ name, className = 'w-4 h-4', strokeWidth = 1.8 }: { name: AIconName; className?: string; strokeWidth?: number }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={strokeWidth} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d={A_I[name]} />
+    </svg>
+  );
+}
+
 const C = ['#0f2444','#1a3a6b','#c8a45a','#e8c97a','#2d5aff','#94a3b8','#059669','#dc2626','#7c3aed','#ea580c'];
 
 const STATUS_LABELS: Record<string,string> = {
@@ -190,8 +218,9 @@ export default function AnalysisPage() {
               </button>
             ))}
           </div>
-          <button onClick={handleExportCsv} disabled={exporting} className="btn-secondary text-sm flex items-center gap-2">
-            {exporting ? <span className="spinner w-3 h-3" /> : null} CSV İndir
+          <button onClick={handleExportCsv} disabled={exporting} className="btn-secondary text-sm inline-flex items-center gap-1.5">
+            {exporting ? <span className="spinner w-3 h-3" /> : <AIcon name="download" className="w-3.5 h-3.5" />}
+            CSV İndir
           </button>
         </div>
 
@@ -213,7 +242,12 @@ export default function AnalysisPage() {
           </div>
         )}
 
-        {dataError && <div className="p-4 rounded-xl text-sm text-red-700 mb-4" style={{background:'#fef2f2',border:'1px solid #fecaca'}}>⚠️ {dataError}</div>}
+        {dataError && (
+          <div className="p-4 rounded-xl text-sm text-red-700 mb-4 inline-flex items-start gap-2" style={{background:'#fef2f2',border:'1px solid #fecaca'}}>
+            <AIcon name="alert" className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>{dataError}</span>
+          </div>
+        )}
         {loading ? (
           <div className="flex justify-center py-20"><div className="spinner" /></div>
         ) : (
@@ -225,19 +259,22 @@ export default function AnalysisPage() {
               <div className="space-y-6">
                 {overview.restricted && (
                   <div className="flex items-center gap-2 p-3 rounded-xl text-sm mb-2" style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}>
-                    <span>🔒</span>
+                    <AIcon name="lock" className="w-4 h-4 flex-shrink-0" />
                     <span>Yalnızca yetkili olduğunuz projeler gösteriliyor. Tüm analizlere erişim için yöneticinizle iletişime geçin.</span>
                   </div>
                 )}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {[
-                    { label: 'Toplam Proje', val: overview.total, icon: '📁', color: '#1a3a6b' },
-                    { label: 'Toplam Bütçe', val: formatCurrency(overview.totalBudget), icon: '💰', color: '#c8a45a' },
-                    { label: 'Başarı Oranı', val: `%${overview.successRate}`, icon: '✅', color: '#059669' },
-                    { label: 'Ort. Bütçe', val: formatCurrency(overview.avgBudget), icon: '📊', color: '#7c3aed' },
-                  ].map(item => (
+                  {([
+                    { label: 'Toplam Proje', val: overview.total, icon: 'folder' as AIconName, color: '#1a3a6b' },
+                    { label: 'Toplam Bütçe', val: formatCurrency(overview.totalBudget), icon: 'dollar' as AIconName, color: '#c8a45a' },
+                    { label: 'Başarı Oranı', val: `%${overview.successRate}`, icon: 'check' as AIconName, color: '#059669' },
+                    { label: 'Ort. Bütçe', val: formatCurrency(overview.avgBudget), icon: 'chart' as AIconName, color: '#7c3aed' },
+                  ]).map(item => (
                     <div key={item.label} className="card p-5 text-center">
-                      <div className="text-2xl mb-2">{item.icon}</div>
+                      <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl mb-2"
+                        style={{ background: item.color + '18', color: item.color }}>
+                        <AIcon name={item.icon} className="w-5 h-5" />
+                      </span>
                       <div className="font-display text-2xl font-bold" style={{ color: item.color }}>{item.val}</div>
                       <div className="text-xs text-muted mt-1">{item.label}</div>
                     </div>
@@ -331,7 +368,10 @@ export default function AnalysisPage() {
             {tab === 'researcher' && (
               <div className="space-y-4">
                 <div className="card p-5">
-                  <h3 className="font-display text-sm font-semibold text-navy mb-4">🔬 Araştırmacı Üretkenlik Sıralaması</h3>
+                  <h3 className="font-display text-sm font-semibold text-navy mb-4 inline-flex items-center gap-2">
+                    <AIcon name="beaker" className="w-4 h-4 text-navy" />
+                    Araştırmacı Üretkenlik Sıralaması
+                  </h3>
                   <div className="space-y-3">
                     {researcherData.map((r, i) => (
                       <div key={i} className="flex items-center gap-4 p-3 rounded-xl" style={{ background: i < 3 ? '#f8f6f2' : 'transparent', border: '1px solid #f0ede8' }}>
@@ -474,7 +514,7 @@ function ScopusAnalyticsTab() {
   if (configured === false) {
     return (
       <div className="card p-8 text-center">
-        <p className="text-3xl mb-3">🔬</p>
+        <AIcon name="beaker" className="w-10 h-10 mx-auto mb-3 text-muted" strokeWidth={1.4} />
         <p className="font-display font-semibold text-navy text-lg mb-2">Scopus Entegrasyonu Aktif Değil</p>
         <p className="text-sm text-muted mb-4">
           Bu özelliği kullanmak için backend <code className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">.env</code> dosyasına
@@ -496,7 +536,8 @@ function ScopusAnalyticsTab() {
       {/* Filtre */}
       <div className="card p-5">
         <h3 className="font-display text-sm font-semibold text-navy mb-4 flex items-center gap-2">
-          🌍 Scopus Fakülte / Bölüm Analitikleri
+          <AIcon name="globe" className="w-4 h-4 text-navy" />
+          Scopus Fakülte / Bölüm Analitikleri
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
@@ -514,13 +555,13 @@ function ScopusAnalyticsTab() {
           <div className="flex items-end">
             <button onClick={handleSearch} disabled={loading}
               className="btn-primary w-full flex items-center justify-center gap-2">
-              {loading ? <><span className="spinner w-4 h-4" />Hesaplanıyor...</> : '🔍 Analiz Et'}
+              {loading ? <><span className="spinner w-4 h-4" />Hesaplanıyor...</> : <><AIcon name="search" className="w-4 h-4" />Analiz Et</>}
             </button>
           </div>
         </div>
-        <p className="text-xs text-muted mt-2">
-          ℹ️ Yalnızca Scopus Author ID tanımlı akademisyenler hesaba katılır.
-          Profil sayfasından Scopus Author ID eklenebilir.
+        <p className="text-xs text-muted mt-2 inline-flex items-start gap-1.5">
+          <AIcon name="info" className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+          <span>Yalnızca Scopus Author ID tanımlı akademisyenler hesaba katılır. Profil sayfasından Scopus Author ID eklenebilir.</span>
         </p>
       </div>
 
@@ -529,7 +570,7 @@ function ScopusAnalyticsTab() {
         <>
           {metrics.noScopusIds ? (
             <div className="card p-8 text-center">
-              <p className="text-3xl mb-2">📭</p>
+              <AIcon name="inbox" className="w-10 h-10 mx-auto mb-2 text-muted" strokeWidth={1.4} />
               <p className="font-semibold text-navy text-sm">
                 {selected || dept
                   ? `${selected || ''} ${dept || ''} için Scopus Author ID tanımlı akademisyen yok`
@@ -543,14 +584,17 @@ function ScopusAnalyticsTab() {
             <>
               {/* Ana metrik kartları */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {[
-                  { label: 'Toplam Atıf',     value: metrics.totalCitations?.toLocaleString('tr-TR'),  icon: '🔗', color: '#059669' },
-                  { label: 'Toplam Yayın',    value: metrics.totalDocuments?.toLocaleString('tr-TR'),  icon: '📄', color: '#1a3a6b' },
-                  { label: 'Ort. h-index',    value: metrics.avgHIndex,                                icon: '📊', color: '#7c3aed' },
-                  { label: 'Scopus Yazar',    value: metrics.authorCount,                              icon: '👤', color: '#d97706' },
-                ].map(m => (
+                {([
+                  { label: 'Toplam Atıf',     value: metrics.totalCitations?.toLocaleString('tr-TR'),  icon: 'link' as AIconName,    color: '#059669' },
+                  { label: 'Toplam Yayın',    value: metrics.totalDocuments?.toLocaleString('tr-TR'),  icon: 'document' as AIconName,color: '#1a3a6b' },
+                  { label: 'Ort. h-index',    value: metrics.avgHIndex,                                icon: 'chart' as AIconName,   color: '#7c3aed' },
+                  { label: 'Scopus Yazar',    value: metrics.authorCount,                              icon: 'user' as AIconName,    color: '#d97706' },
+                ]).map(m => (
                   <div key={m.label} className="card py-5 text-center">
-                    <p className="text-2xl mb-1">{m.icon}</p>
+                    <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl mb-1"
+                      style={{ background: m.color + '18', color: m.color }}>
+                      <AIcon name={m.icon} className="w-5 h-5" />
+                    </span>
                     <p className="font-display text-2xl font-bold" style={{ color: m.color }}>
                       {m.value ?? '—'}
                     </p>
@@ -562,8 +606,9 @@ function ScopusAnalyticsTab() {
               {/* Konu alanları */}
               {metrics.topSubjects?.length > 0 && (
                 <div className="card p-5">
-                  <h3 className="font-display text-sm font-semibold text-navy mb-4">
-                    🎯 Öne Çıkan Araştırma Alanları
+                  <h3 className="font-display text-sm font-semibold text-navy mb-4 inline-flex items-center gap-2">
+                    <AIcon name="target" className="w-4 h-4 text-navy" />
+                    Öne Çıkan Araştırma Alanları
                     <span className="font-normal text-xs text-muted ml-2">
                       {selected || 'Tüm fakülteler'}
                       {dept ? ` › ${dept}` : ''}
@@ -596,7 +641,10 @@ function ScopusAnalyticsTab() {
               {/* Recharts — konu dağılımı */}
               {metrics.topSubjects?.length > 0 && (
                 <div className="card p-5">
-                  <h3 className="font-display text-sm font-semibold text-navy mb-4">📊 Alan Dağılımı</h3>
+                  <h3 className="font-display text-sm font-semibold text-navy mb-4 inline-flex items-center gap-2">
+                    <AIcon name="chart" className="w-4 h-4 text-navy" />
+                    Alan Dağılımı
+                  </h3>
                   <ResponsiveContainer width="100%" height={220}>
                     <BarChart data={metrics.topSubjects} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0ede8" />
