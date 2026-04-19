@@ -37,6 +37,12 @@ export class IntegrationsStatusController {
     return this.scimago.getLastAttemptReport();
   }
 
+  // Public diagnostic — OpenAIRE'a son yapılan sorgu ve ham cevap örneği
+  @Get('cordis/diagnostic')
+  cordisDiagnostic() {
+    return this.cordis.getDiagnostic();
+  }
+
   @Get('status')
   getStatus() {
     return {
