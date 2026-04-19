@@ -9,6 +9,31 @@ import { SdgPicker } from '@/components/SdgPicker';
 import { useAuth } from '@/lib/auth-context';
 import toast from 'react-hot-toast';
 
+/* ─── Icon helper ───────────────────────────────────────── */
+type EPIconName = 'clipboard' | 'building' | 'dollar' | 'document' | 'target' | 'scale' | 'beaker' | 'save' | 'x' | 'check' | 'info' | 'paperclip' | 'alert';
+const EP_ICONS: Record<EPIconName, string> = {
+  clipboard:  'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
+  building:   'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+  dollar:     'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+  document:   'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+  target:     'M10 21h7a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v11m0 5l4.879-4.879m0 0a3 3 0 104.243-4.242 3 3 0 00-4.243 4.242z',
+  scale:      'M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3',
+  beaker:     'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z',
+  save:       'M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4',
+  x:          'M6 18L18 6M6 6l12 12',
+  check:      'M5 13l4 4L19 7',
+  info:       'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+  paperclip:  'M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13',
+  alert:      'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
+};
+function EPIcon({ name, className = 'w-4 h-4', strokeWidth = 1.8 }: { name: EPIconName; className?: string; strokeWidth?: number }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={strokeWidth} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d={EP_ICONS[name]} />
+    </svg>
+  );
+}
+
 const IP_STATUS_OPTIONS = [
   { value: 'none', label: 'Yok', color: '#6b7280' },
   { value: 'pending', label: 'Başvuru Aşamasında', color: '#d97706' },
@@ -17,12 +42,12 @@ const IP_STATUS_OPTIONS = [
 ];
 
 const IP_TYPES = [
-  { value: 'patent', label: '🔬 Patent' },
-  { value: 'faydali_model', label: '⚙️ Faydalı Model' },
-  { value: 'marka', label: '™️ Marka' },
-  { value: 'tasarim', label: '🎨 Tasarım' },
-  { value: 'telif', label: '©️ Telif Hakkı' },
-  { value: 'ticari_sir', label: '🔒 Ticari Sır' },
+  { value: 'patent', label: 'Patent' },
+  { value: 'faydali_model', label: 'Faydalı Model' },
+  { value: 'marka', label: 'Marka' },
+  { value: 'tasarim', label: 'Tasarım' },
+  { value: 'telif', label: 'Telif Hakkı' },
+  { value: 'ticari_sir', label: 'Ticari Sır' },
 ];
 
 const STATUSES = [
@@ -34,14 +59,14 @@ const STATUSES = [
   { value: 'cancelled', label: 'İptal Edildi', color: '#dc2626' },
 ];
 
-const TABS = [
-  { key: 'basic', label: '📋 Temel' },
-  { key: 'academic', label: '🏛️ Kurumsal' },
-  { key: 'financial', label: '💰 Finansal' },
-  { key: 'text', label: '📄 Proje Metni' },
-  { key: 'sdg', label: '🎯 SKH & Etiket' },
-  { key: 'ip', label: '⚖️ Fikri Mülkiyet' },
-  { key: 'ethics', label: '🔬 Etik Kurul' },
+const TABS: Array<{ key: string; label: string; icon: EPIconName }> = [
+  { key: 'basic',     label: 'Temel',          icon: 'clipboard' },
+  { key: 'academic',  label: 'Kurumsal',       icon: 'building' },
+  { key: 'financial', label: 'Finansal',       icon: 'dollar' },
+  { key: 'text',      label: 'Proje Metni',    icon: 'document' },
+  { key: 'sdg',       label: 'SKH & Etiket',   icon: 'target' },
+  { key: 'ip',        label: 'Fikri Mülkiyet', icon: 'scale' },
+  { key: 'ethics',    label: 'Etik Kurul',     icon: 'beaker' },
 ];
 
 export default function EditProjectPage() {
@@ -121,6 +146,13 @@ export default function EditProjectPage() {
 
   const handleSave = async () => {
     if (!form.title) { toast.error('Proje adı zorunlu'); return; }
+    if (form.budget) {
+      const b = Number(form.budget);
+      if (!Number.isFinite(b) || b < 0) { toast.error('Bütçe negatif olamaz'); return; }
+    }
+    if (form.startDate && form.endDate && form.endDate < form.startDate) {
+      toast.error('Bitiş tarihi başlangıçtan önce olamaz'); return;
+    }
     setSaving(true);
     try {
       const { dynamicFields: dynFields, tags: tagsStr, keywords: kwStr, ...restForm } = form;
@@ -142,15 +174,17 @@ export default function EditProjectPage() {
 
       await projectsApi.update(id, payload);
 
-      // FormData ile belge yukle
+      // FormData ile belge yukle — başarısızlığı kullanıcıya bildir
       if (ipFile) {
         const fd = new FormData(); fd.append('file', ipFile); fd.append('name', 'Fikri Mülkiyet Belgesi'); fd.append('type', 'ip');
-        await documentsApi.upload(id, fd).catch(() => {});
+        try { await documentsApi.upload(id, fd); }
+        catch { toast.error('IP belgesi yüklenemedi — Belgeler sekmesinden elle yükleyin.'); }
         setIpFile(null); setIpBase64(null);
       }
       if (ethicsFile) {
         const fd = new FormData(); fd.append('file', ethicsFile); fd.append('name', 'Etik Kurul Onay Belgesi'); fd.append('type', 'ethics');
-        await documentsApi.upload(id, fd).catch(() => {});
+        try { await documentsApi.upload(id, fd); }
+        catch { toast.error('Etik belgesi yüklenemedi — Belgeler sekmesinden elle yükleyin.'); }
         setEthicsFile(null); setEthicsBase64(null);
       }
 
@@ -170,14 +204,23 @@ export default function EditProjectPage() {
       <div className="flex items-center gap-2">
         <label className="flex-1 cursor-pointer">
           <div className="input flex items-center gap-2 cursor-pointer" style={{ height: 40 }}>
-            <svg className="w-4 h-4 text-muted flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+            <EPIcon name="paperclip" className="w-4 h-4 text-muted flex-shrink-0" strokeWidth={2} />
             <span className="text-sm text-muted truncate">{file ? file.name : 'Yeni belge ekle (isteğe bağlı)'}</span>
           </div>
           <input type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" className="hidden" onChange={e => onChange(e.target.files?.[0] || null)} />
         </label>
-        {file && <button type="button" onClick={() => onChange(null)} className="text-red-400 text-xs">✕</button>}
+        {file && (
+          <button type="button" onClick={() => onChange(null)} aria-label="Dosyayı kaldır" className="text-red-400 hover:text-red-600 p-1">
+            <EPIcon name="x" className="w-3.5 h-3.5" strokeWidth={2.2} />
+          </button>
+        )}
       </div>
-      {file && <p className="text-xs text-green-600 mt-1">✓ {file.name}</p>}
+      {file && (
+        <p className="text-xs text-green-600 mt-1 inline-flex items-center gap-1">
+          <EPIcon name="check" className="w-3 h-3" strokeWidth={2.4} />
+          {file.name}
+        </p>
+      )}
     </div>
   );
 
@@ -196,8 +239,8 @@ export default function EditProjectPage() {
         actions={
           <div className="flex gap-2">
             <button onClick={() => router.push('/projects/' + id)} className="btn-secondary text-sm">İptal</button>
-            <button onClick={handleSave} disabled={saving} className="btn-primary text-sm">
-              {saving ? 'Kaydediliyor...' : '💾 Kaydet'}
+            <button onClick={handleSave} disabled={saving} className="btn-primary text-sm inline-flex items-center gap-1.5">
+              {saving ? <><span className="spinner w-4 h-4" />Kaydediliyor...</> : <><EPIcon name="save" className="w-4 h-4" />Kaydet</>}
             </button>
           </div>
         }
@@ -206,15 +249,17 @@ export default function EditProjectPage() {
       <div className="p-6" style={{ maxWidth: 900, margin: '0 auto' }}>
         {/* Audit log uyarısı */}
         <div className="mb-4 p-3 rounded-xl text-xs flex items-center gap-2" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8' }}>
-          📋 Yapılan tüm değişiklikler otomatik olarak Geçmiş sekmesine kaydedilir.
+          <EPIcon name="info" className="w-4 h-4 flex-shrink-0" />
+          <span>Yapılan tüm değişiklikler otomatik olarak Geçmiş sekmesine kaydedilir.</span>
         </div>
 
         {/* Sekmeler */}
         <div className="flex gap-1 p-1 rounded-xl mb-5 overflow-x-auto" style={{ background: '#f0ede8' }}>
           {TABS.map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
-              className="px-3 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex-shrink-0"
+              className="px-3 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 inline-flex items-center gap-1.5"
               style={{ background: tab === t.key ? 'white' : 'transparent', color: tab === t.key ? '#0f2444' : '#9ca3af', boxShadow: tab === t.key ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>
+              <EPIcon name={t.icon} className="w-3.5 h-3.5" />
               {t.label}
             </button>
           ))}
@@ -309,8 +354,9 @@ export default function EditProjectPage() {
 
           {/* FIX #11: Proje metni degisince uyari */}
           {tab === 'text' && <>
-            <div className="p-3 rounded-xl text-xs mb-2" style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92651a' }}>
-              ℹ️ Proje metnini değiştirdikten sonra YZ Uygunluk Analizi ve Etik Analizi güncellenmiş olmayacaktır. Proje kaydedildikten sonra yeniden analiz yapılması önerilir.
+            <div className="p-3 rounded-xl text-xs mb-2 flex items-start gap-2" style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92651a' }}>
+              <EPIcon name="alert" className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>Proje metnini değiştirdikten sonra YZ Uygunluk Analizi ve Etik Analizi güncellenmiş olmayacaktır. Proje kaydedildikten sonra yeniden analiz yapılması önerilir.</span>
             </div>
             <div>
               <label className="label flex justify-between">
@@ -399,7 +445,10 @@ export default function EditProjectPage() {
               <div className="space-y-4 p-4 rounded-xl" style={{ border: '1px solid #fde68a', background: '#fffbeb' }}>
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input type="checkbox" className="w-4 h-4 accent-green-500" checked={form.ethicsApproved || false} onChange={e => set('ethicsApproved', e.target.checked)} />
-                  <p className="text-sm font-semibold text-navy">Onay alındı ✓</p>
+                  <p className="text-sm font-semibold text-navy inline-flex items-center gap-1.5">
+                    Onay alındı
+                    {form.ethicsApproved && <EPIcon name="check" className="w-3.5 h-3.5 text-green-600" strokeWidth={2.4} />}
+                  </p>
                 </label>
                 {form.ethicsApproved && <>
                   <div className="grid grid-cols-2 gap-4">
@@ -426,8 +475,8 @@ export default function EditProjectPage() {
         {/* Kaydet butonu - alt */}
         <div className="flex justify-end mt-4 gap-3">
           <button onClick={() => router.push('/projects/' + id)} className="btn-secondary">İptal</button>
-          <button onClick={handleSave} disabled={saving} className="btn-primary">
-            {saving ? 'Kaydediliyor...' : '💾 Değişiklikleri Kaydet'}
+          <button onClick={handleSave} disabled={saving} className="btn-primary inline-flex items-center gap-1.5">
+            {saving ? <><span className="spinner w-4 h-4" />Kaydediliyor...</> : <><EPIcon name="save" className="w-4 h-4" />Değişiklikleri Kaydet</>}
           </button>
         </div>
       </div>

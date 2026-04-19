@@ -11,6 +11,48 @@ import { FundingMatchPanel } from '@/components/FundingMatchPanel';
 import { useAuth } from '@/lib/auth-context';
 import toast from 'react-hot-toast';
 
+/* ─── Icon helper ─────────────────────────────────────── */
+type NewProjIconName =
+  | 'clipboard' | 'building' | 'users' | 'document' | 'beaker' | 'globe' | 'tag'
+  | 'scale' | 'dollar' | 'target' | 'paperclip' | 'rocket' | 'check' | 'x'
+  | 'alert' | 'info' | 'sparkles' | 'bolt' | 'robot' | 'arrow-right' | 'arrow-left'
+  | 'plus' | 'search' | 'bulb';
+
+const NP_ICONS: Record<NewProjIconName, string> = {
+  clipboard:   'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
+  building:    'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+  users:       'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
+  document:    'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+  beaker:      'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z',
+  globe:       'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+  tag:         'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z',
+  scale:       'M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3',
+  dollar:      'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+  target:      'M10 21h7a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v11m0 5l4.879-4.879m0 0a3 3 0 104.243-4.242 3 3 0 00-4.243 4.242z',
+  paperclip:   'M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13',
+  rocket:      'M13 10V3L4 14h7v7l9-11h-7z',
+  check:       'M5 13l4 4L19 7',
+  x:           'M6 18L18 6M6 6l12 12',
+  alert:       'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
+  info:        'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+  sparkles:    'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z',
+  bolt:        'M13 10V3L4 14h7v7l9-11h-7z',
+  robot:       'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z',
+  'arrow-right':'M17 8l4 4m0 0l-4 4m4-4H3',
+  'arrow-left':'M10 19l-7-7m0 0l7-7m-7 7h18',
+  plus:        'M12 4v16m8-8H4',
+  search:      'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+  bulb:        'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z',
+};
+
+function NPIcon({ name, className = 'w-4 h-4', strokeWidth = 1.8, style }: { name: NewProjIconName; className?: string; strokeWidth?: number; style?: React.CSSProperties }) {
+  return (
+    <svg className={className} style={style} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={strokeWidth} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d={NP_ICONS[name]} />
+    </svg>
+  );
+}
+
 /* ── Scopus Wizard Paneli ────────────────────────────────────────── */
 function ScopusWizardPanel({ title, description, projectText, keywords }: {
   title: string; description?: string; projectText?: string; keywords: string[]
@@ -297,10 +339,27 @@ export default function NewProjectPage() {
     await documentsApi.upload(pid, fd);
   };
 
+  // Form düzeyinde doğrulama
+  const validateBeforeSubmit = (): string | null => {
+    if (!form.title.trim()) return 'Proje adı zorunlu';
+    if (!complianceDone) return 'YZ Uygunluk Kontrolü zorunludur';
+    if (form.budget) {
+      const b = Number(form.budget);
+      if (!Number.isFinite(b) || b < 0) return 'Bütçe negatif olamaz';
+    }
+    if (form.startDate && form.endDate && form.endDate < form.startDate) {
+      return 'Bitiş tarihi başlangıçtan önce olamaz';
+    }
+    if (['registered', 'published'].includes(form.ipStatus) && !ipFile && !form.ipRegistrationNo) {
+      return 'Tescilli/Yayımlı IP için belge veya başvuru numarası gerekli';
+    }
+    return null;
+  };
+
   // Kaydet
   const handleSubmit = async () => {
-    if (!form.title.trim()) { toast.error('Proje adı zorunlu'); return; }
-    if (!complianceDone) { toast.error('YZ Uygunluk Kontrolü zorunludur'); return; }
+    const err = validateBeforeSubmit();
+    if (err) { toast.error(err); return; }
     setSaving(true);
     try {
       const payload = {
@@ -324,12 +383,24 @@ export default function NewProjectPage() {
       const res = await projectsApi.create(payload);
       const pid = res.data.id;
 
-      // Üyeleri ekle
+      // Üyeleri ekle — hataları say, tam sessiz kalma
+      let memberFailures = 0;
       for (const m of members) {
-        await projectsApi.addMember(pid, { userId: m.id, role: 'researcher', canUpload: false }).catch(() => {});
+        try {
+          await projectsApi.addMember(pid, { userId: m.id, role: 'researcher', canUpload: false });
+        } catch { memberFailures++; }
       }
-      if (acceptanceFile) await uploadFile(pid, acceptanceFile, 'Başvuru Kabul Belgesi', 'acceptance').catch(() => {});
-      if (ipFile)         await uploadFile(pid, ipFile, 'Fikri Mülkiyet Belgesi', 'ip').catch(() => {});
+      if (memberFailures > 0) toast.error(`${memberFailures} üye eklenemedi — proje detayından tekrar deneyin.`);
+
+      // Belge yüklemeleri — başarısızlığı kullanıcıya bildir
+      if (acceptanceFile) {
+        try { await uploadFile(pid, acceptanceFile, 'Başvuru Kabul Belgesi', 'acceptance'); }
+        catch { toast.error('Başvuru kabul belgesi yüklenemedi — detay sayfasından elle yükleyin.'); }
+      }
+      if (ipFile) {
+        try { await uploadFile(pid, ipFile, 'Fikri Mülkiyet Belgesi', 'ip'); }
+        catch { toast.error('IP belgesi yüklenemedi — detay sayfasından elle yükleyin.'); }
+      }
       if (ethicsAnalysis?.required) await api.post('/ethics/analyze/' + pid).catch(() => {});
 
       toast.success(ethicsAnalysis?.required ? 'Proje oluşturuldu — Etik kurul incelemesine gönderildi!' : 'Proje başarıyla oluşturuldu!');
@@ -359,10 +430,17 @@ export default function NewProjectPage() {
       {hint && <p className="text-xs text-muted mb-1">{hint}</p>}
       <label className="block cursor-pointer">
         <div className="input flex items-center gap-2 cursor-pointer h-10" style={{ background: file ? '#f0fdf4' : undefined }}>
+          {file && <NPIcon name="check" className="w-4 h-4 flex-shrink-0" style={{ color: '#059669' }} strokeWidth={2.4} />}
           <span className="text-sm truncate" style={{ color: file ? '#059669' : '#9ca3af' }}>
-            {file ? `✓ ${file.name} (${Math.round(file.size / 1024)} KB)` : 'Dosya seçin (PDF, Word)'}
+            {file ? `${file.name} (${Math.round(file.size / 1024)} KB)` : 'Dosya seçin (PDF, Word)'}
           </span>
-          {file && <button type="button" onClick={e => { e.preventDefault(); e.stopPropagation(); onChange(null); }} className="ml-auto text-red-400 text-xs">✕</button>}
+          {file && (
+            <button type="button" onClick={e => { e.preventDefault(); e.stopPropagation(); onChange(null); }}
+              aria-label="Dosyayı kaldır"
+              className="ml-auto text-red-400 hover:text-red-600">
+              <NPIcon name="x" className="w-3.5 h-3.5" strokeWidth={2.2} />
+            </button>
+          )}
         </div>
         <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={e => onChange(e.target.files?.[0] || null)} />
       </label>
@@ -417,8 +495,10 @@ export default function NewProjectPage() {
                       {tc.label.charAt(0)}
                     </span>
                     {active && (
-                      <span className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                        style={{ background: tc.color }}>✓</span>
+                      <span className="w-6 h-6 rounded-full flex items-center justify-center text-white"
+                        style={{ background: tc.color }}>
+                        <NPIcon name="check" className="w-3.5 h-3.5" strokeWidth={2.5} />
+                      </span>
                     )}
                   </div>
                   <p className="font-display font-semibold text-base mb-0.5" style={{ color: active ? tc.color : '#0f2444' }}>{tc.label}</p>
@@ -444,7 +524,10 @@ export default function NewProjectPage() {
 
           {/* Başlık + Özet */}
           <div className="card p-5 space-y-4">
-            <h3 className="font-display text-sm font-semibold text-navy">📋 Proje Kimliği</h3>
+            <h3 className="font-display text-sm font-semibold text-navy inline-flex items-center gap-2">
+              <NPIcon name="clipboard" className="w-4 h-4 text-navy" />
+              Proje Kimliği
+            </h3>
             <div>
               <label className="label">Proje Adı *</label>
               <input className="input text-base" value={form.title} autoFocus
@@ -479,7 +562,10 @@ export default function NewProjectPage() {
 
           {/* Kurumsal */}
           <div className="card p-5 space-y-4">
-            <h3 className="font-display text-sm font-semibold text-navy">🏛 Kurumsal Bilgiler</h3>
+            <h3 className="font-display text-sm font-semibold text-navy inline-flex items-center gap-2">
+              <NPIcon name="building" className="w-4 h-4 text-navy" />
+              Kurumsal Bilgiler
+            </h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="label">Fakülte</label>
@@ -516,7 +602,10 @@ export default function NewProjectPage() {
 
           {/* Ekip */}
           <div className="card p-5 space-y-4">
-            <h3 className="font-display text-sm font-semibold text-navy">👥 Proje Ekibi</h3>
+            <h3 className="font-display text-sm font-semibold text-navy inline-flex items-center gap-2">
+              <NPIcon name="users" className="w-4 h-4 text-navy" />
+              Proje Ekibi
+            </h3>
             {/* Yürütücü (mevcut kullanıcı) */}
             <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
               <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
@@ -541,7 +630,10 @@ export default function NewProjectPage() {
                   <p className="text-xs text-muted">{m.department}</p>
                 </div>
                 <button type="button" onClick={() => removeMember(m.id)}
-                  className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: '#fff0f0', color: '#dc2626' }}>✕</button>
+                  aria-label="Üyeyi çıkar"
+                  className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: '#fff0f0', color: '#dc2626' }}>
+                  <NPIcon name="x" className="w-3.5 h-3.5" strokeWidth={2.2} />
+                </button>
               </div>
             ))}
 
@@ -581,12 +673,15 @@ export default function NewProjectPage() {
 
           <div className="card p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-sm font-semibold text-navy">📄 Proje Metni</h3>
+              <h3 className="font-display text-sm font-semibold text-navy inline-flex items-center gap-2">
+                <NPIcon name="document" className="w-4 h-4 text-navy" />
+                Proje Metni
+              </h3>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted">{form.projectText.length} karakter</span>
-                <label className="cursor-pointer flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-all"
+                <label className="cursor-pointer flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-all"
                   style={{ background: extracting ? '#f0ede8' : '#f5f3ff', color: extracting ? '#9ca3af' : '#7c3aed', border: '1px solid #ddd6fe' }}>
-                  {extracting ? <><span className="spinner w-3 h-3" /> Çekiliyor...</> : <>📎 Belgeden Çek</>}
+                  {extracting ? <><span className="spinner w-3 h-3" /> Çekiliyor...</> : <><NPIcon name="paperclip" className="w-3.5 h-3.5" /> Belgeden Çek</>}
                   <input type="file" accept=".txt,.pdf,.docx" className="hidden" disabled={extracting}
                     onChange={async e => {
                       const file = e.target.files?.[0]; if (!file) return;
@@ -611,8 +706,9 @@ export default function NewProjectPage() {
               </div>
             </div>
 
-            <div className="p-3 rounded-xl text-xs" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8' }}>
-              📋 Proje metni, özetten farklı olarak projenin tüm detaylarını içerir. <strong>YZ Uygunluk Kontrolü zorunludur</strong> — devam etmek için yapın.
+            <div className="p-3 rounded-xl text-xs flex items-start gap-2" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8' }}>
+              <NPIcon name="info" className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>Proje metni, özetten farklı olarak projenin tüm detaylarını içerir. <strong>YZ Uygunluk Kontrolü zorunludur</strong> — devam etmek için yapın.</span>
             </div>
 
             <textarea className="input" style={{ minHeight: 280, lineHeight: 1.8 }} value={form.projectText}
@@ -625,8 +721,8 @@ export default function NewProjectPage() {
               background: complianceDone ? '#f0fdf4' : '#fffbeb',
             }}>
               {complianceDone
-                ? <p className="text-xs font-semibold text-green-700 mb-2">✅ YZ Uygunluk Kontrolü tamamlandı — bir sonraki adıma geçebilirsiniz</p>
-                : <p className="text-xs font-semibold text-amber-700 mb-2">⚠️ Devam etmek için aşağıdaki YZ kontrolünü yapın</p>
+                ? <p className="text-xs font-semibold text-green-700 mb-2 inline-flex items-center gap-1.5"><NPIcon name="check" className="w-3.5 h-3.5" strokeWidth={2.2} />YZ Uygunluk Kontrolü tamamlandı — bir sonraki adıma geçebilirsiniz</p>
+                : <p className="text-xs font-semibold text-amber-700 mb-2 inline-flex items-center gap-1.5"><NPIcon name="alert" className="w-3.5 h-3.5" />Devam etmek için aşağıdaki YZ kontrolünü yapın</p>
               }
               <ProjectComplianceCheck
                 title={form.title} description={form.description}
@@ -639,7 +735,10 @@ export default function NewProjectPage() {
           {/* Etik Ön Analizi — metin yazıldıktan sonra çalıştır */}
           {complianceDone && (
             <div className="card p-5">
-              <h3 className="font-display text-sm font-semibold text-navy mb-3">🔬 Etik Ön Analizi</h3>
+              <h3 className="font-display text-sm font-semibold text-navy mb-3 inline-flex items-center gap-2">
+                <NPIcon name="beaker" className="w-4 h-4 text-navy" />
+                Etik Ön Analizi
+              </h3>
               {ethicsLoading && (
                 <div className="flex items-center gap-2 text-xs text-muted">
                   <span className="spinner w-4 h-4" /> YZ etik riski analiz ediliyor...
@@ -647,9 +746,10 @@ export default function NewProjectPage() {
               )}
               {!ethicsLoading && !ethicsAnalysis && (
                 <button type="button" onClick={runEthicsAnalysis}
-                  className="text-xs font-semibold px-3 py-2 rounded-lg"
+                  className="text-xs font-semibold px-3 py-2 rounded-lg inline-flex items-center gap-1.5"
                   style={{ background: '#f5f3ff', color: '#7c3aed', border: '1px solid #ddd6fe' }}>
-                  🔬 Etik Risk Analizi Yap
+                  <NPIcon name="beaker" className="w-3.5 h-3.5" />
+                  Etik Risk Analizi Yap
                 </button>
               )}
               {ethicsAnalysis && !ethicsLoading && (
@@ -657,8 +757,9 @@ export default function NewProjectPage() {
                   border: '1px solid', borderColor: ethicsAnalysis.required ? '#fca5a5' : '#86efac',
                   background: ethicsAnalysis.required ? '#fef2f2' : '#f0fdf4',
                 }}>
-                  <p className="text-sm font-bold" style={{ color: ethicsAnalysis.required ? '#dc2626' : '#059669' }}>
-                    {ethicsAnalysis.required ? '⚠️ Etik Kurul Onayı Gerekiyor' : '✅ Etik Kurul Gerekmiyor'}
+                  <p className="text-sm font-bold inline-flex items-center gap-1.5" style={{ color: ethicsAnalysis.required ? '#dc2626' : '#059669' }}>
+                    <NPIcon name={ethicsAnalysis.required ? 'alert' : 'check'} className="w-4 h-4" strokeWidth={2} />
+                    {ethicsAnalysis.required ? 'Etik Kurul Onayı Gerekiyor' : 'Etik Kurul Gerekmiyor'}
                   </p>
                   <p className="text-xs mt-1" style={{ color: ethicsAnalysis.required ? '#dc2626' : '#059669' }}>
                     Risk Skoru: {ethicsAnalysis.riskScore}/100 — {ethicsAnalysis.recommendation}
@@ -667,7 +768,10 @@ export default function NewProjectPage() {
                     <p key={i} className="text-xs text-muted">• {r}</p>
                   ))}
                   {ethicsAnalysis.required && (
-                    <p className="text-xs mt-2 font-semibold text-amber-700">⚡ Kaydedilince otomatik etik kurul incelemesine gönderilecektir.</p>
+                    <p className="text-xs mt-2 font-semibold text-amber-700 inline-flex items-center gap-1.5">
+                      <NPIcon name="bolt" className="w-3.5 h-3.5" />
+                      Kaydedilince otomatik etik kurul incelemesine gönderilecektir.
+                    </p>
                   )}
                 </div>
               )}
@@ -687,24 +791,31 @@ export default function NewProjectPage() {
           {/* SKH */}
           <div className="card p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-sm font-semibold text-navy">🌍 Sürdürülebilir Kalkınma Hedefleri</h3>
+              <h3 className="font-display text-sm font-semibold text-navy inline-flex items-center gap-2">
+                <NPIcon name="globe" className="w-4 h-4 text-navy" />
+                Sürdürülebilir Kalkınma Hedefleri
+              </h3>
               {sdgLoading && <span className="text-xs text-muted flex items-center gap-1"><span className="spinner w-3 h-3" /> YZ öneri hazırlıyor...</span>}
             </div>
 
             {/* YZ Önerileri */}
             {sdgSuggestions.length > 0 && (
               <div className="p-3 rounded-xl" style={{ background: '#f0fdf4', border: '1px solid #86efac' }}>
-                <p className="text-xs font-semibold text-green-800 mb-2">✨ YZ Önerileri — proje içeriğinize göre</p>
+                <p className="text-xs font-semibold text-green-800 mb-2 inline-flex items-center gap-1.5">
+                  <NPIcon name="sparkles" className="w-3.5 h-3.5" />
+                  YZ Önerileri — proje içeriğinize göre
+                </p>
                 <div className="flex flex-wrap gap-2">
                   {sdgSuggestions.map(code => {
                     const already = sdgSelected.includes(code);
                     return (
                       <button key={code} type="button"
                         onClick={() => setSdgSelected(s => already ? s.filter(c => c !== code) : [...s, code])}
-                        className="text-xs px-3 py-1.5 rounded-full font-semibold transition-all"
+                        className="text-xs px-3 py-1.5 rounded-full font-semibold transition-all inline-flex items-center gap-1"
                         style={{ background: already ? '#059669' : 'white', color: already ? 'white' : '#059669', border: '1.5px solid #86efac' }}
                         title={sdgReasons[code]}>
-                        {already ? '✓ ' : '+ '}{code}
+                        <NPIcon name={already ? 'check' : 'plus'} className="w-3 h-3" strokeWidth={2.2} />
+                        {code}
                       </button>
                     );
                   })}
@@ -723,7 +834,10 @@ export default function NewProjectPage() {
 
           {/* Etiketler + Anahtar kelimeler */}
           <div className="card p-5 space-y-4">
-            <h3 className="font-display text-sm font-semibold text-navy">🏷 Etiketler & Anahtar Kelimeler</h3>
+            <h3 className="font-display text-sm font-semibold text-navy inline-flex items-center gap-2">
+              <NPIcon name="tag" className="w-4 h-4 text-navy" />
+              Etiketler & Anahtar Kelimeler
+            </h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="label">Etiketler</label>
@@ -739,7 +853,10 @@ export default function NewProjectPage() {
 
           {/* IP */}
           <div className="card p-5 space-y-4">
-            <h3 className="font-display text-sm font-semibold text-navy">⚖️ Fikri Mülkiyet</h3>
+            <h3 className="font-display text-sm font-semibold text-navy inline-flex items-center gap-2">
+              <NPIcon name="scale" className="w-4 h-4 text-navy" />
+              Fikri Mülkiyet
+            </h3>
             <p className="text-xs text-muted">Patent, faydalı model, marka gibi fikri mülkiyet korumanız varsa belirtin.</p>
             <div className="grid grid-cols-4 gap-2">
               {IP_OPTS.map(o => (
@@ -804,7 +921,10 @@ export default function NewProjectPage() {
 
           {/* Finansal */}
           <div className="card p-5 space-y-4">
-            <h3 className="font-display text-sm font-semibold text-navy">💰 Bütçe & Tarihler</h3>
+            <h3 className="font-display text-sm font-semibold text-navy inline-flex items-center gap-2">
+              <NPIcon name="dollar" className="w-4 h-4 text-navy" />
+              Bütçe & Tarihler
+            </h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="label">Bütçe (₺)</label>
@@ -830,7 +950,10 @@ export default function NewProjectPage() {
 
           {/* Scopus Hibe Analizi */}
           <div className="card p-5">
-            <h3 className="font-display text-sm font-semibold text-navy mb-3">🎯 Hibe Uygunluk Analizi</h3>
+            <h3 className="font-display text-sm font-semibold text-navy mb-3 inline-flex items-center gap-2">
+              <NPIcon name="target" className="w-4 h-4 text-navy" />
+              Hibe Uygunluk Analizi
+            </h3>
             <FundingMatchPanel
               keywords={form.keywords ? form.keywords.split(',').map(k => k.trim()).filter(Boolean) : []}
               tags={form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : []}
@@ -841,7 +964,10 @@ export default function NewProjectPage() {
 
           {/* Belgeler */}
           <div className="card p-5 space-y-4">
-            <h3 className="font-display text-sm font-semibold text-navy">📎 Belgeler</h3>
+            <h3 className="font-display text-sm font-semibold text-navy inline-flex items-center gap-2">
+              <NPIcon name="paperclip" className="w-4 h-4 text-navy" />
+              Belgeler
+            </h3>
             {form.status === 'active' && (
               <FileField label="Başvuru Kabul Belgesi" file={acceptanceFile} onChange={setAcceptanceFile}
                 required={form.status === 'active'} hint="Aktif proje için zorunlu" />
@@ -860,12 +986,14 @@ export default function NewProjectPage() {
                 background: docReview.status === 'ok' ? '#f0fdf4' : '#fffbeb',
                 border: `1px solid ${docReview.status === 'ok' ? '#86efac' : '#fde68a'}`,
               }}>
-                <p className="font-semibold mb-1" style={{ color: docReview.status === 'ok' ? '#059669' : '#d97706' }}>
-                  🤖 {docReview.summary}
+                <p className="font-semibold mb-1 inline-flex items-center gap-1.5" style={{ color: docReview.status === 'ok' ? '#059669' : '#d97706' }}>
+                  <NPIcon name="robot" className="w-3.5 h-3.5" />
+                  {docReview.summary}
                 </p>
                 {(docReview.issues || []).map((iss: any, i: number) => (
-                  <p key={i} style={{ color: iss.severity === 'warning' ? '#d97706' : '#6b7280' }}>
-                    {iss.severity === 'warning' ? '⚠️' : 'ℹ️'} {iss.message}
+                  <p key={i} className="inline-flex items-start gap-1.5" style={{ color: iss.severity === 'warning' ? '#d97706' : '#6b7280' }}>
+                    <NPIcon name={iss.severity === 'warning' ? 'alert' : 'info'} className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                    {iss.message}
                   </p>
                 ))}
               </div>
@@ -874,7 +1002,10 @@ export default function NewProjectPage() {
 
           {/* Özet */}
           <div className="card p-5 space-y-2" style={{ background: '#f0ede8', border: '1px solid #e8e4dc' }}>
-            <p className="text-xs font-bold uppercase tracking-wider text-navy">📋 Proje Özeti</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-navy inline-flex items-center gap-1.5">
+              <NPIcon name="clipboard" className="w-3.5 h-3.5" />
+              Proje Özeti
+            </p>
             {[
               ['Tür',    TYPE_CARDS_DEFAULT.find(t => t.key === selectedType)?.label || selectedType],
               ['Başlık', form.title],
@@ -925,7 +1056,7 @@ export default function NewProjectPage() {
                       color:      done || active ? 'white' : '#9ca3af',
                       cursor:     i < phase ? 'pointer' : 'default',
                     }}>
-                    {done ? '✓' : String(i + 1)}
+                    {done ? <NPIcon name="check" className="w-4 h-4" strokeWidth={2.5} /> : String(i + 1)}
                   </button>
                   <p className="text-xs font-medium leading-tight text-center"
                     style={{ color: active ? '#0f2444' : done ? '#059669' : '#9ca3af', maxWidth: 64 }}>
@@ -947,17 +1078,19 @@ export default function NewProjectPage() {
         {/* Navigasyon */}
         <div className="flex items-center justify-between pt-4 border-t" style={{ borderColor: '#e8e4dc' }}>
           <button type="button" onClick={goPrev} disabled={phase === 0}
-            className="btn-secondary disabled:opacity-40">
-            ← Geri
+            className="btn-secondary disabled:opacity-40 inline-flex items-center gap-1.5">
+            <NPIcon name="arrow-left" className="w-3.5 h-3.5" />
+            Geri
           </button>
           <span className="text-xs text-muted">{phase + 1} / {PHASES.length}</span>
           {isLast
             ? <button type="button" onClick={handleSubmit} disabled={saving}
-                className="btn-primary px-8">
-                {saving ? <><span className="spinner w-4 h-4 mr-2" />Kaydediliyor...</> : '🚀 Projeyi Oluştur'}
+                className="btn-primary px-8 inline-flex items-center gap-2">
+                {saving ? <><span className="spinner w-4 h-4" />Kaydediliyor...</> : <><NPIcon name="rocket" className="w-4 h-4" />Projeyi Oluştur</>}
               </button>
-            : <button type="button" onClick={goNext} className="btn-primary">
-                Devam Et →
+            : <button type="button" onClick={goNext} className="btn-primary inline-flex items-center gap-1.5">
+                Devam Et
+                <NPIcon name="arrow-right" className="w-3.5 h-3.5" />
               </button>
           }
         </div>
