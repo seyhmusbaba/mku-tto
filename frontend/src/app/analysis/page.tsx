@@ -137,10 +137,26 @@ export default function AnalysisPage() {
               </button>
             ))}
           </div>
-          <button onClick={handleExportPdf} disabled={exporting} className="btn-secondary text-sm inline-flex items-center gap-1.5 no-print">
-            {exporting ? <span className="spinner w-3 h-3" /> : <AIcon name="download" className="w-3.5 h-3.5" />}
-            PDF Al
-          </button>
+          <div className="flex gap-2 no-print">
+            <button
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  const token = localStorage.getItem('tto_token');
+                  if (token) sessionStorage.setItem('tto_print_token', token);
+                }
+                window.open('/analysis/annual-report', '_blank');
+              }}
+              className="btn-primary text-sm inline-flex items-center gap-1.5"
+              title="Tüm kurumsal metrikleri içeren yıllık PDF raporu"
+            >
+              <AIcon name="document" className="w-3.5 h-3.5" />
+              Yıllık Kurumsal Rapor
+            </button>
+            <button onClick={handleExportPdf} disabled={exporting} className="btn-secondary text-sm inline-flex items-center gap-1.5">
+              {exporting ? <span className="spinner w-3 h-3" /> : <AIcon name="download" className="w-3.5 h-3.5" />}
+              Sayfayı Yazdır
+            </button>
+          </div>
         </div>
 
         {/* Filtreler (overview sekmesinde) */}
