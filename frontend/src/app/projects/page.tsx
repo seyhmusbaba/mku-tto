@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -76,6 +76,14 @@ function useDebounced<T>(value: T, delay = 350): T {
 
 /* ─── Ana sayfa ─────────────────────────────────────────── */
 export default function ProjectsPage() {
+  return (
+    <Suspense fallback={<DashboardLayout><Header title="Projeler" /><div className="flex-1 flex items-center justify-center"><div className="spinner" /></div></DashboardLayout>}>
+      <ProjectsPageInner />
+    </Suspense>
+  );
+}
+
+function ProjectsPageInner() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
