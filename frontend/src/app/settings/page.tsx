@@ -1,18 +1,57 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Header } from '@/components/layout/Header';
 import { loadSettings } from '@/lib/settings-store';
 import { settingsApi, dynamicFieldsApi, projectTypesApi, facultiesApi, reportTypesApi } from '@/lib/api';
 import { DynamicField, ProjectTypeItem, FacultyItem } from '@/types';
+import { useAuth } from '@/lib/auth-context';
 
 interface ReportTypeItem { id:string; key:string; label:string; color:string; description:string; showProgress:number; isSystem:number; isActive:number; }
 import toast from 'react-hot-toast';
 
+/* ─── Icon helper ───────────────────────────────────── */
+type SIconName = 'save' | 'plus' | 'x' | 'edit' | 'trash' | 'cog' | 'palette' | 'tag' | 'building' | 'chart' | 'grid' | 'info' | 'alert-circle' | 'refresh' | 'image' | 'upload';
+const S_I: Record<SIconName, string> = {
+  save:    'M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4',
+  plus:    'M12 4v16m8-8H4',
+  x:       'M6 18L18 6M6 6l12 12',
+  edit:    'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
+  trash:   'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16',
+  cog:     'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z',
+  palette: 'M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01',
+  tag:     'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z',
+  building:'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+  chart:   'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+  grid:    'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z',
+  info:    'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+  'alert-circle':'M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+  refresh: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',
+  image:   'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z',
+  upload:  'M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18',
+};
+function SIcon({ name, className = 'w-4 h-4', strokeWidth = 1.8 }: { name: SIconName; className?: string; strokeWidth?: number }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={strokeWidth} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d={S_I[name]} />
+    </svg>
+  );
+}
+
 const FIELD_TYPES = [['text','Metin'],['number','Sayı'],['date','Tarih'],['select','Seçim Listesi'],['textarea','Uzun Metin'],['checkbox','Onay Kutusu']];
 type Tab = 'general' | 'appearance' | 'types' | 'faculties' | 'reporttypes' | 'fields';
+const TAB_ICONS: Record<Tab, SIconName> = {
+  general: 'cog', appearance: 'palette', types: 'tag', faculties: 'building', reporttypes: 'chart', fields: 'grid',
+};
 
 export default function SettingsPage() {
+  const { user: me } = useAuth();
+  const router = useRouter();
+  const isAdmin = me?.role?.name === 'Süper Admin';
+  useEffect(() => { if (me && !isAdmin) router.replace('/dashboard'); }, [me, isAdmin, router]);
+
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [settings, setSettings] = useState<Record<string,any>>({});
   const [fields, setFields] = useState<DynamicField[]>([]);
   const [projectTypes, setProjectTypes] = useState<ProjectTypeItem[]>([]);
@@ -36,22 +75,36 @@ export default function SettingsPage() {
   const logoRef = useRef<HTMLInputElement>(null);
   const faviconRef = useRef<HTMLInputElement>(null);
 
-  const loadAll = () => Promise.all([
-    settingsApi.getAll().then(r => {
+  const loadAll = async () => {
+    setLoadError(null);
+    try {
+      const [sRes, dfRes, ptRes, facRes] = await Promise.all([
+        settingsApi.getAll(),
+        dynamicFieldsApi.getAllAdmin(),
+        projectTypesApi.getAll(),
+        facultiesApi.getAll(),
+      ]);
       const flat: Record<string,string> = {};
-      const data = r.data;
+      const data = sRes.data;
       if (typeof data === 'object') {
         Object.entries(data).forEach(([k,v]: [string,any]) => { flat[k] = typeof v === 'object' && v?.value !== undefined ? v.value : String(v||''); });
       }
       setSettings(flat);
-    }),
-    dynamicFieldsApi.getAllAdmin().then(r => setFields(r.data)),
-    projectTypesApi.getAll().then(r => setProjectTypes(r.data)),
-    facultiesApi.getAll().then(r => setFaculties(r.data)),
-    reportTypesApi.getAll().then(r => setReportTypes(r.data)).catch(() => {}),
-  ]);
+      setFields(dfRes.data);
+      setProjectTypes(ptRes.data);
+      setFaculties(facRes.data);
+      // report types opsiyonel
+      reportTypesApi.getAll().then(r => setReportTypes(r.data)).catch(() => setReportTypes([]));
+    } catch (e: any) {
+      setLoadError(e?.response?.data?.message || 'Ayarlar yüklenemedi');
+    }
+  };
 
-  useEffect(() => { setLoading(true); loadAll().finally(() => setLoading(false)); }, []);
+  useEffect(() => {
+    if (!me || !isAdmin) return;
+    setLoading(true);
+    loadAll().finally(() => setLoading(false));
+  }, [me, isAdmin]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -122,17 +175,40 @@ export default function SettingsPage() {
 
   const TABS: [Tab, string][] = [['general','Genel'],['appearance','Görünüm'],['types','Proje Türleri'],['faculties','Fakülteler'],['reporttypes','Rapor Türleri'],['fields','Form Alanları']];
 
+  if (!me || !isAdmin) {
+    return <DashboardLayout><Header title="Sistem Ayarları"/><div className="p-8 text-sm text-muted">Yönlendiriliyorsunuz...</div></DashboardLayout>;
+  }
+
   if (loading) return <DashboardLayout><Header title="Sistem Ayarları"/><div className="flex-1 flex items-center justify-center"><div className="spinner"/></div></DashboardLayout>;
+
+  if (loadError) return (
+    <DashboardLayout><Header title="Sistem Ayarları"/>
+      <div className="p-8">
+        <div className="card py-16 text-center">
+          <div className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center mb-3" style={{ background: '#fee2e2', color: '#dc2626' }}>
+            <SIcon name="alert-circle" className="w-7 h-7" strokeWidth={1.6} />
+          </div>
+          <p className="text-sm font-semibold text-navy">Ayarlar yüklenemedi</p>
+          <p className="text-xs text-muted mt-1 max-w-md mx-auto">{loadError}</p>
+          <button onClick={() => { setLoading(true); loadAll().finally(() => setLoading(false)); }} className="btn-primary text-sm mt-4 inline-flex items-center gap-1.5">
+            <SIcon name="refresh" className="w-4 h-4" /> Yeniden Dene
+          </button>
+        </div>
+      </div>
+    </DashboardLayout>
+  );
 
   return (
     <DashboardLayout>
       <Header title="Sistem Ayarları" subtitle="Platform yapılandırması ve özelleştirme"/>
-      <div className="p-8">
+      <div className="p-6 xl:p-8">
         {/* Tabs */}
-        <div className="flex gap-1 mb-8 p-1 rounded-2xl w-fit flex-wrap" style={{background:'#f0ede8',border:'1px solid #e8e4dc'}}>
+        <div className="flex gap-1 mb-6 p-1 rounded-2xl w-fit flex-wrap overflow-x-auto" style={{background:'#f0ede8',border:'1px solid #e8e4dc'}}>
           {TABS.map(([t,l])=>(
-            <button key={t} onClick={()=>setTab(t)} className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+            <button key={t} onClick={()=>setTab(t as Tab)}
+              className="px-3 py-2 rounded-xl text-sm font-semibold transition-all inline-flex items-center gap-1.5 whitespace-nowrap"
               style={{background:tab===t?'white':'transparent',color:tab===t?'#0f2444':'#9ca3af',boxShadow:tab===t?'0 1px 3px rgba(0,0,0,0.08)':'none'}}>
+              <SIcon name={TAB_ICONS[t as Tab]} className="w-3.5 h-3.5" />
               {l}
             </button>
           ))}
@@ -149,7 +225,9 @@ export default function SettingsPage() {
                 </div>
               ))}
             </div>
-            <button onClick={handleSave} disabled={saving} className="btn-primary px-8 py-3">{saving?'Kaydediliyor...':'Değişiklikleri Kaydet'}</button>
+            <button onClick={handleSave} disabled={saving} className="btn-primary px-8 py-3 inline-flex items-center gap-1.5">
+              {saving ? <><span className="spinner w-4 h-4" />Kaydediliyor...</> : <><SIcon name="save" className="w-4 h-4" />Değişiklikleri Kaydet</>}
+            </button>
           </div>
         )}
 
@@ -182,7 +260,12 @@ export default function SettingsPage() {
                       <p className="text-xs text-muted">PNG, SVG — tıkla</p></div>}
                   </div>
                   <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={e=>e.target.files?.[0]&&handleImageUpload(e.target.files[0],'logo_url')}/>
-                  {settings.logo_url && <button className="btn-ghost text-xs mt-2 w-full" onClick={()=>setSettings(s=>({...s,logo_url:''}))}>✕ Kaldır</button>}
+                  {settings.logo_url && (
+                    <button className="btn-ghost text-xs mt-2 w-full inline-flex items-center justify-center gap-1" onClick={()=>setSettings(s=>({...s,logo_url:''}))}>
+                      <SIcon name="x" className="w-3 h-3" />
+                      Kaldır
+                    </button>
+                  )}
                 </div>
                 {/* Favicon */}
                 <div>
@@ -194,18 +277,30 @@ export default function SettingsPage() {
                       <p className="text-xs text-muted">ICO, PNG — tıkla</p></div>}
                   </div>
                   <input ref={faviconRef} type="file" accept="image/*,.ico" className="hidden" onChange={e=>e.target.files?.[0]&&handleImageUpload(e.target.files[0],'favicon_url')}/>
-                  {settings.favicon_url && <button className="btn-ghost text-xs mt-2 w-full" onClick={()=>setSettings(s=>({...s,favicon_url:''}))}>✕ Kaldır</button>}
+                  {settings.favicon_url && (
+                    <button className="btn-ghost text-xs mt-2 w-full inline-flex items-center justify-center gap-1" onClick={()=>setSettings(s=>({...s,favicon_url:''}))}>
+                      <SIcon name="x" className="w-3 h-3" />
+                      Kaldır
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
-            <button onClick={handleSave} disabled={saving} className="btn-primary px-8 py-3">{saving?'Kaydediliyor...':'Değişiklikleri Kaydet'}</button>
+            <button onClick={handleSave} disabled={saving} className="btn-primary px-8 py-3 inline-flex items-center gap-1.5">
+              {saving ? <><span className="spinner w-4 h-4" />Kaydediliyor...</> : <><SIcon name="save" className="w-4 h-4" />Değişiklikleri Kaydet</>}
+            </button>
           </div>
         )}
 
         {/* PROJECT TYPES */}
         {tab==='types' && (
           <div className="space-y-5 max-w-3xl">
-            <div className="flex justify-end"><button onClick={()=>{setEditType(null);setTypeForm({key:'',label:'',color:'#1a3a6b'});setShowTypeModal(true);}} className="btn-primary">+ Proje Türü Ekle</button></div>
+            <div className="flex justify-end">
+              <button onClick={()=>{setEditType(null);setTypeForm({key:'',label:'',color:'#1a3a6b'});setShowTypeModal(true);}}
+                className="btn-primary inline-flex items-center gap-1.5">
+                <SIcon name="plus" className="w-4 h-4" /> Proje Türü Ekle
+              </button>
+            </div>
             <div className="card p-0 overflow-hidden">
               <table className="w-full text-sm">
                 <thead><tr style={{background:'#faf8f4',borderBottom:'1px solid #e8e4dc'}}>
@@ -236,7 +331,12 @@ export default function SettingsPage() {
         {/* FACULTIES */}
         {tab==='faculties' && (
           <div className="space-y-5 max-w-3xl">
-            <div className="flex justify-end"><button onClick={()=>{setEditFaculty(null);setFacultyForm({name:'',shortName:'',color:'#1a3a6b'});setShowFacultyModal(true);}} className="btn-primary">+ Fakülte Ekle</button></div>
+            <div className="flex justify-end">
+              <button onClick={()=>{setEditFaculty(null);setFacultyForm({name:'',shortName:'',color:'#1a3a6b'});setShowFacultyModal(true);}}
+                className="btn-primary inline-flex items-center gap-1.5">
+                <SIcon name="plus" className="w-4 h-4" /> Fakülte Ekle
+              </button>
+            </div>
             <div className="card p-0 overflow-hidden">
               <table className="w-full text-sm">
                 <thead><tr style={{background:'#faf8f4',borderBottom:'1px solid #e8e4dc'}}>
@@ -271,14 +371,22 @@ export default function SettingsPage() {
         {tab==='fields' && (
           <div className="space-y-5">
             <div className="card p-4" style={{background:'#eff6ff',border:'1px solid #bfdbfe'}}>
-              <p className="text-sm font-semibold text-blue-800 mb-1">📝 Form Alanları Nedir?</p>
+              <p className="text-sm font-semibold text-blue-800 mb-1 inline-flex items-center gap-1.5">
+                <SIcon name="info" className="w-4 h-4" />
+                Form Alanları Nedir?
+              </p>
               <p className="text-xs text-blue-700 leading-relaxed">
                 Proje oluşturma ve düzenleme formuna <strong>kurumunuza özel ekstra alanlar</strong> ekleyebilirsiniz.
                 Örneğin: "Etik Kurul Onay No", "Sözleşme Başlangıç Tarihi", "Beklenen Yayın Sayısı" gibi.
                 Buraya eklenen alanlar tüm projelerin formunda görünür ve kaydedilir.
               </p>
             </div>
-            <div className="flex justify-end"><button onClick={()=>{setEditField(null);setFieldForm({name:'',key:'',label:'',type:'text',options:'',required:false});setShowFieldModal(true);}} className="btn-primary">+ Yeni Alan Ekle</button></div>
+            <div className="flex justify-end">
+              <button onClick={()=>{setEditField(null);setFieldForm({name:'',key:'',label:'',type:'text',options:'',required:false});setShowFieldModal(true);}}
+                className="btn-primary inline-flex items-center gap-1.5">
+                <SIcon name="plus" className="w-4 h-4" /> Yeni Alan Ekle
+              </button>
+            </div>
             {fields.length ? (
               <div className="card p-0 overflow-hidden">
                 <table className="w-full text-sm">
@@ -315,7 +423,12 @@ export default function SettingsPage() {
       {/* REPORT TYPES */}
         {tab==='reporttypes' && (
           <div className="space-y-5 max-w-3xl">
-            <div className="flex justify-end"><button onClick={()=>{setEditRT(null);setRtForm({label:'',description:'',color:'#1a3a6b',showProgress:true});setShowRTModal(true);}} className="btn-primary">+ Rapor Türü Ekle</button></div>
+            <div className="flex justify-end">
+              <button onClick={()=>{setEditRT(null);setRtForm({label:'',description:'',color:'#1a3a6b',showProgress:true});setShowRTModal(true);}}
+                className="btn-primary inline-flex items-center gap-1.5">
+                <SIcon name="plus" className="w-4 h-4" /> Rapor Türü Ekle
+              </button>
+            </div>
             <div className="card p-0 overflow-hidden">
               <table className="w-full text-sm">
                 <thead><tr style={{background:'#faf8f4',borderBottom:'1px solid #e8e4dc'}}>

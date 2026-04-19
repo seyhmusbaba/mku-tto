@@ -1,6 +1,8 @@
 import { Controller, Get, Put, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 import { SettingsService } from './settings.service';
 
 @ApiTags('settings')
@@ -12,9 +14,10 @@ export class SettingsController {
   @Get()
   getAll() { return this.settingsService.getAll(); }
 
-  // PUT — sadece giriş yapanlar
+  // PUT — sadece Süper Admin
   @Put()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Süper Admin')
   @ApiBearerAuth()
   update(@Body() data: any) { return this.settingsService.update(data); }
 }
