@@ -6,6 +6,8 @@ import { api, projectTypesApi, facultiesApi, scopusApi } from '@/lib/api';
 import { ProjectTypeItem, FacultyItem } from '@/types';
 import { formatCurrency, getProjectTypeLabel, getProjectTypeColor } from '@/lib/utils';
 import { GanttChart } from '@/components/GanttChart';
+import { BibliometricsPanel } from '@/components/BibliometricsPanel';
+import { useAuth } from '@/lib/auth-context';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
 
 /* ─── Icon helper ───────────────────────────────────── */
@@ -47,10 +49,13 @@ const STATUS_COLORS: Record<string,string> = {
   suspended:'#6b7280', cancelled:'#dc2626',
 };
 
-type Tab = 'overview' | 'faculty' | 'researcher' | 'funding' | 'timeline' | 'gantt' | 'scopus';
+type Tab = 'overview' | 'bibliometrics' | 'faculty' | 'researcher' | 'funding' | 'timeline' | 'gantt' | 'scopus';
 
 export default function AnalysisPage() {
+  const { user } = useAuth();
   const [tab, setTab] = useState<Tab>('overview');
+  const [biblioScope, setBiblioScope] = useState<'me' | 'faculty' | 'institutional'>('me');
+  const [biblioFaculty, setBiblioFaculty] = useState<string>('');
   const [overview, setOverview] = useState<any>(null);
   const [facultyData, setFacultyData] = useState<any[]>([]);
   const [researcherData, setResearcherData] = useState<any[]>([]);
@@ -101,13 +106,14 @@ export default function AnalysisPage() {
   };
 
   const TABS: { key: Tab; label: string }[] = [
-    { key: 'overview',    label: 'Genel Bakis'     },
-    { key: 'faculty',     label: 'Fakulteler'      },
-    { key: 'researcher',  label: 'Arastirmacilar'  },
-    { key: 'funding',     label: 'Fon Analizi'     },
-    { key: 'timeline',    label: 'Zaman Serisi'    },
-    { key: 'gantt',       label: 'Gantt'           },
-    { key: 'scopus',      label: 'Scopus Analitik' },
+    { key: 'overview',      label: 'Genel Bakış'       },
+    { key: 'bibliometrics', label: 'Bibliyometri'      },
+    { key: 'faculty',       label: 'Fakülteler'        },
+    { key: 'researcher',    label: 'Araştırmacılar'    },
+    { key: 'funding',       label: 'Fon Analizi'       },
+    { key: 'timeline',      label: 'Zaman Serisi'      },
+    { key: 'gantt',         label: 'Gantt'             },
+    { key: 'scopus',        label: 'Scopus Analitik'   },
   ];
 
   const years = Array.from({length: 6}, (_, i) => String(new Date().getFullYear() - i));
@@ -385,6 +391,57 @@ export default function AnalysisPage() {
             )}
 
             {/* ── SCOPUS ANALİTİK ── */}
+            {/* ── BİBLİYOMETRİ ── */}
+            {tab === 'bibliometrics' && (
+              <div className="space-y-4">
+                <div className="card p-4 flex flex-wrap items-center gap-3">
+                  <span className="text-sm font-semibold text-navy">Kapsam:</span>
+                  <div className="flex gap-1 p-1 rounded-xl" style={{ background: '#f0ede8' }}>
+                    {([
+                      { v: 'me',            l: 'Benim Scorecardım' },
+                      { v: 'faculty',       l: 'Fakülte' },
+                      { v: 'institutional', l: 'Kurumsal (MKÜ)' },
+                    ] as const).map(o => (
+                      <button key={o.v} onClick={() => setBiblioScope(o.v)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                        style={{
+                          background: biblioScope === o.v ? 'white' : 'transparent',
+                          color: biblioScope === o.v ? '#0f2444' : '#6b7280',
+                          boxShadow: biblioScope === o.v ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                        }}>
+                        {o.l}
+                      </button>
+                    ))}
+                  </div>
+                  {biblioScope === 'faculty' && (
+                    <select className="input text-sm py-1.5 w-56" value={biblioFaculty} onChange={e => setBiblioFaculty(e.target.value)}>
+                      <option value="">Fakülte seçin...</option>
+                      {faculties.map(f => <option key={f.id} value={f.name}>{f.name}</option>)}
+                    </select>
+                  )}
+                  <p className="text-xs text-muted ml-auto max-w-md">
+                    Scopus + WoS + OpenAlex + Crossref + SCImago + Unpaywall + PubMed kaynakları birleştirilerek hesaplanır.
+                    {biblioScope === 'me' && ' ORCID ID\'nizin profilde tanımlı olması gerekir.'}
+                  </p>
+                </div>
+
+                {biblioScope === 'me' && user?.id && (
+                  <BibliometricsPanel mode="researcher" userId={user.id} />
+                )}
+                {biblioScope === 'faculty' && biblioFaculty && (
+                  <BibliometricsPanel mode="faculty" faculty={biblioFaculty} />
+                )}
+                {biblioScope === 'faculty' && !biblioFaculty && (
+                  <div className="card py-12 text-center text-sm text-muted">
+                    Fakülte seçin — aynı fakültedeki tüm araştırmacıların yayınları birleştirilerek analiz edilir.
+                  </div>
+                )}
+                {biblioScope === 'institutional' && (
+                  <BibliometricsPanel mode="institutional" />
+                )}
+              </div>
+            )}
+
             {tab === 'scopus' && <ScopusAnalyticsTab />}
           </>
         )}
