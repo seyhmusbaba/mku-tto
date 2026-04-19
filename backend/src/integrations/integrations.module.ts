@@ -4,6 +4,7 @@ import { CrossrefService } from './crossref.service';
 import { ScimagoService } from './scimago.service';
 import { OpenAccessService } from './open-access.service';
 import { WosService } from './wos.service';
+import { PatentService } from './patent.service';
 
 /**
  * Entegrasyonlar modülü — akademik veri kaynaklarıyla köprü.
@@ -23,7 +24,7 @@ import { WosService } from './wos.service';
  */
 @Module({
   controllers: [IntegrationsController],
-  providers: [CrossrefService, ScimagoService, OpenAccessService, WosService],
-  exports: [CrossrefService, ScimagoService, OpenAccessService, WosService],
+  providers: [CrossrefService, ScimagoService, OpenAccessService, WosService, PatentService],
+  exports: [CrossrefService, ScimagoService, OpenAccessService, WosService, PatentService],
 })
 export class IntegrationsModule {}

@@ -6,6 +6,7 @@ import { CrossrefService } from './crossref.service';
 import { ScimagoService } from './scimago.service';
 import { OpenAccessService } from './open-access.service';
 import { WosService } from './wos.service';
+import { PatentService } from './patent.service';
 
 @SkipThrottle()
 @ApiTags('integrations')
@@ -18,6 +19,7 @@ export class IntegrationsController {
     private readonly scimago: ScimagoService,
     private readonly oa: OpenAccessService,
     private readonly wos: WosService,
+    private readonly patent: PatentService,
   ) {}
 
   // Her entegrasyonun yapılandırma durumunu tek yerden raporla
@@ -29,6 +31,7 @@ export class IntegrationsController {
       openAccess:  { configured: this.oa.isConfigured(),       requiresKey: false, note: 'UNPAYWALL_MAILTO önerilir' },
       scopus:      { configured: !!process.env.SCOPUS_API_KEY, requiresKey: true },
       wos:         { configured: this.wos.isConfigured(),      requiresKey: true, note: 'WOS_API_KEY Clarivate Developer Portal' },
+      patent:      { configured: this.patent.isConfigured(),   requiresKey: true, note: 'EPO OPS (TR patentleri dahil) — EPO_CONSUMER_KEY & SECRET' },
     };
   }
 
@@ -140,5 +143,44 @@ export class IntegrationsController {
     }
     if (!name) throw new BadRequestException('name parametresi zorunlu');
     return this.wos.searchByAffiliation(name, limit ? +limit : 100);
+  }
+
+  // ── PATENT (EPO OPS — TR patentleri dahil) ────────────────────────────
+  @Get('patent/publication')
+  async patentPub(@Query('number') num: string) {
+    if (!this.patent.isConfigured()) {
+      throw new ServiceUnavailableException('Patent servisi yapılandırılmadı (EPO_CONSUMER_KEY eksik)');
+    }
+    if (!num) throw new BadRequestException('number parametresi zorunlu (örn. TR2022012345)');
+    const r = await this.patent.getByPublicationNumber(num);
+    if (!r) throw new ServiceUnavailableException('Patent bulunamadı');
+    return r;
+  }
+
+  @Get('patent/applicant')
+  async patentByApplicant(
+    @Query('name') name: string,
+    @Query('country') country?: string,
+    @Query('limit') limit?: string,
+  ) {
+    if (!this.patent.isConfigured()) {
+      throw new ServiceUnavailableException('Patent servisi yapılandırılmadı');
+    }
+    if (!name) throw new BadRequestException('name parametresi zorunlu');
+    return this.patent.searchByApplicant(name, country || 'TR', limit ? +limit : 25);
+  }
+
+  @Get('patent/verify')
+  async patentVerify(
+    @Query('number') number: string,
+    @Query('applicant') applicant: string,
+  ) {
+    if (!this.patent.isConfigured()) {
+      throw new ServiceUnavailableException('Patent servisi yapılandırılmadı');
+    }
+    if (!number || !applicant) {
+      throw new BadRequestException('number ve applicant parametreleri zorunlu');
+    }
+    return this.patent.verifyOwnership(number, applicant);
   }
 }
