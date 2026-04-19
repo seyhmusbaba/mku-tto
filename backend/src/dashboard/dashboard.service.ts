@@ -1,11 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, SelectQueryBuilder } from 'typeorm';
 import { Project } from '../database/entities/project.entity';
 import { User } from '../database/entities/user.entity';
 import { ProjectMember } from '../database/entities/project-member.entity';
 
-const ADMIN_ROLES = ['Süper Admin'];
+export type DashboardScope =
+  | { kind: 'global' }
+  | { kind: 'faculty'; faculty: string }
+  | { kind: 'department'; department: string };
 
 @Injectable()
 export class DashboardService {
@@ -15,43 +18,101 @@ export class DashboardService {
     @InjectRepository(ProjectMember) private memberRepo: Repository<ProjectMember>,
   ) {}
 
-  // TÜM projeler — sadece admin/yönetici rolüne
-  async getStats() {
+  private applyScope<T>(qb: SelectQueryBuilder<T>, alias: string, scope: DashboardScope): SelectQueryBuilder<T> {
+    if (scope.kind === 'faculty') qb.andWhere(`${alias}.faculty = :scopeFaculty`, { scopeFaculty: scope.faculty });
+    if (scope.kind === 'department') qb.andWhere(`${alias}.department = :scopeDepartment`, { scopeDepartment: scope.department });
+    return qb;
+  }
+
+  // Yönetici dashboard — scope'a göre filtrelenir (global/fakülte/bölüm)
+  async getStats(scope: DashboardScope = { kind: 'global' }) {
+    const baseQb = () => this.applyScope(this.projectRepo.createQueryBuilder('p'), 'p', scope);
+
     const [
       totalProjects, activeProjects, completedProjects,
-      pendingProjects, suspendedProjects, cancelledProjects, totalUsers
+      pendingProjects, suspendedProjects, cancelledProjects
     ] = await Promise.all([
-      this.projectRepo.count(),
-      this.projectRepo.count({ where: { status: 'active' } }),
-      this.projectRepo.count({ where: { status: 'completed' } }),
-      this.projectRepo.createQueryBuilder('p').where("p.status IN ('application','pending')").getCount(),
-      this.projectRepo.count({ where: { status: 'suspended' } }),
-      this.projectRepo.count({ where: { status: 'cancelled' } }),
-      this.userRepo.count({ where: { isActive: true as any } }),
+      baseQb().getCount(),
+      baseQb().andWhere('p.status = :s', { s: 'active' }).getCount(),
+      baseQb().andWhere('p.status = :s', { s: 'completed' }).getCount(),
+      baseQb().andWhere("p.status IN ('application','pending')").getCount(),
+      baseQb().andWhere('p.status = :s', { s: 'suspended' }).getCount(),
+      baseQb().andWhere('p.status = :s', { s: 'cancelled' }).getCount(),
     ]);
 
-    const byType     = await this.projectRepo.createQueryBuilder('p').select('p.type as type, COUNT(*) as count').groupBy('p.type').getRawMany();
-    const byFaculty  = await this.projectRepo.createQueryBuilder('p').select('p.faculty as faculty, COUNT(*) as count').where('p.faculty IS NOT NULL').groupBy('p.faculty').orderBy('count','DESC').getRawMany();
-    const byYear     = await this.projectRepo.createQueryBuilder('p').select('SUBSTR(p.startDate, 1, 4) as year, COUNT(*) as count').where('p.startDate IS NOT NULL').groupBy('year').orderBy('year','ASC').getRawMany();
-    const byStatus   = await this.projectRepo.createQueryBuilder('p').select('p.status as status, COUNT(*) as count').groupBy('p.status').getRawMany();
-    const budgetResult = await this.projectRepo.createQueryBuilder('p').select('SUM(p.budget) as total, AVG(p.budget) as avg, MAX(p.budget) as max').where('p.budget IS NOT NULL').getRawOne();
-    const recentProjects = await this.projectRepo.find({ relations: ['owner', 'owner.role'], order: { createdAt: 'DESC' }, take: 8 });
+    // Kullanıcı sayısı sadece global scope'ta anlamlı
+    const totalUsers = scope.kind === 'global'
+      ? await this.userRepo.count({ where: { isActive: true as any } })
+      : 0;
+
+    const byType = await baseQb().select('p.type as type, COUNT(*) as count').groupBy('p.type').getRawMany();
+    const byFaculty = scope.kind === 'global'
+      ? await baseQb().select('p.faculty as faculty, COUNT(*) as count').andWhere('p.faculty IS NOT NULL').groupBy('p.faculty').orderBy('count', 'DESC').getRawMany()
+      : [];
+    const byYear = await baseQb()
+      .select(`EXTRACT(YEAR FROM p."startDate"::date)::text as year, COUNT(*) as count`)
+      .andWhere('p."startDate" IS NOT NULL')
+      .groupBy('year')
+      .orderBy('year', 'ASC')
+      .getRawMany();
+    const byStatus = await baseQb().select('p.status as status, COUNT(*) as count').groupBy('p.status').getRawMany();
+    const budgetResult = await baseQb().select('SUM(p.budget) as total, AVG(p.budget) as avg, MAX(p.budget) as max').andWhere('p.budget IS NOT NULL').getRawOne();
+
+    const recentProjectsQb = this.applyScope(
+      this.projectRepo.createQueryBuilder('p')
+        .leftJoinAndSelect('p.owner', 'owner')
+        .leftJoinAndSelect('owner.role', 'ownerRole'),
+      'p', scope,
+    );
+    const recentProjects = await recentProjectsQb.orderBy('p.createdAt', 'DESC').take(8).getMany();
+
+    // En yüksek bütçeli — ayrı sorgu (scope filtreli)
+    const topBudget = await this.applyScope(
+      this.projectRepo.createQueryBuilder('p').leftJoinAndSelect('p.owner', 'owner'),
+      'p', scope,
+    )
+      .andWhere('p.budget IS NOT NULL AND p.budget > 0')
+      .orderBy('p.budget', 'DESC')
+      .take(5)
+      .getMany();
 
     const today = new Date().toISOString().split('T')[0];
     const in30 = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
-    const endingSoon = await this.projectRepo.createQueryBuilder('p')
-      .where("p.status = 'active'")
+    const endingSoon = await this.applyScope(this.projectRepo.createQueryBuilder('p'), 'p', scope)
+      .andWhere("p.status = 'active'")
       .andWhere("p.endDate >= :today AND p.endDate <= :in30", { today, in30 })
       .getCount();
 
     return {
+      scope: scope.kind,
+      scopeValue: scope.kind === 'faculty' ? scope.faculty : scope.kind === 'department' ? scope.department : null,
       totalProjects, activeProjects, completedProjects, pendingProjects,
       suspendedProjects, cancelledProjects, totalUsers, endingSoon,
       byType, byFaculty, byYear, byStatus,
-      budget: { total: +budgetResult?.total||0, avg: +budgetResult?.avg||0, max: +budgetResult?.max||0 },
+      budget: { total: +budgetResult?.total || 0, avg: +budgetResult?.avg || 0, max: +budgetResult?.max || 0 },
       recentProjects,
+      topBudget,
       isPersonal: false,
     };
+  }
+
+  // Kullanıcı rolüne göre uygun scope'u döndürür
+  async resolveScopeForUser(userId: string, roleName: string): Promise<DashboardScope | null> {
+    const r = (roleName || '');
+    if (r === 'Süper Admin' || r.toLowerCase().includes('rektör') || r.toLowerCase().includes('rektor')) {
+      return { kind: 'global' };
+    }
+    if (r === 'Dekan') {
+      const user = await this.userRepo.findOne({ where: { id: userId } });
+      if (!user?.faculty) return null;
+      return { kind: 'faculty', faculty: user.faculty };
+    }
+    if (r === 'Bölüm Başkanı') {
+      const user = await this.userRepo.findOne({ where: { id: userId } });
+      if (!user?.department) return null;
+      return { kind: 'department', department: user.department };
+    }
+    return null;
   }
 
   // Kişisel istatistikler — normal kullanıcılar için
@@ -101,6 +162,15 @@ export class DashboardService {
     const budgetProjects = projects.filter(p => p.budget);
     const totalBudget = budgetProjects.reduce((s,p) => s+(p.budget||0), 0);
 
+    // Kişisel: 30 gün içinde biten aktif projeler
+    const today = Date.now();
+    const in30 = today + 30 * 86400000;
+    const endingSoon = projects.filter(p => {
+      if (p.status !== 'active' || !p.endDate) return false;
+      const t = new Date(p.endDate).getTime();
+      return t >= today && t <= in30;
+    }).length;
+
     return {
       totalProjects: projects.length,
       activeProjects: countByStatus('active'),
@@ -108,6 +178,7 @@ export class DashboardService {
       pendingProjects: countByStatus('pending') + countByStatus('application'),
       ownedCount,
       memberCount,
+      endingSoon,
       byStatus,
       byType,
       recentProjects: projects.slice(0, 6),

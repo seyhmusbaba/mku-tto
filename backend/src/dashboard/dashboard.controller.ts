@@ -3,8 +3,6 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { DashboardService } from './dashboard.service';
 
-const ADMIN_ROLES = ['Süper Admin', 'Dekan', 'Bölüm Başkanı'];
-
 @ApiTags('dashboard')
 @Controller('dashboard')
 @UseGuards(JwtAuthGuard)
@@ -13,10 +11,11 @@ export class DashboardController {
   constructor(private dashboardService: DashboardService) {}
 
   @Get('stats')
-  getStats(@Request() req: any) {
+  async getStats(@Request() req: any) {
     const roleName = req.user?.roleName || '';
-    if (ADMIN_ROLES.includes(roleName)) {
-      return this.dashboardService.getStats();
+    const scope = await this.dashboardService.resolveScopeForUser(req.user.userId, roleName);
+    if (scope) {
+      return this.dashboardService.getStats(scope);
     }
     return this.dashboardService.getPersonalStats(req.user.userId);
   }
