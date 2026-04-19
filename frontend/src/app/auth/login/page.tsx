@@ -8,6 +8,24 @@ import toast from 'react-hot-toast';
 
 type Mode = 'login' | 'register' | 'pending';
 
+/* ─── Icon helper ───────────────────────────────────── */
+type LIconName = 'check' | 'clock' | 'mail' | 'info' | 'eye' | 'eye-off' | 'alert';
+const L_I: Record<LIconName, string> = {
+  check:    'M5 13l4 4L19 7',
+  clock:    'M12 8v4l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z',
+  mail:     'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
+  info:     'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+  eye:      'M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z',
+  'eye-off':'M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88L3 3m6.88 6.88l4.24 4.24m0 0L21 21',
+  alert:    'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
+};
+function LIcon({ name, className = 'w-4 h-4', strokeWidth = 1.8 }: { name: LIconName; className?: string; strokeWidth?: number }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={strokeWidth} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d={L_I[name]} />
+    </svg>
+  );
+}
 
 const TITLES = ['Prof. Dr.', 'Doç. Dr.', 'Dr. Öğr. Üyesi', 'Arş. Gör. Dr.', 'Arş. Gör.', 'Öğr. Gör.', 'Dr.'];
 
@@ -18,6 +36,8 @@ export default function LoginPage() {
   const [siteName, setSiteName] = useState(() => getSettings().site_name || 'MKÜ TTO');
   const [footerText, setFooterText] = useState(() => getSettings().footer_text || `© ${new Date().getFullYear()} Hatay MKÜ Teknoloji Transfer Ofisi`);
   const [logoUrl, setLogoUrl] = useState(() => getSettings().logo_url || '');
+  const [showLoginPw, setShowLoginPw] = useState(false);
+  const [showRegPw, setShowRegPw] = useState(false);
   useEffect(() => {
     facultiesApi.getActive().then(r => setFaculties((r.data || []).map((f: any) => f.name))).catch(() => {});
     const applySettings = (s: any) => {
@@ -36,8 +56,13 @@ export default function LoginPage() {
   }, []);
   const [mode, setMode] = useState<Mode>('login');
   const [loading, setLoading] = useState(false);
-  const { login, register } = useAuth();
+  const { login, register, user, token } = useAuth();
   const router = useRouter();
+
+  // Zaten giriş yapmışsa dashboard'a yönlendir
+  useEffect(() => {
+    if (user && token) router.replace('/dashboard');
+  }, [user, token, router]);
 
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [regForm, setRegForm] = useState({
@@ -58,8 +83,9 @@ export default function LoginPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(regForm.email)) { toast.error('Geçersiz e-posta adresi'); return; }
     if (regForm.password !== regForm.confirmPassword) { toast.error('Şifreler eşleşmiyor'); return; }
-    if (regForm.password.length < 6) { toast.error('Şifre en az 6 karakter olmalı'); return; }
+    if (regForm.password.length < 8) { toast.error('Şifre en az 8 karakter olmalı'); return; }
     setLoading(true);
     try {
       const res = await api.post('/auth/register', {
@@ -198,8 +224,15 @@ export default function LoginPage() {
                 </div>
                 <div>
                   <label className="label">Şifre</label>
-                  <input type="password" required className="input" placeholder="••••••••"
-                    value={loginForm.password} onChange={e => setLoginForm(f => ({ ...f, password: e.target.value }))} />
+                  <div className="relative">
+                    <input type={showLoginPw ? 'text' : 'password'} required className="input pr-10" placeholder="••••••••"
+                      value={loginForm.password} onChange={e => setLoginForm(f => ({ ...f, password: e.target.value }))} />
+                    <button type="button" onClick={() => setShowLoginPw(v => !v)}
+                      aria-label={showLoginPw ? 'Şifreyi gizle' : 'Şifreyi göster'}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-navy">
+                      <LIcon name={showLoginPw ? 'eye-off' : 'eye'} className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
                 <div className="pt-1">
                   <SpinBtn label="Giriş Yap" loadingLabel="Giriş yapılıyor..." />
@@ -260,16 +293,30 @@ export default function LoginPage() {
                 </div>
                 <div>
                   <label className="label">Şifre *</label>
-                  <input required type="password" className="input" placeholder="En az 6 karakter"
-                    value={regForm.password} onChange={e => setRegForm(f => ({ ...f, password: e.target.value }))} />
+                  <div className="relative">
+                    <input required minLength={8} type={showRegPw ? 'text' : 'password'} className="input pr-10" placeholder="En az 8 karakter"
+                      value={regForm.password} onChange={e => setRegForm(f => ({ ...f, password: e.target.value }))} />
+                    <button type="button" onClick={() => setShowRegPw(v => !v)}
+                      aria-label={showRegPw ? 'Şifreyi gizle' : 'Şifreyi göster'}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-navy">
+                      <LIcon name={showRegPw ? 'eye-off' : 'eye'} className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="label">Şifre Tekrar *</label>
-                  <input required type="password" className="input" placeholder="••••••••"
+                  <input required type={showRegPw ? 'text' : 'password'} className="input" placeholder="••••••••"
                     value={regForm.confirmPassword} onChange={e => setRegForm(f => ({ ...f, confirmPassword: e.target.value }))} />
+                  {regForm.confirmPassword && regForm.password !== regForm.confirmPassword && (
+                    <p className="text-xs mt-1 inline-flex items-center gap-1 text-red-600">
+                      <LIcon name="alert" className="w-3 h-3" />
+                      Şifreler eşleşmiyor
+                    </p>
+                  )}
                 </div>
-                <p className="text-xs text-muted py-1 px-3 rounded-xl" style={{ background: '#f0f9ff', border: '1px solid #bae6fd' }}>
-                  ℹ️ Kayıt sonrası hesabınız <strong>Akademisyen</strong> rolüyle açılır. Yöneticiniz rolünüzü değiştirebilir.
+                <p className="text-xs text-muted py-2 px-3 rounded-xl inline-flex items-start gap-1.5 w-full" style={{ background: '#f0f9ff', border: '1px solid #bae6fd' }}>
+                  <LIcon name="info" className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                  <span>Kayıt sonrası hesabınız <strong>Akademisyen</strong> rolüyle açılır. Yöneticiniz rolünüzü değiştirebilir.</span>
                 </p>
                 <div className="pt-1">
                   <SpinBtn label="Kayıt Ol" loadingLabel="Kaydediliyor..." />
@@ -299,11 +346,20 @@ export default function LoginPage() {
                 <strong>yönetici onayı</strong> gerekmektedir.
               </p>
               <div className="rounded-2xl p-5 mb-6 text-left" style={{ background: '#f0f9ff', border: '1px solid #bae6fd' }}>
-                <p className="text-xs font-bold text-blue-700 mb-2 uppercase tracking-wider">Sonraki Adımlar</p>
-                <ul className="text-sm text-blue-800 space-y-1.5">
-                  <li>✅ Kaydınız sisteme alındı</li>
-                  <li>⏳ Yönetici hesabınızı inceleyecek</li>
-                  <li>📧 Onay sonrası giriş yapabilirsiniz</li>
+                <p className="text-xs font-bold text-blue-700 mb-3 uppercase tracking-wider">Sonraki Adımlar</p>
+                <ul className="text-sm text-blue-800 space-y-2">
+                  <li className="flex items-start gap-2">
+                    <LIcon name="check" className="w-4 h-4 flex-shrink-0 mt-0.5 text-green-600" strokeWidth={2.2} />
+                    <span>Kaydınız sisteme alındı</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <LIcon name="clock" className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-600" />
+                    <span>Yönetici hesabınızı inceleyecek</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <LIcon name="mail" className="w-4 h-4 flex-shrink-0 mt-0.5 text-blue-600" />
+                    <span>Onay sonrası giriş yapabilirsiniz</span>
+                  </li>
                 </ul>
               </div>
               <button onClick={() => setMode('login')} className="btn-primary w-full py-3">
