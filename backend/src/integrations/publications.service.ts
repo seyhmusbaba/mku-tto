@@ -272,6 +272,7 @@ export class PublicationsService {
       existing.citedBy.best = Math.max(existing.citedBy.best || 0, w.citedBy || 0);
       existing.sources.push('wos');
       existing.externalIds.wos = w.uid;
+      if (!existing.journal && w.journal) existing.journal = w.journal;
     } else {
       map.set(key, {
         doi: w.doi,
@@ -294,6 +295,7 @@ export class PublicationsService {
     const sourceKey = p.source === 'pubmed' ? 'pubmed' : p.source === 'arxiv' ? 'arxiv' : 'semanticScholar';
     if (existing) {
       if (!existing.abstract && p.abstract) existing.abstract = p.abstract;
+      if (!existing.journal && p.journal) existing.journal = p.journal;
       if (p.source === 'semanticscholar' && p.citedBy !== undefined) {
         existing.citedBy.semanticScholar = p.citedBy;
         existing.citedBy.best = Math.max(existing.citedBy.best || 0, p.citedBy || 0);
@@ -329,15 +331,29 @@ export class PublicationsService {
   /**
    * SCImago (quartile) + Unpaywall (OA) ile zenginleştir.
    * Batch'lemek yerine paralel (her yayın için tek fetch).
+   *
+   * SCImago eşleştirme stratejisi:
+   *  1. ISSN varsa → direkt lookup (en hızlı)
+   *  2. ISSN yoksa ama dergi adı varsa → title-based fallback match
    */
   private async enrichAll(map: Map<string, UnifiedPublication>): Promise<void> {
     const promises: Promise<void>[] = [];
     for (const pub of map.values()) {
-      // SCImago — ISSN varsa kaliteyi ekle
-      if (pub.issn && pub.issn.length > 0 && !pub.quality) {
-        promises.push(
-          this.scimago.getQualityByIssns(pub.issn).then(q => { if (q) pub.quality = q; }).catch(() => {}),
-        );
+      // SCImago — sırayla ISSN → title fallback
+      if (!pub.quality) {
+        promises.push((async () => {
+          try {
+            if (pub.issn && pub.issn.length > 0) {
+              const q = await this.scimago.getQualityByIssns(pub.issn);
+              if (q) { pub.quality = q; return; }
+            }
+            // Fallback — dergi adı varsa onunla ara
+            if (pub.journal) {
+              const q = await this.scimago.findByTitle(pub.journal);
+              if (q) { pub.quality = q; return; }
+            }
+          } catch {}
+        })());
       }
       // Unpaywall — OA durumu eksikse ekle
       if (pub.doi && !pub.openAccess) {

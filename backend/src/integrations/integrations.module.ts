@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { IntegrationsController } from './integrations.controller';
+import { IntegrationsStatusController } from './integrations-status.controller';
 import { CrossrefService } from './crossref.service';
 import { ScimagoService } from './scimago.service';
 import { OpenAccessService } from './open-access.service';
@@ -28,7 +29,7 @@ import { PublicationsService } from './publications.service';
  *  - PubMed / arXiv / Semantic Scholar
  */
 @Module({
-  controllers: [IntegrationsController],
+  controllers: [IntegrationsController, IntegrationsStatusController],
   providers: [
     CrossrefService, ScimagoService, OpenAccessService, WosService, PatentService,
     OpenAlexService, DergiparkService, CordisService, LiteratureService,

@@ -39,6 +39,20 @@ function Icon({ name, className = 'w-4 h-4', strokeWidth = 1.8 }: { name: IconNa
   );
 }
 
+// Metriklere hover tooltip — kullanıcı "bu nedir?" diye merak ederse
+function InfoTip({ text }: { text: string }) {
+  return (
+    <span className="relative group inline-flex items-center cursor-help">
+      <Icon name="info" className="w-3.5 h-3.5 text-muted" />
+      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2.5 rounded-lg text-xs font-normal leading-relaxed
+        opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-20 shadow-lg"
+        style={{ background: '#0f2444', color: 'white' }}>
+        {text}
+      </span>
+    </span>
+  );
+}
+
 const QUARTILE_COLORS: Record<string, string> = {
   Q1: '#059669', Q2: '#2563eb', Q3: '#d97706', Q4: '#dc2626', unknown: '#94a3b8',
 };
@@ -187,21 +201,40 @@ export function BibliometricsPanel({
         </div>
       )}
 
-      {/* KPI kartları */}
+      {/* Bilgilendirme çerçevesi */}
+      <div className="p-4 rounded-2xl flex items-start gap-3 text-xs" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af' }}>
+        <Icon name="info" className="w-4 h-4 mt-0.5 flex-shrink-0" />
+        <div className="leading-relaxed">
+          <strong className="font-semibold">Bu panel nasıl hesaplanır?</strong> Yayınlar birden fazla kaynaktan
+          (Scopus · Web of Science · OpenAlex · Crossref · PubMed · arXiv · Semantic Scholar)
+          DOI üzerinden birleştirilip tekrar sayılmaz. Atıf sayısında en yüksek kaynak baz alınır.
+          Dergi kalitesi SCImago SJR'dan, açık erişim bilgisi Unpaywall'dan,
+          SDG eşleştirmesi OpenAlex'ten gelir.
+        </div>
+      </div>
+
+      {/* KPI kartları — her birinin altında açıklama */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KpiBig label="Toplam Yayın"      value={summary.total}          icon="book"    color="#1a3a6b" />
-        <KpiBig label="Toplam Atıf"       value={summary.totalCitations} icon="quote"   color="#7c3aed" />
-        <KpiBig label="h-index"           value={summary.hIndex}         icon="h-index" color="#c8a45a" />
-        <KpiBig label="Açık Erişim"       value={`%${summary.openAccessRatio}`} sub={`${summary.openAccessCount} yayın`} icon="open" color="#059669" />
+        <KpiBig label="Toplam Yayın" value={summary.total} icon="book" color="#1a3a6b"
+          desc="Birden fazla kaynakta geçen yayın tek sayılır (DOI bazlı dedupe)." />
+        <KpiBig label="Toplam Atıf" value={summary.totalCitations} icon="quote" color="#7c3aed"
+          desc="Tüm yayınların aldığı toplam atıf — kaynaklar arasında en yüksek değer kullanılır." />
+        <KpiBig label="h-index" value={summary.hIndex} icon="h-index" color="#c8a45a"
+          desc="En az h tane yayını h veya daha fazla atıf almış demektir. Araştırmacının hem üretkenliğini hem etkisini ölçer." />
+        <KpiBig label="Açık Erişim" value={`%${summary.openAccessRatio}`} sub={`${summary.openAccessCount} yayın`}
+          icon="open" color="#059669"
+          desc="Açık erişim (OA) yayın oranı — okuyucunun ücret ödemeden erişebildiği makaleler." />
       </div>
 
       {/* Q1-Q4 dağılımı + Yıllık trend */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div className="card p-5">
-          <h4 className="font-display text-sm font-semibold text-navy mb-4 inline-flex items-center gap-2">
+          <h4 className="font-display text-sm font-semibold text-navy mb-1 inline-flex items-center gap-2">
             <Icon name="award" className="w-4 h-4" />
-            Dergi Kalite Dağılımı (SCImago SJR)
+            Dergi Kalite Dağılımı
+            <InfoTip text="SCImago Journal Rank'a göre dergilerin çeyrek sıralaması. Q1 ilk %25 (en prestijli), Q4 en alttaki %25. 'Bilinmiyor' — dergisi SCImago'da indeksli değil veya ISSN eşleşmesi yapılamadı." />
           </h4>
+          <p className="text-xs text-muted mb-4">Her çeyrek kaç yayını kapsıyor (SCImago SJR kaynaklı)</p>
           {quartileData.length > 0 ? (
             <>
               <ResponsiveContainer width="100%" height={220}>
@@ -223,15 +256,22 @@ export function BibliometricsPanel({
                   </div>
                 ))}
               </div>
+              {summary.quartileDistribution.unknown > 0 && summary.quartileDistribution.unknown === summary.total && (
+                <div className="mt-3 p-2.5 rounded-lg text-xs" style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}>
+                  <strong>Hepsi bilinmiyor:</strong> SCImago dergi tablosu henüz yüklenmemiş olabilir (Railway'de ilk başlangıçta ~30 sn). Backend admin'i <code className="bg-white/50 px-1 rounded">POST /integrations/scimago/refresh</code> ile yeniden yükleyebilir.
+                </div>
+              )}
             </>
           ) : <p className="text-sm text-muted text-center py-8">SCImago verisi henüz yüklenmedi</p>}
         </div>
 
         <div className="card p-5">
-          <h4 className="font-display text-sm font-semibold text-navy mb-4 inline-flex items-center gap-2">
+          <h4 className="font-display text-sm font-semibold text-navy mb-1 inline-flex items-center gap-2">
             <Icon name="trending" className="w-4 h-4" />
             Yıllara Göre Yayın ve Atıf
+            <InfoTip text="Sol eksen: o yıl yayımlanan makale sayısı. Sağ eksen: o yılın yayınlarının bugüne kadar aldığı toplam atıf." />
           </h4>
+          <p className="text-xs text-muted mb-4">Yayın sayısı (mavi) vs. atıf birikimi (altın)</p>
           {summary.byYear?.length > 0 ? (
             <ResponsiveContainer width="100%" height={240}>
               <AreaChart data={summary.byYear}>
@@ -262,11 +302,12 @@ export function BibliometricsPanel({
       {/* SDG dağılımı + Kaynak kapsamı */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div className="card p-5">
-          <h4 className="font-display text-sm font-semibold text-navy mb-4 inline-flex items-center gap-2">
+          <h4 className="font-display text-sm font-semibold text-navy mb-1 inline-flex items-center gap-2">
             <Icon name="globe" className="w-4 h-4" />
             Sürdürülebilir Kalkınma Hedefleri Katkısı
-            <span className="text-xs font-normal text-muted ml-auto">OpenAlex SDG mapping</span>
+            <InfoTip text="BM'nin 17 SDG'sinden hangilerine katkı sağlıyor. OpenAlex, yayının içeriğine bakarak her SDG için bir olasılık skoru verir; biz 0.3 üstü olanları sayarız." />
           </h4>
+          <p className="text-xs text-muted mb-4">Hangi hedeflere kaç yayınla katkı sağlanmış (OpenAlex)</p>
           {summary.sdgDistribution?.length > 0 ? (
             <div className="space-y-2">
               {summary.sdgDistribution.slice(0, 8).map((s: any, i: number) => {
@@ -297,11 +338,12 @@ export function BibliometricsPanel({
 
         {mode === 'researcher' && (
           <div className="card p-5">
-            <h4 className="font-display text-sm font-semibold text-navy mb-4 inline-flex items-center gap-2">
+            <h4 className="font-display text-sm font-semibold text-navy mb-1 inline-flex items-center gap-2">
               <Icon name="layers" className="w-4 h-4" />
               Kaynak Kapsamı
-              <span className="text-xs font-normal text-muted ml-auto">hangi API kaç yayın</span>
+              <InfoTip text="Her akademik veritabanı farklı yayınları indeksler. Bu grafik her kaynağın toplam yayın havuzuna katkısını gösterir — eksik kaynakları da ortaya koyar." />
             </h4>
+            <p className="text-xs text-muted mb-4">Her akademik veritabanının sağladığı yayın sayısı</p>
             {sourceCoverageData.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={sourceCoverageData} layout="vertical" margin={{ left: 40 }}>
@@ -350,10 +392,12 @@ export function BibliometricsPanel({
       {/* Top 5 cited */}
       {mode === 'researcher' && topCited.length > 0 && (
         <div className="card p-5">
-          <h4 className="font-display text-sm font-semibold text-navy mb-4 inline-flex items-center gap-2">
+          <h4 className="font-display text-sm font-semibold text-navy mb-1 inline-flex items-center gap-2">
             <Icon name="fire" className="w-4 h-4 text-amber-500" />
             En Çok Atıf Alan Yayınlar
+            <InfoTip text="Atıf sayısı — bir yayının etkisinin temel göstergesi. Her yayın kartında o yayının hangi dergide (Q kademesi), açık erişim mi, hangi kaynaklarda indeksli olduğu gösterilir." />
           </h4>
+          <p className="text-xs text-muted mb-4">En etkili çalışmalarınız — atıf sayısına göre sıralı</p>
           <div className="space-y-3">
             {topCited.map((p: any, i: number) => (
               <div key={p.externalIds?.doi || p.externalIds?.openalex || i} className="flex gap-3 pb-3 border-b last:border-0" style={{ borderColor: '#f0ede8' }}>
@@ -404,12 +448,22 @@ export function BibliometricsPanel({
 }
 
 /* ─── Yardımcı KPI bileşeni ─── */
-function KpiBig({ label, value, sub, icon, color }: { label: string; value: React.ReactNode; sub?: string; icon: IconName; color: string }) {
+function KpiBig({ label, value, sub, icon, color, desc }: {
+  label: string;
+  value: React.ReactNode;
+  sub?: string;
+  icon: IconName;
+  color: string;
+  desc?: string;
+}) {
   return (
     <div className="card p-5">
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
-        style={{ background: color + '18', color }}>
-        <Icon name={icon} className="w-5 h-5" />
+      <div className="flex items-start justify-between mb-3">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+          style={{ background: color + '18', color }}>
+          <Icon name={icon} className="w-5 h-5" />
+        </div>
+        {desc && <InfoTip text={desc} />}
       </div>
       <p className="font-display text-2xl font-bold text-navy leading-tight">{value}</p>
       <p className="text-xs text-muted mt-1">{label}</p>

@@ -32,24 +32,7 @@ export class IntegrationsController {
     private readonly publications: PublicationsService,
   ) {}
 
-  // Her entegrasyonun yapılandırma durumunu tek yerden raporla
-  @Get('status')
-  getStatus() {
-    return {
-      crossref:    { configured: this.crossref.isConfigured(), requiresKey: false, note: 'CROSSREF_MAILTO email için önerilir (polite pool)' },
-      scimago:     { configured: this.scimago.isConfigured(),  requiresKey: false, journalCount: this.scimago.getSize() },
-      openAccess:  { configured: this.oa.isConfigured(),       requiresKey: false, note: 'UNPAYWALL_MAILTO önerilir' },
-      scopus:      { configured: !!process.env.SCOPUS_API_KEY, requiresKey: true },
-      wos:         { configured: this.wos.isConfigured(),      requiresKey: true, note: 'WOS_API_KEY Clarivate Developer Portal' },
-      patent:      { configured: this.patent.isConfigured(),   requiresKey: true, note: 'EPO OPS (TR patentleri dahil) — EPO_CONSUMER_KEY & SECRET' },
-      openalex:    { configured: this.openalex.isConfigured(),  requiresKey: false, note: 'Ücretsiz, OPENALEX_MAILTO önerilir' },
-      dergipark:   { configured: this.dergipark.isConfigured(), requiresKey: false, note: 'Türk akademik dergileri (OAI-PMH)' },
-      cordis:      { configured: this.cordis.isConfigured(),    requiresKey: false, note: 'AB açık veri — Horizon Europe, H2020, FP7' },
-      pubmed:      { configured: true,                          requiresKey: false, note: 'NCBI E-utilities — PUBMED_MAILTO önerilir' },
-      arxiv:       { configured: true,                          requiresKey: false, note: 'STEM preprint' },
-      semanticScholar: { configured: true,                      requiresKey: false, note: 'SEMANTIC_SCHOLAR_KEY opsiyonel (yüksek rate için)' },
-    };
-  }
+  // NOT: Status endpoint'i ayrı bir controller'da (IntegrationsStatusController) — public.
 
   // ── SCIMAGO ───────────────────────────────────────────────────────────
   @Get('scimago/issn')
