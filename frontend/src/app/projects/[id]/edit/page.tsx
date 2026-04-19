@@ -74,6 +74,79 @@ function isEthicsAuthority(roleName?: string): boolean {
   return r === 'süper admin' || r.includes('etik') || r.includes('rekt') || r.includes('dekan');
 }
 
+/**
+ * EPO OPS üzerinden patent doğrulama butonu.
+ * Patent başvuru/tescil no'su girildikten sonra tıklanır — kurumun adıyla
+ * eşleşme arar. EPO_CONSUMER_KEY yoksa API 503 döner, burada kullanıcıya
+ * "yapılandırılmadı" mesajı gösteririz.
+ */
+function PatentVerifyButton({ number }: { number?: string }) {
+  const [verifying, setVerifying] = useState(false);
+  const [result, setResult] = useState<any>(null);
+
+  const applicantDefault = 'Mustafa Kemal';  // kurum adı substring — eşleşmek için yeterli
+
+  const verify = async () => {
+    if (!number) { toast.error('Önce başvuru/tescil numarası girin'); return; }
+    setVerifying(true);
+    setResult(null);
+    try {
+      const res = await api.get('/integrations/patent/verify', {
+        params: { number, applicant: applicantDefault },
+      });
+      setResult(res.data);
+    } catch (e: any) {
+      if (e?.response?.status === 503) {
+        setResult({ notConfigured: true });
+      } else {
+        setResult({ error: e?.response?.data?.message || 'Doğrulama başarısız' });
+      }
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  return (
+    <>
+      <button type="button" onClick={verify} disabled={!number || verifying}
+        className="btn-secondary text-xs px-3 whitespace-nowrap inline-flex items-center gap-1.5 disabled:opacity-40"
+        title="EPO OPS ile kurumsal aitliği doğrula">
+        {verifying ? <span className="spinner w-3 h-3" /> : <EPIcon name="check" className="w-3.5 h-3.5" />}
+        EPO Doğrula
+      </button>
+      {result && (
+        <div className="col-span-2 mt-2 p-3 rounded-xl text-xs"
+          style={{
+            background: result.verified ? '#f0fdf4' : result.notConfigured ? '#fffbeb' : '#fef2f2',
+            border: '1px solid ' + (result.verified ? '#86efac' : result.notConfigured ? '#fde68a' : '#fca5a5'),
+            color: result.verified ? '#166534' : result.notConfigured ? '#92400e' : '#991b1b',
+          }}>
+          {result.notConfigured && (
+            <p><strong>EPO servisi yapılandırılmamış:</strong> EPO_CONSUMER_KEY + SECRET env'leri backend'e eklenmelidir. developers.epo.org adresinden ücretsiz alınabilir.</p>
+          )}
+          {result.error && <p><strong>Hata:</strong> {result.error}</p>}
+          {result.verified && result.record && (
+            <>
+              <p className="font-semibold">✓ Doğrulandı — kayıt EPO OPS'ta bulundu ve kurum adıyla eşleşti</p>
+              <p className="mt-1 text-xs opacity-80">Başlık: {result.record.title}</p>
+              <p className="text-xs opacity-80">Başvuru sahipleri: {result.record.applicants.join(' · ')}</p>
+            </>
+          )}
+          {result.verified === false && !result.notConfigured && !result.error && (
+            <>
+              <p className="font-semibold">⚠ Uyarı: Doğrulanamadı</p>
+              <p className="mt-1 text-xs">{result.reason}</p>
+              {result.record && (
+                <p className="mt-1 opacity-80">Kayıt bulundu ama başvuru sahibi uyuşmuyor: {result.record.applicants.join(', ')}</p>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function EditProjectPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -436,7 +509,11 @@ export default function EditProjectPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="label">Tescil / Başvuru No</label>
-                  <input className="input" value={form.ipRegistrationNo || ''} onChange={e => set('ipRegistrationNo', e.target.value)} placeholder="TR2024/001234" />
+                  <div className="flex gap-2">
+                    <input className="input flex-1" value={form.ipRegistrationNo || ''} onChange={e => set('ipRegistrationNo', e.target.value)} placeholder="TR2024012345 veya EP3456789" />
+                    <PatentVerifyButton number={form.ipRegistrationNo} />
+                  </div>
+                  <p className="text-xs text-muted mt-1">EPO OPS üzerinden patentin kuruma aitliğini doğrulayabilirsiniz</p>
                 </div>
                 <div>
                   <label className="label">Tarih</label>
