@@ -4,6 +4,7 @@ import { SkipThrottle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CrossrefService } from './crossref.service';
 import { ScimagoService } from './scimago.service';
+import { OpenAccessService } from './open-access.service';
 
 @SkipThrottle()
 @ApiTags('integrations')
@@ -14,16 +15,18 @@ export class IntegrationsController {
   constructor(
     private readonly crossref: CrossrefService,
     private readonly scimago: ScimagoService,
+    private readonly oa: OpenAccessService,
   ) {}
 
   // Her entegrasyonun yapılandırma durumunu tek yerden raporla
   @Get('status')
   getStatus() {
     return {
-      crossref: { configured: this.crossref.isConfigured(), requiresKey: false, note: 'CROSSREF_MAILTO email için önerilir (polite pool)' },
-      scimago:  { configured: this.scimago.isConfigured(),  requiresKey: false, journalCount: this.scimago.getSize() },
-      scopus:   { configured: !!process.env.SCOPUS_API_KEY,  requiresKey: true },
-      wos:      { configured: !!process.env.WOS_API_KEY,     requiresKey: true },
+      crossref:    { configured: this.crossref.isConfigured(), requiresKey: false, note: 'CROSSREF_MAILTO email için önerilir (polite pool)' },
+      scimago:     { configured: this.scimago.isConfigured(),  requiresKey: false, journalCount: this.scimago.getSize() },
+      openAccess:  { configured: this.oa.isConfigured(),       requiresKey: false, note: 'UNPAYWALL_MAILTO önerilir' },
+      scopus:      { configured: !!process.env.SCOPUS_API_KEY,  requiresKey: true },
+      wos:         { configured: !!process.env.WOS_API_KEY,     requiresKey: true },
     };
   }
 
@@ -78,5 +81,21 @@ export class IntegrationsController {
   async crossrefEvents(@Query('doi') doi: string) {
     if (!doi) throw new BadRequestException('doi parametresi zorunlu');
     return this.crossref.getCitationEvents(doi);
+  }
+
+  // ── OPEN ACCESS ───────────────────────────────────────────────────────
+  @Get('oa/unpaywall')
+  async oaByDoi(@Query('doi') doi: string) {
+    if (!doi) throw new BadRequestException('doi parametresi zorunlu');
+    const info = await this.oa.getOaStatusByDoi(doi);
+    if (!info) throw new ServiceUnavailableException('Unpaywall bilgisi alınamadı');
+    return info;
+  }
+
+  @Get('oa/doaj')
+  async oaDoaj(@Query('issn') issn: string) {
+    if (!issn) throw new BadRequestException('issn parametresi zorunlu');
+    const info = await this.oa.getDoajJournal(issn);
+    return info || { listed: false };
   }
 }

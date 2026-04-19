@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { IntegrationsController } from './integrations.controller';
 import { CrossrefService } from './crossref.service';
 import { ScimagoService } from './scimago.service';
+import { OpenAccessService } from './open-access.service';
 
 /**
  * Entegrasyonlar modülü — akademik veri kaynaklarıyla köprü.
@@ -21,7 +22,7 @@ import { ScimagoService } from './scimago.service';
  */
 @Module({
   controllers: [IntegrationsController],
-  providers: [CrossrefService, ScimagoService],
-  exports: [CrossrefService, ScimagoService],
+  providers: [CrossrefService, ScimagoService, OpenAccessService],
+  exports: [CrossrefService, ScimagoService, OpenAccessService],
 })
 export class IntegrationsModule {}
