@@ -7,6 +7,7 @@ import { ScimagoService } from './scimago.service';
 import { OpenAccessService } from './open-access.service';
 import { WosService } from './wos.service';
 import { PatentService } from './patent.service';
+import { OpenAlexService } from './openalex.service';
 
 @SkipThrottle()
 @ApiTags('integrations')
@@ -20,6 +21,7 @@ export class IntegrationsController {
     private readonly oa: OpenAccessService,
     private readonly wos: WosService,
     private readonly patent: PatentService,
+    private readonly openalex: OpenAlexService,
   ) {}
 
   // Her entegrasyonun yapılandırma durumunu tek yerden raporla
@@ -32,6 +34,7 @@ export class IntegrationsController {
       scopus:      { configured: !!process.env.SCOPUS_API_KEY, requiresKey: true },
       wos:         { configured: this.wos.isConfigured(),      requiresKey: true, note: 'WOS_API_KEY Clarivate Developer Portal' },
       patent:      { configured: this.patent.isConfigured(),   requiresKey: true, note: 'EPO OPS (TR patentleri dahil) — EPO_CONSUMER_KEY & SECRET' },
+      openalex:    { configured: this.openalex.isConfigured(),  requiresKey: false, note: 'Ücretsiz, OPENALEX_MAILTO önerilir' },
     };
   }
 
@@ -182,5 +185,54 @@ export class IntegrationsController {
       throw new BadRequestException('number ve applicant parametreleri zorunlu');
     }
     return this.patent.verifyOwnership(number, applicant);
+  }
+
+  // ── OPENALEX (Ücretsiz, Scopus/WoS'un açık alternatifi) ───────────────
+  @Get('openalex/author/orcid')
+  async oaAuthorByOrcid(@Query('orcidId') orcidId: string) {
+    if (!orcidId) throw new BadRequestException('orcidId parametresi zorunlu');
+    const a = await this.openalex.getAuthorByOrcid(orcidId);
+    if (!a) throw new ServiceUnavailableException('OpenAlex\'te yazar bulunamadı');
+    return a;
+  }
+
+  @Get('openalex/author/search')
+  async oaAuthorSearch(
+    @Query('name') name: string,
+    @Query('affiliation') affiliation?: string,
+    @Query('limit') limit?: string,
+  ) {
+    if (!name) throw new BadRequestException('name parametresi zorunlu');
+    return this.openalex.searchAuthorByName(name, affiliation, limit ? +limit : 10);
+  }
+
+  @Get('openalex/author/works')
+  async oaAuthorWorks(@Query('authorId') authorId: string, @Query('limit') limit?: string) {
+    if (!authorId) throw new BadRequestException('authorId parametresi zorunlu');
+    return this.openalex.getAuthorWorks(authorId, limit ? +limit : 100);
+  }
+
+  @Get('openalex/institution/search')
+  async oaInstitutionSearch(@Query('name') name: string, @Query('country') country?: string) {
+    if (!name) throw new BadRequestException('name parametresi zorunlu');
+    return this.openalex.searchInstitution(name, country || 'TR');
+  }
+
+  @Get('openalex/institution/works')
+  async oaInstitutionWorks(
+    @Query('institutionId') institutionId: string,
+    @Query('year') year?: string,
+    @Query('limit') limit?: string,
+  ) {
+    if (!institutionId) throw new BadRequestException('institutionId parametresi zorunlu');
+    return this.openalex.getInstitutionWorks(institutionId, year ? +year : undefined, limit ? +limit : 25);
+  }
+
+  @Get('openalex/work/doi')
+  async oaWorkByDoi(@Query('doi') doi: string) {
+    if (!doi) throw new BadRequestException('doi parametresi zorunlu');
+    const w = await this.openalex.getWorkByDoi(doi);
+    if (!w) throw new ServiceUnavailableException('OpenAlex\'te yayın bulunamadı');
+    return w;
   }
 }

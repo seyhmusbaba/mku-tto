@@ -1,0 +1,304 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { HttpCache, RateLimiter, fetchJson } from './http-cache';
+
+/**
+ * OpenAlex — OurResearch projesi, Scopus/WoS'un ücretsiz ve açık alternatifi.
+ * 240M+ yayın, 90M+ yazar, 100K+ kurum indeksli.
+ *
+ * Docs: https://docs.openalex.org/
+ * Polite pool: User-Agent'ta email koy, 100k request/gün kotayla rahat çalış.
+ *
+ * Neden önemli:
+ *  - ARBİS/YÖKSİS gibi kapalı sistemlerin yerini büyük ölçüde doldurur
+ *  - WoS/Scopus key'i olmayanlar için tek geniş bibliyometrik kaynak
+ *  - Yazar, yayın, kurum ve konu seviyesinde zengin metadata
+ *  - h-index, i10-index, 2-year mean citedness, FWCI gibi metrikleri hazır verir
+ */
+
+export interface OpenAlexAuthor {
+  id: string;                         // https://openalex.org/A...
+  orcid?: string;
+  displayName: string;
+  worksCount: number;
+  citedByCount: number;
+  hIndex?: number;
+  i10Index?: number;
+  lastKnownInstitution?: { id: string; displayName?: string; country?: string };
+  conceptCounts?: Array<{ name: string; level: number; count: number }>;
+  countsByYear?: Array<{ year: number; worksCount: number; citedByCount: number }>;
+}
+
+export interface OpenAlexInstitution {
+  id: string;
+  ror?: string;
+  displayName: string;
+  country?: string;
+  type?: string;
+  worksCount: number;
+  citedByCount: number;
+}
+
+export interface OpenAlexWork {
+  id: string;
+  doi?: string;
+  title: string;
+  publicationYear?: number;
+  publicationDate?: string;
+  type?: string;
+  citedBy: number;
+  openAccess?: { isOa: boolean; oaStatus?: string; oaUrl?: string };
+  venue?: { displayName?: string; issn?: string[]; type?: string; publisher?: string };
+  authors: Array<{ id?: string; displayName: string; orcid?: string; institution?: string }>;
+  concepts: Array<{ displayName: string; level: number; score: number }>;
+  sdgs?: Array<{ displayName: string; id: string; score: number }>;  // UN SDG eşlemesi — AVESIS seviyesini geçer
+  referencesCount?: number;
+  fwci?: number;                      // field-weighted citation impact
+}
+
+@Injectable()
+export class OpenAlexService {
+  private readonly logger = new Logger(OpenAlexService.name);
+  private readonly cache = new HttpCache('openalex');
+  private readonly limiter = new RateLimiter(10, 1000); // 10/s polite
+  private readonly baseUrl = 'https://api.openalex.org';
+
+  isConfigured(): boolean {
+    // OpenAlex ücretsiz, herkes kullanabilir. Email önerilir.
+    return true;
+  }
+
+  private userAgent(): string {
+    const mail = process.env.OPENALEX_MAILTO || process.env.CROSSREF_MAILTO || 'noreply@example.com';
+    return `mku-tto/1.0 (mailto:${mail})`;
+  }
+
+  // ── AUTHOR ──────────────────────────────────────────────────────────
+
+  async getAuthorByOrcid(orcidId: string): Promise<OpenAlexAuthor | null> {
+    if (!orcidId) return null;
+    const cacheKey = `author:orcid:${orcidId}`;
+    const cached = this.cache.get<OpenAlexAuthor | null>(cacheKey);
+    if (cached !== undefined) return cached;
+
+    try {
+      await this.limiter.acquire();
+      const url = `${this.baseUrl}/authors/orcid:${encodeURIComponent(orcidId)}`;
+      const data = await fetchJson(url, { headers: { 'User-Agent': this.userAgent() } });
+      const mapped = this.mapAuthor(data);
+      this.cache.set(cacheKey, mapped, 60 * 60 * 24); // 24 saat
+      return mapped;
+    } catch (e: any) {
+      this.logger.warn(`OpenAlex author lookup failed: ${e.message}`);
+      this.cache.set(cacheKey, null, 60 * 60);
+      return null;
+    }
+  }
+
+  async searchAuthorByName(name: string, affiliation?: string, limit = 10): Promise<OpenAlexAuthor[]> {
+    if (!name) return [];
+    const cacheKey = `author:search:${name.toLowerCase()}:${affiliation || ''}:${limit}`;
+    const cached = this.cache.get<OpenAlexAuthor[]>(cacheKey);
+    if (cached) return cached;
+
+    try {
+      await this.limiter.acquire();
+      const params = new URLSearchParams({
+        search: name,
+        'per-page': String(Math.min(limit, 25)),
+      });
+      if (affiliation) {
+        params.set('filter', `last_known_institutions.display_name.search:${affiliation}`);
+      }
+      const url = `${this.baseUrl}/authors?${params}`;
+      const data = await fetchJson(url, { headers: { 'User-Agent': this.userAgent() } });
+      const items = (data?.results || []).map((a: any) => this.mapAuthor(a)).filter(Boolean) as OpenAlexAuthor[];
+      this.cache.set(cacheKey, items, 60 * 60 * 12);
+      return items;
+    } catch (e: any) {
+      this.logger.warn(`OpenAlex author search failed: ${e.message}`);
+      return [];
+    }
+  }
+
+  async getAuthorWorks(authorId: string, limit = 100): Promise<OpenAlexWork[]> {
+    if (!authorId) return [];
+    const cleanId = authorId.replace(/^https?:\/\/openalex\.org\//, '');
+    const cacheKey = `works:${cleanId}:${limit}`;
+    const cached = this.cache.get<OpenAlexWork[]>(cacheKey);
+    if (cached) return cached;
+
+    try {
+      await this.limiter.acquire();
+      const params = new URLSearchParams({
+        filter: `author.id:${cleanId}`,
+        'per-page': String(Math.min(limit, 200)),
+        sort: 'cited_by_count:desc',
+      });
+      const url = `${this.baseUrl}/works?${params}`;
+      const data = await fetchJson(url, { headers: { 'User-Agent': this.userAgent() } });
+      const items = (data?.results || []).map((w: any) => this.mapWork(w)).filter(Boolean) as OpenAlexWork[];
+      this.cache.set(cacheKey, items, 60 * 60 * 12);
+      return items;
+    } catch (e: any) {
+      this.logger.warn(`OpenAlex works failed: ${e.message}`);
+      return [];
+    }
+  }
+
+  // ── INSTITUTION ─────────────────────────────────────────────────────
+
+  async searchInstitution(name: string, country = 'TR'): Promise<OpenAlexInstitution[]> {
+    if (!name) return [];
+    const cacheKey = `inst:${name.toLowerCase()}:${country}`;
+    const cached = this.cache.get<OpenAlexInstitution[]>(cacheKey);
+    if (cached) return cached;
+
+    try {
+      await this.limiter.acquire();
+      const params = new URLSearchParams({
+        search: name,
+        filter: `country_code:${country.toUpperCase()}`,
+        'per-page': '10',
+      });
+      const url = `${this.baseUrl}/institutions?${params}`;
+      const data = await fetchJson(url, { headers: { 'User-Agent': this.userAgent() } });
+      const items = (data?.results || []).map((i: any) => this.mapInstitution(i)).filter(Boolean) as OpenAlexInstitution[];
+      this.cache.set(cacheKey, items, 60 * 60 * 24 * 30); // 30 gün — kurum nadiren değişir
+      return items;
+    } catch (e: any) {
+      this.logger.warn(`OpenAlex institution search failed: ${e.message}`);
+      return [];
+    }
+  }
+
+  async getInstitutionWorks(institutionId: string, year?: number, limit = 25): Promise<OpenAlexWork[]> {
+    if (!institutionId) return [];
+    const cleanId = institutionId.replace(/^https?:\/\/openalex\.org\//, '');
+    const cacheKey = `inst-works:${cleanId}:${year || 'all'}:${limit}`;
+    const cached = this.cache.get<OpenAlexWork[]>(cacheKey);
+    if (cached) return cached;
+
+    try {
+      await this.limiter.acquire();
+      const filterParts = [`institutions.id:${cleanId}`];
+      if (year) filterParts.push(`publication_year:${year}`);
+      const params = new URLSearchParams({
+        filter: filterParts.join(','),
+        'per-page': String(Math.min(limit, 100)),
+        sort: 'cited_by_count:desc',
+      });
+      const url = `${this.baseUrl}/works?${params}`;
+      const data = await fetchJson(url, { headers: { 'User-Agent': this.userAgent() } });
+      const items = (data?.results || []).map((w: any) => this.mapWork(w)).filter(Boolean) as OpenAlexWork[];
+      this.cache.set(cacheKey, items, 60 * 60 * 6);
+      return items;
+    } catch (e: any) {
+      this.logger.warn(`OpenAlex institution works failed: ${e.message}`);
+      return [];
+    }
+  }
+
+  // ── WORK ────────────────────────────────────────────────────────────
+
+  async getWorkByDoi(doi: string): Promise<OpenAlexWork | null> {
+    if (!doi) return null;
+    const normalized = doi.trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, '').toLowerCase();
+    const cacheKey = `work:${normalized}`;
+    const cached = this.cache.get<OpenAlexWork | null>(cacheKey);
+    if (cached !== undefined) return cached;
+
+    try {
+      await this.limiter.acquire();
+      const url = `${this.baseUrl}/works/https://doi.org/${encodeURIComponent(normalized)}`;
+      const data = await fetchJson(url, { headers: { 'User-Agent': this.userAgent() } });
+      const w = this.mapWork(data);
+      this.cache.set(cacheKey, w, 60 * 60 * 24 * 7);
+      return w;
+    } catch (e: any) {
+      this.logger.warn(`OpenAlex work lookup failed: ${e.message}`);
+      this.cache.set(cacheKey, null, 60 * 60);
+      return null;
+    }
+  }
+
+  // ── Mappers ─────────────────────────────────────────────────────────
+
+  private mapAuthor(a: any): OpenAlexAuthor | null {
+    if (!a?.id) return null;
+    return {
+      id: a.id,
+      orcid: a.orcid ? String(a.orcid).replace(/^https?:\/\/orcid\.org\//, '') : undefined,
+      displayName: a.display_name || '',
+      worksCount: a.works_count || 0,
+      citedByCount: a.cited_by_count || 0,
+      hIndex: a.summary_stats?.h_index,
+      i10Index: a.summary_stats?.i10_index,
+      lastKnownInstitution: a.last_known_institutions?.[0] || a.last_known_institution
+        ? {
+            id: (a.last_known_institutions?.[0] || a.last_known_institution)?.id,
+            displayName: (a.last_known_institutions?.[0] || a.last_known_institution)?.display_name,
+            country: (a.last_known_institutions?.[0] || a.last_known_institution)?.country_code,
+          }
+        : undefined,
+      conceptCounts: (a.x_concepts || []).slice(0, 10).map((c: any) => ({
+        name: c.display_name, level: c.level, count: c.score || 0,
+      })),
+      countsByYear: (a.counts_by_year || []).map((c: any) => ({
+        year: c.year, worksCount: c.works_count, citedByCount: c.cited_by_count,
+      })),
+    };
+  }
+
+  private mapInstitution(i: any): OpenAlexInstitution | null {
+    if (!i?.id) return null;
+    return {
+      id: i.id,
+      ror: i.ror,
+      displayName: i.display_name,
+      country: i.country_code,
+      type: i.type,
+      worksCount: i.works_count || 0,
+      citedByCount: i.cited_by_count || 0,
+    };
+  }
+
+  private mapWork(w: any): OpenAlexWork | null {
+    if (!w?.id) return null;
+    const primaryLocation = w.primary_location || {};
+    const bestOa = w.best_oa_location || {};
+    return {
+      id: w.id,
+      doi: w.doi ? String(w.doi).replace(/^https?:\/\/(dx\.)?doi\.org\//i, '') : undefined,
+      title: w.title || w.display_name || '',
+      publicationYear: w.publication_year,
+      publicationDate: w.publication_date,
+      type: w.type,
+      citedBy: w.cited_by_count || 0,
+      openAccess: {
+        isOa: !!w.open_access?.is_oa,
+        oaStatus: w.open_access?.oa_status,
+        oaUrl: bestOa.pdf_url || bestOa.landing_page_url,
+      },
+      venue: primaryLocation.source ? {
+        displayName: primaryLocation.source.display_name,
+        issn: primaryLocation.source.issn,
+        type: primaryLocation.source.type,
+        publisher: primaryLocation.source.host_organization_name,
+      } : undefined,
+      authors: (w.authorships || []).map((a: any) => ({
+        id: a.author?.id,
+        displayName: a.author?.display_name || '',
+        orcid: a.author?.orcid ? String(a.author.orcid).replace(/^https?:\/\/orcid\.org\//, '') : undefined,
+        institution: a.institutions?.[0]?.display_name,
+      })),
+      concepts: (w.concepts || []).map((c: any) => ({
+        displayName: c.display_name, level: c.level, score: c.score,
+      })),
+      sdgs: (w.sustainable_development_goals || []).map((s: any) => ({
+        displayName: s.display_name, id: s.id, score: s.score,
+      })),
+      referencesCount: w.referenced_works_count,
+      fwci: w.fwci,
+    };
+  }
+}
