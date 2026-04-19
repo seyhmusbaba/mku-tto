@@ -7,6 +7,7 @@ import { ProjectTypeItem, FacultyItem } from '@/types';
 import { formatCurrency, getProjectTypeLabel, getProjectTypeColor } from '@/lib/utils';
 import { GanttChart } from '@/components/GanttChart';
 import { BibliometricsPanel } from '@/components/BibliometricsPanel';
+import { InstitutionalPanel } from '@/components/InstitutionalPanel';
 import { useAuth } from '@/lib/auth-context';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
 
@@ -49,7 +50,7 @@ const STATUS_COLORS: Record<string,string> = {
   suspended:'#6b7280', cancelled:'#dc2626',
 };
 
-type Tab = 'overview' | 'bibliometrics' | 'faculty' | 'researcher' | 'funding' | 'timeline' | 'gantt' | 'scopus';
+type Tab = 'overview' | 'institutional' | 'bibliometrics' | 'faculty' | 'researcher' | 'funding' | 'timeline' | 'gantt' | 'scopus';
 
 export default function AnalysisPage() {
   const { user } = useAuth();
@@ -106,14 +107,15 @@ export default function AnalysisPage() {
   };
 
   const TABS: { key: Tab; label: string }[] = [
-    { key: 'overview',      label: 'Genel Bakış'       },
-    { key: 'bibliometrics', label: 'Bibliyometri'      },
-    { key: 'faculty',       label: 'Fakülteler'        },
-    { key: 'researcher',    label: 'Araştırmacılar'    },
-    { key: 'funding',       label: 'Fon Analizi'       },
-    { key: 'timeline',      label: 'Zaman Serisi'      },
-    { key: 'gantt',         label: 'Gantt'             },
-    { key: 'scopus',        label: 'Scopus Analitik'   },
+    { key: 'overview',      label: 'Genel Bakış'          },
+    { key: 'institutional', label: 'Kurumsal Karşılaştırma' },
+    { key: 'bibliometrics', label: 'Bibliyometri'         },
+    { key: 'faculty',       label: 'Fakülteler'           },
+    { key: 'researcher',    label: 'Araştırmacılar'       },
+    { key: 'funding',       label: 'Fon Analizi'          },
+    { key: 'timeline',      label: 'Zaman Serisi'         },
+    { key: 'gantt',         label: 'Gantt'                },
+    { key: 'scopus',        label: 'Scopus Analitik'      },
   ];
 
   const years = Array.from({length: 6}, (_, i) => String(new Date().getFullYear() - i));
@@ -391,6 +393,9 @@ export default function AnalysisPage() {
             )}
 
             {/* ── SCOPUS ANALİTİK ── */}
+            {/* ── KURUMSAL KARŞILAŞTIRMA ── */}
+            {tab === 'institutional' && <InstitutionalPanel />}
+
             {/* ── BİBLİYOMETRİ ── */}
             {tab === 'bibliometrics' && (
               <div className="space-y-4">

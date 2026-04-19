@@ -3,6 +3,7 @@ import { SkipThrottle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AnalyticsService } from './analytics.service';
 import { BibliometricsService } from './bibliometrics.service';
+import { InstitutionalService } from './institutional.service';
 
 @SkipThrottle()
 @Controller('analytics')
@@ -11,6 +12,7 @@ export class AnalyticsController {
   constructor(
     private svc: AnalyticsService,
     private bibliometrics: BibliometricsService,
+    private institutional: InstitutionalService,
   ) {}
 
   @Get('overview')
@@ -77,5 +79,21 @@ export class AnalyticsController {
       };
     }
     return this.bibliometrics.getInstitutional(institutionId, year ? +year : undefined);
+  }
+
+  // ── INSTITUTIONAL COMPARISON ──────────────────────────────────────────
+  @Get('institutional/faculty-radar')
+  async facultyRadar() {
+    return this.institutional.getFacultyRadar();
+  }
+
+  @Get('institutional/collaboration-matrix')
+  async collaborationMatrix() {
+    return this.institutional.getCollaborationMatrix();
+  }
+
+  @Get('institutional/sdg-heatmap')
+  async sdgHeatmap() {
+    return this.institutional.getSdgHeatmap();
   }
 }
