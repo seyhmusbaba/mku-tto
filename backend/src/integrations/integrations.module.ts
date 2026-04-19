@@ -6,6 +6,9 @@ import { OpenAccessService } from './open-access.service';
 import { WosService } from './wos.service';
 import { PatentService } from './patent.service';
 import { OpenAlexService } from './openalex.service';
+import { DergiparkService } from './dergipark.service';
+import { CordisService } from './cordis.service';
+import { LiteratureService } from './literature.service';
 
 /**
  * Entegrasyonlar modülü — akademik veri kaynaklarıyla köprü.
@@ -25,7 +28,13 @@ import { OpenAlexService } from './openalex.service';
  */
 @Module({
   controllers: [IntegrationsController],
-  providers: [CrossrefService, ScimagoService, OpenAccessService, WosService, PatentService, OpenAlexService],
-  exports: [CrossrefService, ScimagoService, OpenAccessService, WosService, PatentService, OpenAlexService],
+  providers: [
+    CrossrefService, ScimagoService, OpenAccessService, WosService, PatentService,
+    OpenAlexService, DergiparkService, CordisService, LiteratureService,
+  ],
+  exports: [
+    CrossrefService, ScimagoService, OpenAccessService, WosService, PatentService,
+    OpenAlexService, DergiparkService, CordisService, LiteratureService,
+  ],
 })
 export class IntegrationsModule {}

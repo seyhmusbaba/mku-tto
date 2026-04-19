@@ -8,6 +8,9 @@ import { OpenAccessService } from './open-access.service';
 import { WosService } from './wos.service';
 import { PatentService } from './patent.service';
 import { OpenAlexService } from './openalex.service';
+import { DergiparkService } from './dergipark.service';
+import { CordisService } from './cordis.service';
+import { LiteratureService } from './literature.service';
 
 @SkipThrottle()
 @ApiTags('integrations')
@@ -22,6 +25,9 @@ export class IntegrationsController {
     private readonly wos: WosService,
     private readonly patent: PatentService,
     private readonly openalex: OpenAlexService,
+    private readonly dergipark: DergiparkService,
+    private readonly cordis: CordisService,
+    private readonly literature: LiteratureService,
   ) {}
 
   // Her entegrasyonun yapılandırma durumunu tek yerden raporla
@@ -35,6 +41,11 @@ export class IntegrationsController {
       wos:         { configured: this.wos.isConfigured(),      requiresKey: true, note: 'WOS_API_KEY Clarivate Developer Portal' },
       patent:      { configured: this.patent.isConfigured(),   requiresKey: true, note: 'EPO OPS (TR patentleri dahil) — EPO_CONSUMER_KEY & SECRET' },
       openalex:    { configured: this.openalex.isConfigured(),  requiresKey: false, note: 'Ücretsiz, OPENALEX_MAILTO önerilir' },
+      dergipark:   { configured: this.dergipark.isConfigured(), requiresKey: false, note: 'Türk akademik dergileri (OAI-PMH)' },
+      cordis:      { configured: this.cordis.isConfigured(),    requiresKey: false, note: 'AB açık veri — Horizon Europe, H2020, FP7' },
+      pubmed:      { configured: true,                          requiresKey: false, note: 'NCBI E-utilities — PUBMED_MAILTO önerilir' },
+      arxiv:       { configured: true,                          requiresKey: false, note: 'STEM preprint' },
+      semanticScholar: { configured: true,                      requiresKey: false, note: 'SEMANTIC_SCHOLAR_KEY opsiyonel (yüksek rate için)' },
     };
   }
 
@@ -234,5 +245,87 @@ export class IntegrationsController {
     const w = await this.openalex.getWorkByDoi(doi);
     if (!w) throw new ServiceUnavailableException('OpenAlex\'te yayın bulunamadı');
     return w;
+  }
+
+  // ── DERGIPARK (Türk akademik dergileri) ───────────────────────────────
+  @Get('dergipark/author')
+  async dpAuthor(@Query('name') name: string, @Query('limit') limit?: string) {
+    if (!name) throw new BadRequestException('name parametresi zorunlu');
+    return this.dergipark.searchByAuthor(name, limit ? +limit : 20);
+  }
+
+  @Get('dergipark/journal')
+  async dpJournal(@Query('setSpec') setSpec: string, @Query('from') from?: string) {
+    if (!setSpec) throw new BadRequestException('setSpec parametresi zorunlu (örn. journal:mkuh)');
+    return this.dergipark.harvestJournal(setSpec, from);
+  }
+
+  // ── CORDIS (AB araştırma projeleri / Horizon Europe) ──────────────────
+  @Get('cordis/country')
+  async cordisCountry(@Query('country') country?: string, @Query('limit') limit?: string) {
+    return this.cordis.searchProjectsByCountry(country || 'TR', limit ? +limit : 50);
+  }
+
+  @Get('cordis/organization')
+  async cordisOrg(@Query('name') name: string, @Query('limit') limit?: string) {
+    if (!name) throw new BadRequestException('name parametresi zorunlu');
+    return this.cordis.searchProjectsByOrganization(name, limit ? +limit : 25);
+  }
+
+  @Get('cordis/search')
+  async cordisSearch(@Query('q') q: string, @Query('limit') limit?: string) {
+    if (!q) throw new BadRequestException('q parametresi zorunlu');
+    return this.cordis.searchProjects(q, limit ? +limit : 25);
+  }
+
+  // ── PUBMED ────────────────────────────────────────────────────────────
+  @Get('pubmed/search')
+  async pmSearch(@Query('q') q: string, @Query('limit') limit?: string) {
+    if (!q) throw new BadRequestException('q parametresi zorunlu');
+    return this.literature.searchPubmed(q, limit ? +limit : 20);
+  }
+
+  @Get('pubmed/doi')
+  async pmByDoi(@Query('doi') doi: string) {
+    if (!doi) throw new BadRequestException('doi parametresi zorunlu');
+    const r = await this.literature.getPubmedByDoi(doi);
+    return r || { notFound: true };
+  }
+
+  // ── ARXIV ─────────────────────────────────────────────────────────────
+  @Get('arxiv/search')
+  async arxivSearch(@Query('q') q: string, @Query('limit') limit?: string) {
+    if (!q) throw new BadRequestException('q parametresi zorunlu');
+    return this.literature.searchArxiv(q, limit ? +limit : 20);
+  }
+
+  // ── SEMANTIC SCHOLAR ──────────────────────────────────────────────────
+  @Get('s2/paper')
+  async s2Paper(@Query('id') id: string) {
+    if (!id) throw new BadRequestException('id (paperId veya DOI) zorunlu');
+    const r = await this.literature.getS2Paper(id);
+    if (!r) throw new ServiceUnavailableException('Semantic Scholar\'da bulunamadı');
+    return r;
+  }
+
+  @Get('s2/citations')
+  async s2Cit(@Query('paperId') paperId: string, @Query('limit') limit?: string) {
+    if (!paperId) throw new BadRequestException('paperId parametresi zorunlu');
+    return this.literature.getS2Citations(paperId, limit ? +limit : 50);
+  }
+
+  @Get('s2/author')
+  async s2Author(@Query('id') id: string) {
+    if (!id) throw new BadRequestException('id parametresi zorunlu');
+    const r = await this.literature.getS2AuthorProfile(id);
+    if (!r) throw new ServiceUnavailableException('Yazar bulunamadı');
+    return r;
+  }
+
+  // ── UNIFIED SEARCH ────────────────────────────────────────────────────
+  @Get('literature/search')
+  async literatureSearch(@Query('q') q: string, @Query('limit') limit?: string) {
+    if (!q) throw new BadRequestException('q parametresi zorunlu');
+    return this.literature.searchAll(q, limit ? +limit : 10);
   }
 }
