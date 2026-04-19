@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell, RadialBarChart, RadialBar, Legend } from 'recharts';
+import { CollaborationGraph, extractCollaborators } from './CollaborationGraph';
 
 /**
  * AVESIS-sınıfı bibliyometri paneli.
@@ -86,7 +87,7 @@ export function BibliometricsPanel({
     setLoading(true);
     setError('');
     const url = mode === 'researcher' && userId
-      ? `/analytics/bibliometrics/researcher/${userId}`
+      ? `/analytics/bibliometrics/researcher/${userId}?includeList=true`
       : mode === 'faculty' && faculty
       ? `/analytics/bibliometrics/faculty?faculty=${encodeURIComponent(faculty)}`
       : mode === 'institutional'
@@ -123,8 +124,14 @@ export function BibliometricsPanel({
   const summary = data.summary || data;
   const user = data.user;
   const topCited = data.topCited || [];
+  const publications = data.publications || [];
   const sourceCoverage = data.sourceCoverage || {};
   const topResearchers = data.topResearchers || [];
+
+  // Co-author grafını oluştur — sadece researcher modunda ve publications listesi varsa
+  const collaborators = mode === 'researcher' && publications.length > 0 && user?.name
+    ? extractCollaborators(publications, user.name)
+    : [];
 
   if (summary.total === 0) {
     return (
@@ -442,6 +449,11 @@ export function BibliometricsPanel({
             ))}
           </div>
         </div>
+      )}
+
+      {/* Co-author ağı — researcher modunda, publications listesi ORCID ile geldiyse */}
+      {mode === 'researcher' && collaborators.length > 0 && user?.name && (
+        <CollaborationGraph centerName={user.name} collaborators={collaborators} />
       )}
     </div>
   );

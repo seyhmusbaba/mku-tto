@@ -138,20 +138,26 @@ export default function AnalysisPage() {
             ))}
           </div>
           <div className="flex gap-2 no-print">
-            <button
-              onClick={() => {
-                if (typeof window !== 'undefined') {
-                  const token = localStorage.getItem('tto_token');
-                  if (token) sessionStorage.setItem('tto_print_token', token);
-                }
-                window.open('/analysis/annual-report', '_blank');
-              }}
-              className="btn-primary text-sm inline-flex items-center gap-1.5"
-              title="Tüm kurumsal metrikleri içeren yıllık PDF raporu"
-            >
-              <AIcon name="document" className="w-3.5 h-3.5" />
-              Yıllık Kurumsal Rapor
-            </button>
+            {(() => {
+              const roleName = user?.role?.name || '';
+              const canSeeAnnualReport = ['Süper Admin', 'Rektör', 'Dekan', 'Bölüm Başkanı'].includes(roleName);
+              return canSeeAnnualReport ? (
+                <button
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      const token = localStorage.getItem('tto_token');
+                      if (token) sessionStorage.setItem('tto_print_token', token);
+                    }
+                    window.open('/analysis/annual-report', '_blank');
+                  }}
+                  className="btn-primary text-sm inline-flex items-center gap-1.5"
+                  title="Tüm kurumsal metrikleri içeren yıllık PDF raporu"
+                >
+                  <AIcon name="document" className="w-3.5 h-3.5" />
+                  Yıllık Kurumsal Rapor
+                </button>
+              ) : null;
+            })()}
             <button onClick={handleExportPdf} disabled={exporting} className="btn-secondary text-sm inline-flex items-center gap-1.5">
               {exporting ? <span className="spinner w-3 h-3" /> : <AIcon name="download" className="w-3.5 h-3.5" />}
               Sayfayı Yazdır
