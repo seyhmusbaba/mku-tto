@@ -87,106 +87,17 @@ export default function AnalysisPage() {
       .finally(() => setOverviewLoading(false));
   }, [filterYear, filterFaculty, filterType]);
 
-  const handleExportCsv = async () => {
+  const handleExportPdf = async () => {
     setExporting(true);
     try {
-      // Ekrandaki analitik verileri de CSV'ye ekle
-      const lines: string[] = [];
-      const SEP = '\t';
-
-      // 1. Genel Bakış
-      if (overview) {
-        lines.push('GENEL BAKIS');
-        lines.push(['Metrik', 'Deger'].join(SEP));
-        lines.push(['Toplam Proje', overview.total].join(SEP));
-        lines.push(['Toplam Butce', overview.totalBudget].join(SEP));
-        lines.push(['Aktif Butce', overview.activeBudget].join(SEP));
-        lines.push(['Basari Orani', (overview.successRate || 0) + '%'].join(SEP));
-        lines.push(['Ortalama Butce', overview.avgBudget].join(SEP));
-        lines.push('');
-        lines.push('DURUMA GORE DAGITIM');
-        lines.push(['Durum', 'Proje Sayisi'].join(SEP));
-        (overview.byStatus || []).forEach((s: any) => {
-          lines.push([s.status, s.count].join(SEP));
-        });
-        lines.push('');
-      }
-
-      // 2. Fakülte verisi
-      if (facultyData.length > 0) {
-        lines.push('FAKULTE PERFORMANSI');
-        lines.push(['Fakulte', 'Toplam', 'Tamamlanan', 'Aktif', 'Basari Orani', 'Toplam Butce'].join(SEP));
-        facultyData.forEach((f: any) => {
-          lines.push([
-            f.faculty || '-',
-            f.total, f.completed, f.active,
-            (f.successRate || 0) + '%',
-            f.totalBudget || 0,
-          ].join(SEP));
-        });
-        lines.push('');
-      }
-
-      // 3. Araştırmacı verisi
-      if (researcherData.length > 0) {
-        lines.push('ARASTIRMACI URETKENLIK');
-        lines.push(['Arastirmaci', 'Toplam Proje', 'Aktif', 'Tamamlanan', 'Toplam Butce'].join(SEP));
-        researcherData.forEach((r: any) => {
-          lines.push([
-            (r.firstName || '') + ' ' + (r.lastName || ''),
-            r.totalProjects, r.activeProjects, r.completedProjects,
-            r.totalBudget || 0,
-          ].join(SEP));
-        });
-        lines.push('');
-      }
-
-      // 4. Fon analizi
-      if (fundingData.length > 0) {
-        lines.push('FON KAYNAGI ANALIZI');
-        lines.push(['Fon Kaynaği', 'Proje Sayisi', 'Toplam Butce', 'Ortalama Butce', 'Basari Orani'].join(SEP));
-        fundingData.forEach((f: any) => {
-          lines.push([
-            f.type || '-', f.count,
-            f.totalBudget || 0, f.avgBudget || 0,
-            (f.successRate || 0) + '%',
-          ].join(SEP));
-        });
-        lines.push('');
-      }
-
-      // 5. Ham proje listesi
-      const token = localStorage.getItem('tto_token');
-      const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-      const params = new URLSearchParams();
-      if (filterYear) params.set('year', filterYear);
-      if (filterFaculty) params.set('faculty', filterFaculty);
-      if (filterType) params.set('type', filterType);
-
-      try {
-        const res = await fetch(`${base}/export/projects/csv?${params}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const projectCsv = await res.text();
-          lines.push('PROJE LISTESI');
-          lines.push(projectCsv);
-        }
-      } catch {}
-
-      // UTF-8 BOM ile kaydet
-      const content = lines.join('\r\n');
-      const bom = '\uFEFF';
-      const blob = new Blob([bom + content], { type: 'text/csv;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `mku-tto-analiz-${new Date().toISOString().slice(0,10)}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      console.error(e);
-    } finally { setExporting(false); }
+      // Tarayıcının yazdırma diyaloğunu açar, kullanıcı "PDF olarak kaydet" seçer.
+      // @media print kuralı sidebar/header/tab'ları gizler, sadece içerik kalır.
+      // Kısa bir gecikme: son state güncellemelerinin DOM'a yansımasını bekle.
+      await new Promise(r => setTimeout(r, 150));
+      window.print();
+    } finally {
+      setExporting(false);
+    }
   };
 
   const TABS: { key: Tab; label: string }[] = [
@@ -218,9 +129,9 @@ export default function AnalysisPage() {
               </button>
             ))}
           </div>
-          <button onClick={handleExportCsv} disabled={exporting} className="btn-secondary text-sm inline-flex items-center gap-1.5">
+          <button onClick={handleExportPdf} disabled={exporting} className="btn-secondary text-sm inline-flex items-center gap-1.5 no-print">
             {exporting ? <span className="spinner w-3 h-3" /> : <AIcon name="download" className="w-3.5 h-3.5" />}
-            CSV İndir
+            PDF Al
           </button>
         </div>
 

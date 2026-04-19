@@ -68,8 +68,15 @@ export class UsersService {
   async update(id: string, dto: any) {
     const user = await this.findOne(id);
     if (dto.password) dto.password = await bcrypt.hash(dto.password, 12);
+    // roleId değişmişse relation objesini de sıfırla — aksi halde eski role payload'a
+    // sıkışır ve TypeORM cascade'i yeni roleId'yi ezer.
+    if (dto.roleId && dto.roleId !== user.roleId) {
+      (user as any).role = undefined;
+    }
     Object.assign(user, dto);
-    return this.userRepo.save(user);
+    await this.userRepo.save(user);
+    // İstemciye güncel rol relation'ı ile dön
+    return this.userRepo.findOne({ where: { id }, relations: ['role', 'role.permissions'] });
   }
 
   async remove(id: string) {
@@ -97,8 +104,12 @@ export class UsersService {
     const user = await this.findOne(id);
     (user as any).approvalStatus = 'approved';
     (user as any).isActive = true;
-    if (roleId) user.roleId = roleId;
-    return this.userRepo.save(user);
+    if (roleId && roleId !== user.roleId) {
+      user.roleId = roleId;
+      (user as any).role = undefined;
+    }
+    await this.userRepo.save(user);
+    return this.userRepo.findOne({ where: { id }, relations: ['role', 'role.permissions'] });
   }
 
   async reject(id: string, reason?: string) {
@@ -118,8 +129,9 @@ export class UsersService {
     const user = await this.findOne(userId);
     const role = await this.roleRepo.findOne({ where: { id: roleId } });
     if (!role) throw new NotFoundException('Rol bulunamadı');
-    user.roleId = roleId;
-    return this.userRepo.save(user);
+    // Direkt FK'yı güncelle — loaded relation'la uğraşmadan tek sorgu.
+    await this.userRepo.update(userId, { roleId });
+    return this.userRepo.findOne({ where: { id: userId }, relations: ['role', 'role.permissions'] });
   }
 
   async recordVisit(profileUserId: string, visitorUserId: string): Promise<void> {

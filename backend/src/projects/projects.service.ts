@@ -21,13 +21,22 @@ const STATUS_LABELS: Record<string, string> = {
   suspended: 'Askıya Alındı', cancelled: 'İptal Edildi', pending: 'Başvuru Sürecinde',
 };
 
-// FIX #2: Beyaz liste - sadece bu alanlar update edilebilir
+// FIX #2: Beyaz liste - normal kullanıcının düzenleyebildiği alanlar
 const ALLOWED_UPDATE_FIELDS = [
   'title','description','type','status','faculty','department','budget','fundingSource',
   'startDate','endDate','projectText','ipStatus','ipType','ipRegistrationNo','ipDate','ipNotes',
-  'ethicsRequired','ethicsApproved','ethicsCommittee','ethicsApprovalNo','ethicsApprovalDate',
   'aiComplianceScore','aiComplianceResult',
 ];
+
+// Yalnızca etik kurul / admin / rektör rolleri bu alanları değiştirebilir
+const ETHICS_ONLY_FIELDS = [
+  'ethicsRequired','ethicsApproved','ethicsCommittee','ethicsApprovalNo','ethicsApprovalDate',
+];
+
+function isEthicsAuthority(roleName?: string): boolean {
+  const r = (roleName || '').toLowerCase();
+  return r === 'süper admin' || r.includes('etik') || r.includes('rekt') || r.includes('dekan');
+}
 
 @Injectable()
 export class ProjectsService {
@@ -194,25 +203,35 @@ export class ProjectsService {
   }
 
   async update(id: string, dto: any, currentUser: any) {
-    const project = await this.findOne(id);
+    // KRİTİK: Gerçek entity'yi çek (serialize değil) — aksi halde setter'lar çalışmaz,
+    // sdgGoals / tags / keywords JSON alanlarına yazılamaz.
+    const project = await this.projectRepo.findOne({
+      where: { id },
+      relations: ['owner'],
+    });
+    if (!project) throw new NotFoundException('Proje bulunamadi');
 
-    // FIX #1: Tek sorgu - yukarida cekilen user'i tekrar cekme
     const user = await this.userRepo.findOne({ where: { id: currentUser.userId }, relations: ['role'] });
     const isAdmin = user?.role?.name === 'Süper Admin';
+    const canSetEthics = isEthicsAuthority(user?.role?.name);
 
     if (!isAdmin && project.ownerId !== currentUser.userId) {
       throw new ForbiddenException('Bu projeyi duzenleme yetkiniz yok');
     }
 
-    // FIX #2: dto mutasyonu yok - yeni nesne, beyaz liste
+    // Beyaz liste — genel alanlar
     const safeDto: Record<string, any> = {};
     for (const field of ALLOWED_UPDATE_FIELDS) {
       if (dto[field] !== undefined) safeDto[field] = dto[field];
     }
-
-    // FIX #8: Boolean tip garantisi
-    if (safeDto.ethicsRequired !== undefined) safeDto.ethicsRequired = safeDto.ethicsRequired === true || safeDto.ethicsRequired === 'true' || safeDto.ethicsRequired === 1;
-    if (safeDto.ethicsApproved !== undefined) safeDto.ethicsApproved = safeDto.ethicsApproved === true || safeDto.ethicsApproved === 'true' || safeDto.ethicsApproved === 1;
+    // Etik alanları sadece yetkili rollere aç
+    if (canSetEthics) {
+      for (const field of ETHICS_ONLY_FIELDS) {
+        if (dto[field] !== undefined) safeDto[field] = dto[field];
+      }
+      if (safeDto.ethicsRequired !== undefined) safeDto.ethicsRequired = safeDto.ethicsRequired === true || safeDto.ethicsRequired === 'true' || safeDto.ethicsRequired === 1;
+      if (safeDto.ethicsApproved !== undefined) safeDto.ethicsApproved = safeDto.ethicsApproved === true || safeDto.ethicsApproved === 'true' || safeDto.ethicsApproved === 1;
+    }
 
     // Degisen alanlari tespit et
     const TRACK = ['title','description','status','type','faculty','department','budget',

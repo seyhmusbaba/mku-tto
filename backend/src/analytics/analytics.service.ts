@@ -1,13 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { Project } from '../database/entities/project.entity';
 import { User } from '../database/entities/user.entity';
 import { ProjectReport } from '../database/entities/project-report.entity';
 import { SystemSetting } from '../database/entities/system-setting.entity';
 
-// Tüm analitikleri görebilecek roller (DB'den de okunur)
-const DEFAULT_FULL_ACCESS_ROLES = ['Süper Admin', 'Dekan', 'Bölüm Başkanı'];
+// Global erişim rolleri — tüm sistemin analizine erişir
+const GLOBAL_ROLES = ['Süper Admin', 'Rektör'];
+
+type AnalyticsScope =
+  | { kind: 'global' }
+  | { kind: 'faculty'; faculty: string }
+  | { kind: 'department'; department: string }
+  | { kind: 'user'; userId: string };
 
 @Injectable()
 export class AnalyticsService {
@@ -18,9 +24,36 @@ export class AnalyticsService {
     @InjectRepository(SystemSetting) private settingRepo: Repository<SystemSetting>,
   ) {}
 
-  // Tam erişim var mı? — Süper Admin + sistem ayarlarında yetkilendirilen roller
+  // Rol + DB ayarından scope'u çözer
+  private async resolveScope(userId: string, roleName: string): Promise<AnalyticsScope> {
+    const r = (roleName || '');
+    if (GLOBAL_ROLES.includes(r) || r.toLowerCase().includes('rekt')) {
+      return { kind: 'global' };
+    }
+    // Ayarlarda global yetki verilmiş mi?
+    try {
+      const setting = await this.settingRepo.findOne({ where: { key: 'analytics_full_access_roles' } });
+      if (setting?.value) {
+        const roles = JSON.parse(setting.value) as string[];
+        if (roles.includes(r)) return { kind: 'global' };
+      }
+    } catch {}
+    // Dekan → kendi fakültesi, Bölüm Başkanı → kendi bölümü
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (r === 'Dekan' && user?.faculty) return { kind: 'faculty', faculty: user.faculty };
+    if (r === 'Bölüm Başkanı' && user?.department) return { kind: 'department', department: user.department };
+    return { kind: 'user', userId };
+  }
+
+  private applyScope<T>(qb: SelectQueryBuilder<T>, alias: string, scope: AnalyticsScope): SelectQueryBuilder<T> {
+    if (scope.kind === 'faculty') qb.andWhere(`${alias}.faculty = :scopeFaculty`, { scopeFaculty: scope.faculty });
+    if (scope.kind === 'department') qb.andWhere(`${alias}.department = :scopeDepartment`, { scopeDepartment: scope.department });
+    return qb;
+  }
+
+  // Geriye uyumluluk — eski signature kullanan yerler kalırsa false döner
   private async hasFullAccess(roleName: string): Promise<boolean> {
-    if (DEFAULT_FULL_ACCESS_ROLES.includes(roleName)) return true;
+    if (GLOBAL_ROLES.includes(roleName)) return true;
     try {
       const setting = await this.settingRepo.findOne({ where: { key: 'analytics_full_access_roles' } });
       if (setting?.value) {
@@ -47,58 +80,87 @@ export class AnalyticsService {
   }
 
   async getOverview(q: { year?: string; faculty?: string; type?: string }, userId: string, roleName: string) {
-    const fullAccess = await this.hasFullAccess(roleName);
+    const scope = await this.resolveScope(userId, roleName);
     const qb = this.projectRepo.createQueryBuilder('p');
-    if (!fullAccess) {
+
+    if (scope.kind === 'user') {
       const ids = await this.getUserProjectIds(userId);
-      if (!ids.length) return { total: 0, byStatus: [], totalBudget: 0, activeBudget: 0, successRate: 0, avgBudget: 0, restricted: true };
+      if (!ids.length) return { total: 0, byStatus: [], totalBudget: 0, activeBudget: 0, successRate: 0, avgBudget: 0, restricted: true, scope: scope.kind };
       qb.where('p.id IN (:...ids)', { ids });
+    } else {
+      this.applyScope(qb, 'p', scope);
     }
+
     if (q.year) qb.andWhere(`p."startDate" IS NOT NULL AND SUBSTRING(p."startDate", 1, 4) = :year`, { year: q.year });
     if (q.faculty) qb.andWhere('p.faculty = :faculty', { faculty: q.faculty });
     if (q.type) qb.andWhere('p.type = :type', { type: q.type });
 
     const projects = await qb.getMany();
     const total = projects.length;
-    const byStatus = ['application','pending','active','completed','suspended','cancelled'].map(s => ({
-      status: s, count: projects.filter(p => p.status === s).length
-    }));
+
+    // Sadece gerçekten bulunan statüleri döndür — 0 olanları gizle (hayalet durumları önler)
+    const statusCounts: Record<string, number> = {};
+    for (const p of projects) {
+      statusCounts[p.status] = (statusCounts[p.status] || 0) + 1;
+    }
+    const STATUS_ORDER = ['application','pending','active','completed','suspended','cancelled'];
+    const byStatus = STATUS_ORDER
+      .filter(s => statusCounts[s] > 0)
+      .map(s => ({ status: s, count: statusCounts[s] }));
+
     const totalBudget = projects.reduce((s, p) => s + (p.budget || 0), 0);
     const activeBudget = projects.filter(p => p.status === 'active').reduce((s, p) => s + (p.budget || 0), 0);
-    const successRate = total > 0 ? Math.round((projects.filter(p => p.status === 'completed').length / total) * 100) : 0;
+    // Başarı oranı: sonucu belli olan projeler (tamamlandı + iptal) üzerinden
+    const completed = projects.filter(p => p.status === 'completed').length;
+    const decided = projects.filter(p => ['completed', 'cancelled'].includes(p.status)).length;
+    const successRate = decided > 0 ? Math.round((completed / decided) * 100) : 0;
     const avgBudget = total > 0 ? Math.round(totalBudget / total) : 0;
-    return { total, byStatus, totalBudget, activeBudget, successRate, avgBudget, restricted: !fullAccess };
+
+    return {
+      total, byStatus, totalBudget, activeBudget, successRate, avgBudget,
+      completed, decided,
+      restricted: scope.kind !== 'global',
+      scope: scope.kind,
+      scopeValue: scope.kind === 'faculty' ? scope.faculty : scope.kind === 'department' ? scope.department : null,
+    };
   }
 
   async getFacultyPerformance(userId: string, roleName: string) {
-    const fullAccess = await this.hasFullAccess(roleName);
+    const scope = await this.resolveScope(userId, roleName);
     const qb = this.projectRepo.createQueryBuilder('p')
       .select([
         'p.faculty as faculty',
         'COUNT(*) as total',
         `SUM(CASE WHEN p.status = 'completed' THEN 1 ELSE 0 END) as completed`,
         `SUM(CASE WHEN p.status = 'active' THEN 1 ELSE 0 END) as active`,
+        `SUM(CASE WHEN p.status = 'cancelled' THEN 1 ELSE 0 END) as cancelled`,
         'AVG(p.budget) as "avgBudget"',
         'SUM(p.budget) as "totalBudget"',
       ])
       .where('p.faculty IS NOT NULL');
 
-    if (!fullAccess) {
+    if (scope.kind === 'user') {
       const ids = await this.getUserProjectIds(userId);
       if (!ids.length) return [];
       qb.andWhere('p.id IN (:...ids)', { ids });
+    } else {
+      this.applyScope(qb, 'p', scope);
     }
 
     const raw = await qb.groupBy('p.faculty').orderBy('total', 'DESC').getRawMany();
-    return raw.map(r => ({
-      faculty: r.faculty, total: +r.total, completed: +r.completed, active: +r.active,
-      successRate: +r.total > 0 ? Math.round((+r.completed / +r.total) * 100) : 0,
-      avgBudget: Math.round(+r.avgBudget || 0), totalBudget: Math.round(+r.totalBudget || 0),
-    }));
+    return raw.map(r => {
+      const decided = (+r.completed) + (+r.cancelled);
+      return {
+        faculty: r.faculty, total: +r.total, completed: +r.completed, active: +r.active,
+        cancelled: +r.cancelled,
+        successRate: decided > 0 ? Math.round((+r.completed / decided) * 100) : 0,
+        avgBudget: Math.round(+r.avgBudget || 0), totalBudget: Math.round(+r.totalBudget || 0),
+      };
+    });
   }
 
   async getResearcherProductivity(q: { limit?: string }, userId: string, roleName: string) {
-    const fullAccess = await this.hasFullAccess(roleName);
+    const scope = await this.resolveScope(userId, roleName);
     const limit = parseInt(q.limit || '10');
 
     const qb = this.projectRepo.createQueryBuilder('p')
@@ -111,9 +173,10 @@ export class AnalyticsService {
       ])
       .where('p."ownerId" IS NOT NULL');
 
-    if (!fullAccess) {
-      // Kendi projelerini göster
+    if (scope.kind === 'user') {
       qb.andWhere('p."ownerId" = :userId', { userId });
+    } else {
+      this.applyScope(qb, 'p', scope);
     }
 
     const raw = await qb.groupBy('p."ownerId"').orderBy('total', 'DESC').limit(limit).getRawMany();
@@ -136,7 +199,7 @@ export class AnalyticsService {
   }
 
   async getFundingSuccess(userId: string, roleName: string) {
-    const fullAccess = await this.hasFullAccess(roleName);
+    const scope = await this.resolveScope(userId, roleName);
     const qb = this.projectRepo.createQueryBuilder('p')
       .select([
         'p.type as type',
@@ -144,26 +207,33 @@ export class AnalyticsService {
         `SUM(CASE WHEN p.status = 'completed' THEN 1 ELSE 0 END) as completed`,
         `SUM(CASE WHEN p.status = 'active' THEN 1 ELSE 0 END) as active`,
         `SUM(CASE WHEN p.status IN ('application','pending') THEN 1 ELSE 0 END) as pending`,
+        `SUM(CASE WHEN p.status = 'cancelled' THEN 1 ELSE 0 END) as cancelled`,
         'AVG(p.budget) as "avgBudget"',
         'SUM(p.budget) as "totalBudget"',
       ]);
 
-    if (!fullAccess) {
+    if (scope.kind === 'user') {
       const ids = await this.getUserProjectIds(userId);
       if (!ids.length) return [];
       qb.where('p.id IN (:...ids)', { ids });
+    } else {
+      this.applyScope(qb, 'p', scope);
     }
 
     const raw = await qb.groupBy('p.type').orderBy('total', 'DESC').getRawMany();
-    return raw.map(r => ({
-      type: r.type, total: +r.total, completed: +r.completed, active: +r.active, pending: +r.pending,
-      successRate: +r.total > 0 ? Math.round((+r.completed / +r.total) * 100) : 0,
-      avgBudget: Math.round(+r.avgBudget || 0), totalBudget: Math.round(+r.totalBudget || 0),
-    }));
+    return raw.map(r => {
+      const decided = (+r.completed) + (+r.cancelled);
+      return {
+        type: r.type, total: +r.total, completed: +r.completed, active: +r.active,
+        pending: +r.pending, cancelled: +r.cancelled,
+        successRate: decided > 0 ? Math.round((+r.completed / decided) * 100) : 0,
+        avgBudget: Math.round(+r.avgBudget || 0), totalBudget: Math.round(+r.totalBudget || 0),
+      };
+    });
   }
 
   async getBudgetUtilization(userId: string, roleName: string) {
-    const fullAccess = await this.hasFullAccess(roleName);
+    const scope = await this.resolveScope(userId, roleName);
     const qb = this.reportRepo.createQueryBuilder('r')
       .innerJoin('r.project', 'p')
       .select([
@@ -173,17 +243,19 @@ export class AnalyticsService {
       ])
       .where('r.type = :type', { type: 'financial' });
 
-    if (!fullAccess) {
+    if (scope.kind === 'user') {
       const ids = await this.getUserProjectIds(userId);
       if (!ids.length) return [];
       qb.andWhere('p.id IN (:...ids)', { ids });
+    } else {
+      this.applyScope(qb, 'p', scope);
     }
 
     return qb.groupBy('p.id, p.title, p.budget, p.faculty, p.type, p.status').getRawMany();
   }
 
   async getTimeline(q: { from?: string; to?: string }, userId: string, roleName: string) {
-    const fullAccess = await this.hasFullAccess(roleName);
+    const scope = await this.resolveScope(userId, roleName);
     const qb = this.projectRepo.createQueryBuilder('p')
       .select([
         `SUBSTRING(p."startDate", 1, 7) as month`,
@@ -192,27 +264,31 @@ export class AnalyticsService {
       ])
       .where('p."startDate" IS NOT NULL');
 
-    if (!fullAccess) {
+    if (scope.kind === 'user') {
       const ids = await this.getUserProjectIds(userId);
       if (!ids.length) return [];
       qb.andWhere('p.id IN (:...ids)', { ids });
+    } else {
+      this.applyScope(qb, 'p', scope);
     }
 
     return qb.groupBy(`SUBSTRING(p."startDate", 1, 7)`).orderBy('month', 'ASC').getRawMany();
   }
 
   async getExportData(q: any, userId: string, roleName: string) {
-    const fullAccess = await this.hasFullAccess(roleName);
+    const scope = await this.resolveScope(userId, roleName);
     const qb = this.projectRepo.createQueryBuilder('p')
       .leftJoinAndSelect('p.owner', 'owner')
       .leftJoinAndSelect('p.members', 'members')
       .leftJoinAndSelect('p.reports', 'reports')
       .orderBy('p.createdAt', 'DESC');
 
-    if (!fullAccess) {
+    if (scope.kind === 'user') {
       const ids = await this.getUserProjectIds(userId);
       if (!ids.length) return [];
       qb.where('p.id IN (:...ids)', { ids });
+    } else {
+      this.applyScope(qb, 'p', scope);
     }
 
     const projects = await qb.getMany();

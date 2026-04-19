@@ -69,6 +69,11 @@ const TABS: Array<{ key: string; label: string; icon: EPIconName }> = [
   { key: 'ethics',    label: 'Etik Kurul',     icon: 'beaker' },
 ];
 
+function isEthicsAuthority(roleName?: string): boolean {
+  const r = (roleName || '').toLowerCase();
+  return r === 'süper admin' || r.includes('etik') || r.includes('rekt') || r.includes('dekan');
+}
+
 export default function EditProjectPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -155,8 +160,13 @@ export default function EditProjectPage() {
     }
     setSaving(true);
     try {
-      const { dynamicFields: dynFields, tags: tagsStr, keywords: kwStr, ...restForm } = form;
-      const payload = {
+      const canSetEthics = isEthicsAuthority(user?.role?.name);
+      const {
+        dynamicFields: dynFields, tags: tagsStr, keywords: kwStr,
+        ethicsRequired, ethicsApproved, ethicsCommittee, ethicsApprovalNo, ethicsApprovalDate,
+        ...restForm
+      } = form;
+      const payload: any = {
         ...restForm,
         tags: tagsStr ? tagsStr.split(',').map((t: string) => t.trim()).filter(Boolean) : [],
         keywords: kwStr ? kwStr.split(',').map((k: string) => k.trim()).filter(Boolean) : [],
@@ -167,10 +177,17 @@ export default function EditProjectPage() {
         ipRegistrationNo: form.ipRegistrationNo || null,
         ipDate: form.ipDate || null,
         ipNotes: form.ipNotes || null,
-        ethicsCommittee: form.ethicsCommittee || null,
-        ethicsApprovalNo: form.ethicsApprovalNo || null,
-        ethicsApprovalDate: form.ethicsApprovalDate || null,
       };
+      // Etik alanları sadece yetkili rollerde payload'a eklenir.
+      // Backend zaten bu alanları filtreliyor; frontend tarafında da göndermeyerek
+      // yanlış etkileşimi kesin olarak önlüyoruz.
+      if (canSetEthics) {
+        payload.ethicsRequired = ethicsRequired;
+        payload.ethicsApproved = ethicsApproved;
+        payload.ethicsCommittee = ethicsCommittee || null;
+        payload.ethicsApprovalNo = ethicsApprovalNo || null;
+        payload.ethicsApprovalDate = ethicsApprovalDate || null;
+      }
 
       await projectsApi.update(id, payload);
 
@@ -229,6 +246,9 @@ export default function EditProjectPage() {
 
   const isAdmin = user?.role?.name === 'Süper Admin';
   const isOwner = project.ownerId === user?.id;
+  const canSetEthics = isEthicsAuthority(user?.role?.name);
+  const visibleTabs = canSetEthics ? TABS : TABS.filter(t => t.key !== 'ethics');
+  const activeTab = !canSetEthics && tab === 'ethics' ? 'basic' : tab;
   if (!isAdmin && !isOwner) return <DashboardLayout><div className="p-8 text-muted">Bu projeyi düzenleme yetkiniz yok</div></DashboardLayout>;
 
   return (
@@ -255,7 +275,7 @@ export default function EditProjectPage() {
 
         {/* Sekmeler */}
         <div className="flex gap-1 p-1 rounded-xl mb-5 overflow-x-auto" style={{ background: '#f0ede8' }}>
-          {TABS.map(t => (
+          {visibleTabs.map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className="px-3 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 inline-flex items-center gap-1.5"
               style={{ background: tab === t.key ? 'white' : 'transparent', color: tab === t.key ? '#0f2444' : '#9ca3af', boxShadow: tab === t.key ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>
@@ -267,7 +287,7 @@ export default function EditProjectPage() {
 
         <div className="card p-6 space-y-5">
           {/* ── TEMEL ── */}
-          {tab === 'basic' && <>
+          {activeTab === 'basic' && <>
             <div>
               <label className="label">Proje Adı *</label>
               <input className="input text-base" value={form.title || ''} onChange={e => set('title', e.target.value)} />
@@ -293,7 +313,7 @@ export default function EditProjectPage() {
           </>}
 
           {/* ── KURUMSAL ── */}
-          {tab === 'academic' && <>
+          {activeTab === 'academic' && <>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="label">Fakülte</label>
@@ -328,7 +348,7 @@ export default function EditProjectPage() {
           </>}
 
           {/* ── FİNANSAL ── */}
-          {tab === 'financial' && <>
+          {activeTab === 'financial' && <>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="label">Bütçe (₺)</label>
@@ -353,7 +373,7 @@ export default function EditProjectPage() {
           </>}
 
           {/* FIX #11: Proje metni degisince uyari */}
-          {tab === 'text' && <>
+          {activeTab === 'text' && <>
             <div className="p-3 rounded-xl text-xs mb-2 flex items-start gap-2" style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92651a' }}>
               <EPIcon name="alert" className="w-4 h-4 flex-shrink-0 mt-0.5" />
               <span>Proje metnini değiştirdikten sonra YZ Uygunluk Analizi ve Etik Analizi güncellenmiş olmayacaktır. Proje kaydedildikten sonra yeniden analiz yapılması önerilir.</span>
@@ -368,7 +388,7 @@ export default function EditProjectPage() {
           </>}
 
           {/* ── SKH & ETİKET ── */}
-          {tab === 'sdg' && <>
+          {activeTab === 'sdg' && <>
             <div>
               <label className="label">Sürdürülebilir Kalkınma Hedefleri</label>
               <SdgPicker selected={sdgSelected} onChange={setSdgSelected} />
@@ -386,7 +406,7 @@ export default function EditProjectPage() {
           </>}
 
           {/* ── FİKRİ MÜLKİYET ── */}
-          {tab === 'ip' && <>
+          {activeTab === 'ip' && <>
             <div>
               <label className="label">Fikri Mülkiyet Durumu</label>
               <div className="grid grid-cols-4 gap-2 mt-1">
@@ -432,7 +452,7 @@ export default function EditProjectPage() {
           </>}
 
           {/* ── ETİK KURUL ── */}
-          {tab === 'ethics' && <>
+          {activeTab === 'ethics' && <>
             <label className="flex items-center gap-3 cursor-pointer p-4 rounded-xl border-2 transition-all"
               style={{ borderColor: form.ethicsRequired ? '#d97706' : '#e8e4dc', background: form.ethicsRequired ? '#fffbeb' : 'white' }}>
               <input type="checkbox" className="w-5 h-5 accent-amber-500" checked={form.ethicsRequired || false} onChange={e => set('ethicsRequired', e.target.checked)} />
