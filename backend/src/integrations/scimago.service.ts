@@ -35,12 +35,21 @@ export class ScimagoService implements OnModuleInit {
   private lastLoaded: number = 0;
   private readonly RELOAD_MS = 30 * 24 * 60 * 60 * 1000; // 30 gün
 
+  // Son yükleme denemesinin detaylı sonucu — debug için
+  private lastAttempt: Array<{ url: string; status?: number; contentType?: string; bodyPreview?: string; error?: string }> = [];
+
   // SCImago yayın URL'ı — yıl otomatik geriye düşecek (son mevcut yıl)
-  private readonly candidateUrls = [
-    'https://www.scimagojr.com/journalrank.php?out=xls',
-    'https://www.scimagojr.com/journalrank.php?out=xls&year=2024',
-    'https://www.scimagojr.com/journalrank.php?out=xls&year=2023',
-  ];
+  // SCIMAGO_CSV_URL env'i ile özel mirror URL'i verilebilir (virgülle ayrılmış liste)
+  private get candidateUrls(): string[] {
+    if (process.env.SCIMAGO_CSV_URL) {
+      return process.env.SCIMAGO_CSV_URL.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    return [
+      'https://www.scimagojr.com/journalrank.php?out=xls',
+      'https://www.scimagojr.com/journalrank.php?out=xls&year=2024',
+      'https://www.scimagojr.com/journalrank.php?out=xls&year=2023',
+    ];
+  }
 
   async onModuleInit() {
     // İlk yüklemeyi zaman kazanmak için başlat, async — bloklamaz
@@ -119,23 +128,69 @@ export class ScimagoService implements OnModuleInit {
   }
 
   private async loadTable(): Promise<void> {
+    this.lastAttempt = [];
     for (const url of this.candidateUrls) {
+      const attempt: typeof this.lastAttempt[0] = { url };
       try {
         this.logger.log(`SCImago tablosu yükleniyor: ${url}`);
-        const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
-        if (!res.ok) continue;
+        const res = await fetch(url, {
+          signal: AbortSignal.timeout(60000), // 60 sn — büyük dosya
+          headers: {
+            'User-Agent': 'mku-tto/1.0 (academic institution analytics)',
+            'Accept': 'text/csv, application/csv, text/plain, */*',
+          },
+        });
+        attempt.status = res.status;
+        attempt.contentType = res.headers.get('content-type') || 'unknown';
+
+        if (!res.ok) {
+          attempt.error = `HTTP ${res.status} ${res.statusText}`;
+          this.lastAttempt.push(attempt);
+          this.logger.warn(`SCImago ${url}: ${attempt.error}`);
+          continue;
+        }
+
         const text = await res.text();
+        attempt.bodyPreview = text.slice(0, 300).replace(/\n/g, ' ');
+
+        // Beklenen format: CSV (; ayırıcılı, ilk satır 'Rank' içerir)
+        if (!/rank|issn|title/i.test(text.slice(0, 200))) {
+          attempt.error = 'CSV içeriği beklenen formatta değil (HTML veya boş yanıt?)';
+          this.lastAttempt.push(attempt);
+          this.logger.warn(`SCImago ${url}: ${attempt.error}`);
+          continue;
+        }
+
         const table = this.parseCsv(text);
-        if (table.size === 0) continue;
+        if (table.size === 0) {
+          attempt.error = 'CSV parse edildi ancak 0 kayıt — başlık kolonları eşleşmemiş olabilir';
+          this.lastAttempt.push(attempt);
+          continue;
+        }
+
         this.table = table;
         this.lastLoaded = Date.now();
-        this.logger.log(`SCImago yüklendi: ${table.size} dergi kaydı`);
+        this.lastAttempt.push(attempt);
+        this.logger.log(`SCImago yüklendi: ${table.size} dergi kaydı (${url})`);
         return;
       } catch (e: any) {
+        attempt.error = e.message || String(e);
+        this.lastAttempt.push(attempt);
         this.logger.warn(`SCImago ${url} yüklenemedi: ${e.message}`);
       }
     }
     this.logger.error('SCImago tablosu hiçbir URL\'den yüklenemedi — kalite bilgisi yok');
+    this.logger.error(`Denenen URL'ler ve sonuçları: ${JSON.stringify(this.lastAttempt, null, 2)}`);
+  }
+
+  /** Son yükleme denemesinin detaylı raporu — diagnostic endpoint için */
+  getLastAttemptReport(): { loaded: boolean; journalCount: number; lastLoadedAt: string | null; attempts: typeof this.lastAttempt } {
+    return {
+      loaded: this.isConfigured(),
+      journalCount: this.getSize(),
+      lastLoadedAt: this.lastLoaded ? new Date(this.lastLoaded).toISOString() : null,
+      attempts: this.lastAttempt,
+    };
   }
 
   /**
