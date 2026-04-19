@@ -11,6 +11,7 @@ import { OpenAlexService } from './openalex.service';
 import { DergiparkService } from './dergipark.service';
 import { CordisService } from './cordis.service';
 import { LiteratureService } from './literature.service';
+import { PublicationsService } from './publications.service';
 
 @SkipThrottle()
 @ApiTags('integrations')
@@ -28,6 +29,7 @@ export class IntegrationsController {
     private readonly dergipark: DergiparkService,
     private readonly cordis: CordisService,
     private readonly literature: LiteratureService,
+    private readonly publications: PublicationsService,
   ) {}
 
   // Her entegrasyonun yapılandırma durumunu tek yerden raporla
@@ -327,5 +329,32 @@ export class IntegrationsController {
   async literatureSearch(@Query('q') q: string, @Query('limit') limit?: string) {
     if (!q) throw new BadRequestException('q parametresi zorunlu');
     return this.literature.searchAll(q, limit ? +limit : 10);
+  }
+
+  // ── UNIFIED PUBLICATIONS (dedupe + enrichment) ────────────────────────
+  @Get('publications/orcid')
+  async pubsByOrcid(@Query('orcidId') orcidId: string, @Query('limit') limit?: string) {
+    if (!orcidId) throw new BadRequestException('orcidId parametresi zorunlu');
+    const pubs = await this.publications.getAuthorPublicationsByOrcid(orcidId, limit ? +limit : 100);
+    return { items: pubs, summary: this.publications.summarize(pubs) };
+  }
+
+  @Get('publications/doi')
+  async pubsByDoi(@Query('doi') doi: string) {
+    if (!doi) throw new BadRequestException('doi parametresi zorunlu');
+    const p = await this.publications.getUnifiedByDoi(doi);
+    if (!p) throw new ServiceUnavailableException('Yayın hiçbir kaynakta bulunamadı');
+    return p;
+  }
+
+  @Get('publications/institution')
+  async pubsByInstitution(
+    @Query('institutionId') institutionId: string,
+    @Query('year') year?: string,
+    @Query('limit') limit?: string,
+  ) {
+    if (!institutionId) throw new BadRequestException('institutionId parametresi zorunlu');
+    const pubs = await this.publications.getInstitutionPublications(institutionId, year ? +year : undefined, limit ? +limit : 200);
+    return { items: pubs, summary: this.publications.summarize(pubs) };
   }
 }
