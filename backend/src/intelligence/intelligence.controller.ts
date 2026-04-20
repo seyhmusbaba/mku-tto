@@ -88,4 +88,44 @@ export class IntelligenceController {
   checklist(@Query('type') type?: string) {
     return this.svc.getChecklist(type || '');
   }
+
+  @Get('synthesis')
+  synthesis(
+    @Query('title') title?: string,
+    @Query('description') description?: string,
+    @Query('keywords') keywords?: string,
+    @Query('type') type?: string,
+    @Query('budget') budget?: string,
+    @Query('faculty') faculty?: string,
+  ) {
+    const kw = (keywords || '').split(',').map(s => s.trim()).filter(Boolean);
+    return this.svc.getSynthesis(
+      title || '',
+      description,
+      kw,
+      type,
+      budget ? +budget : undefined,
+      faculty,
+    );
+  }
+
+  @Get('funding-simulator')
+  fundingSimulator(
+    @Query('type') type?: string,
+    @Query('budget') budget?: string,
+    @Query('durationMonths') durationMonths?: string,
+    @Query('faculty') faculty?: string,
+  ) {
+    return this.svc.getFundingSimulation(
+      type || '',
+      budget ? +budget : undefined,
+      durationMonths ? +durationMonths : undefined,
+      faculty,
+    );
+  }
+
+  @Get('collaboration-network')
+  collaborationNetwork(@Query('userId') userId: string) {
+    return this.svc.getCollaborationNetwork(userId);
+  }
 }

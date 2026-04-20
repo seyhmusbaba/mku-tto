@@ -115,6 +115,42 @@ export class PatentService {
   }
 
   /**
+   * Anahtar kelime (başlık + özet) bazlı patent araması.
+   * EPO OPS CQL'inde `txt` alanı başlık + özet içinde arama yapar.
+   * Prior art analizi için DOĞRU yöntem budur — başvuru sahibi adı değil.
+   */
+  async searchByKeyword(query: string, country?: string, limit = 25): Promise<PatentRecord[]> {
+    if (!query) return [];
+    const cacheKey = `kw:${country || 'ALL'}:${query.toLowerCase()}:${limit}`;
+    const cached = this.cache.get<PatentRecord[]>(cacheKey);
+    if (cached) return cached;
+
+    const token = await this.getToken();
+    if (!token) return [];
+
+    try {
+      await this.limiter.acquire();
+      // CQL: `txt=<phrase>` (başlık+özette arar) + opsiyonel ülke filtresi
+      const cqlParts = [`txt="${query.replace(/"/g, '')}"`];
+      if (country) cqlParts.push(`pn=${country}`);
+      const cql = cqlParts.join(' AND ');
+      const url = `https://ops.epo.org/3.2/rest-services/published-data/search/biblio?q=${encodeURIComponent(cql)}&Range=1-${Math.min(limit, 100)}`;
+      const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(20000),
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      const items = this.mapEpoSearch(data);
+      this.cache.set(cacheKey, items, 60 * 60 * 12);
+      return items;
+    } catch (e: any) {
+      this.logger.warn(`EPO OPS keyword search failed: ${e.message}`);
+      return [];
+    }
+  }
+
+  /**
    * Başvuru sahibine (kurum/kişi) göre patent araması.
    * CQL (Contextual Query Language) kullanılır.
    */
