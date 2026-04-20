@@ -413,9 +413,14 @@ export class PublicationsService {
       cur.citations += p.citedBy.best || 0;
       yearMap.set(p.year, cur);
     }
-    const byYear = Array.from(yearMap.entries())
-      .sort(([a], [b]) => a - b)
-      .map(([year, v]) => ({ year, count: v.count, citations: v.citations }));
+    const currentYear = new Date().getFullYear();
+    const years = Array.from(yearMap.keys());
+    const minYear = years.length > 0 ? Math.min(...years) : currentYear;
+    const byYear: { year: number; count: number; citations: number }[] = [];
+    for (let y = minYear; y <= currentYear; y++) {
+      const v = yearMap.get(y) || { count: 0, citations: 0 };
+      byYear.push({ year: y, count: v.count, citations: v.citations });
+    }
 
     const sdgMap = new Map<string, { id: string; name: string; count: number }>();
     for (const p of pubs) {

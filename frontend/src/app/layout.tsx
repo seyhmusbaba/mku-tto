@@ -10,23 +10,11 @@ export const metadata: Metadata = {
   description: 'Hatay Mustafa Kemal Üniversitesi Teknoloji Transfer Ofisi Proje Yönetim Sistemi',
 };
 
-// Dark mode flash'ini önle — HTML parse edilirken hemen uygula
-const THEME_INIT_SCRIPT = `
-(function() {
-  try {
-    var t = localStorage.getItem('tto_theme');
-    if (!t && window.matchMedia('(prefers-color-scheme: dark)').matches) t = 'dark';
-    if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
-  } catch (e) {}
-})();
-`;
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="tr">
       <head>
         <link rel="icon" href="/favicon.ico" />
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body>
         <AuthProvider>

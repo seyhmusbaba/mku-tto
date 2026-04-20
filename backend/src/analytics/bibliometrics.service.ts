@@ -53,6 +53,7 @@ export interface FacultyBibliometrics {
     citations: number;
     docs: number;
   }>;
+  publications?: Array<any>;
 }
 
 @Injectable()
@@ -193,15 +194,41 @@ export class BibliometricsService {
       withIdentifiersCount: withIdentifiers.length,
       summary,
       topResearchers,
+      publications: allPubs.map(p => ({
+        title: p.title,
+        year: p.year,
+        journal: p.journal,
+        doi: p.doi,
+        citedBy: p.citedBy,
+        quality: p.quality,
+        openAccess: p.openAccess,
+        sources: p.sources,
+        authors: (p.authors || []).slice(0, 5).map(a => a.name),
+      })),
     };
   }
 
   /**
    * Kurumsal bibliometri — OpenAlex institution ID üzerinden.
    */
-  async getInstitutional(institutionId: string, year?: number): Promise<ReturnType<PublicationsService['summarize']> & { total: number; institutionId: string }> {
+  async getInstitutional(institutionId: string, year?: number): Promise<any> {
     const pubs = await this.publications.getInstitutionPublications(institutionId, year, 500);
-    return { ...this.publications.summarize(pubs), institutionId };
+    const summary = this.publications.summarize(pubs);
+    return {
+      ...summary,
+      institutionId,
+      publications: pubs.map(p => ({
+        title: p.title,
+        year: p.year,
+        journal: p.journal,
+        doi: p.doi,
+        citedBy: p.citedBy,
+        quality: p.quality,
+        openAccess: p.openAccess,
+        sources: p.sources,
+        authors: (p.authors || []).slice(0, 5).map(a => a.name),
+      })),
+    };
   }
 
   /**

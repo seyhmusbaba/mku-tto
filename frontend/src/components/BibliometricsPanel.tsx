@@ -82,6 +82,7 @@ export function BibliometricsPanel({
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedQuartile, setSelectedQuartile] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -248,26 +249,43 @@ export function BibliometricsPanel({
                 <PieChart>
                   <Pie data={quartileData} dataKey="value" nameKey="name" cx="50%" cy="50%"
                     innerRadius={45} outerRadius={85}
-                    label={(d: any) => d.value > 0 ? d.name : ''} labelLine={false}>
-                    {quartileData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                    label={(d: any) => d.value > 0 ? d.name : ''} labelLine={false}
+                    onClick={(d: any) => {
+                      const key = d?.name === 'Bilinmiyor' ? 'unknown' : d?.name;
+                      if (key) setSelectedQuartile(prev => prev === key ? null : key);
+                    }}>
+                    {quartileData.map((d, i) => (
+                      <Cell key={i} fill={d.color}
+                        style={{ cursor: 'pointer', opacity: selectedQuartile && selectedQuartile !== (d.name === 'Bilinmiyor' ? 'unknown' : d.name) ? 0.35 : 1 }} />
+                    ))}
                   </Pie>
                   <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
               <div className="grid grid-cols-5 gap-2 text-center text-xs">
-                {quartileData.map(q => (
-                  <div key={q.name}>
-                    <div className="w-full h-1.5 rounded-full" style={{ background: q.color }} />
-                    <p className="font-bold text-navy mt-1">{q.value}</p>
-                    <p className="text-muted">{q.name}</p>
-                  </div>
-                ))}
+                {quartileData.map(q => {
+                  const key = q.name === 'Bilinmiyor' ? 'unknown' : q.name;
+                  const active = selectedQuartile === key;
+                  return (
+                    <button key={q.name}
+                      onClick={() => setSelectedQuartile(prev => prev === key ? null : key)}
+                      className="rounded-lg p-1 transition-all text-left"
+                      style={{ background: active ? q.color + '22' : 'transparent', border: active ? `1px solid ${q.color}` : '1px solid transparent' }}>
+                      <div className="w-full h-1.5 rounded-full" style={{ background: q.color }} />
+                      <p className="font-bold text-navy mt-1 text-center">{q.value}</p>
+                      <p className="text-muted text-center">{q.name}</p>
+                    </button>
+                  );
+                })}
               </div>
               {summary.quartileDistribution.unknown > 0 && summary.quartileDistribution.unknown === summary.total && (
                 <div className="mt-3 p-2.5 rounded-lg text-xs" style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}>
                   <strong>Kalite sınıfı bulunamadı:</strong> Yayınlarda ISSN eksik olabilir veya dergi OpenAlex/SCImago'da indeksli değil.
                 </div>
               )}
+              <p className="text-[11px] text-muted mt-2 text-center">
+                {selectedQuartile ? 'Başka bir Q kademesine tıklayın veya aynısına basarak kapatın' : 'Bir Q kademesine tıklayın — o çeyrekteki yayınlar listelenir'}
+              </p>
             </>
           ) : <p className="text-sm text-muted text-center py-8">SCImago verisi henüz yüklenmedi</p>}
         </div>
@@ -305,6 +323,15 @@ export function BibliometricsPanel({
           ) : <p className="text-sm text-muted text-center py-8">Yıl verisi yok</p>}
         </div>
       </div>
+
+      {/* Quartile drill-down — seçili Q için yayın listesi */}
+      {selectedQuartile && (
+        <QuartileDrilldown
+          quartile={selectedQuartile}
+          publications={[...(topCited || []), ...(publications || [])]}
+          onClose={() => setSelectedQuartile(null)}
+        />
+      )}
 
       {/* SDG dağılımı + Kaynak kapsamı */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -454,6 +481,78 @@ export function BibliometricsPanel({
       {/* Co-author ağı — researcher modunda, publications listesi ORCID ile geldiyse */}
       {mode === 'researcher' && collaborators.length > 0 && user?.name && (
         <CollaborationGraph centerName={user.name} collaborators={collaborators} />
+      )}
+    </div>
+  );
+}
+
+/* ─── Seçili quartile için yayın listesi ─── */
+function QuartileDrilldown({ quartile, publications, onClose }: {
+  quartile: string;
+  publications: any[];
+  onClose: () => void;
+}) {
+  // Unique by DOI/title
+  const seen = new Set<string>();
+  const filtered = publications.filter((p: any) => {
+    const q = p?.quality?.sjrQuartile;
+    const match = quartile === 'unknown' ? !q : q === quartile;
+    if (!match) return false;
+    const key = p.doi?.toLowerCase() || p.title?.toLowerCase?.().slice(0, 100) || Math.random().toString();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).sort((a: any, b: any) => (b?.citedBy?.best || 0) - (a?.citedBy?.best || 0));
+
+  const color = QUARTILE_COLORS[quartile] || '#94a3b8';
+  const label = quartile === 'unknown' ? 'Bilinmiyor' : quartile;
+
+  return (
+    <div className="card p-5" style={{ borderLeft: `4px solid ${color}` }}>
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="font-display text-sm font-semibold text-navy inline-flex items-center gap-2">
+          <span className="text-xs px-2 py-0.5 rounded text-white font-bold" style={{ background: color }}>{label}</span>
+          kademesindeki yayınlar ({filtered.length})
+        </h4>
+        <button onClick={onClose} className="text-xs text-muted hover:text-navy font-semibold">Kapat ✕</button>
+      </div>
+      {filtered.length === 0 ? (
+        <p className="text-sm text-muted text-center py-6">
+          Bu kademede yayın listesi şu anda mevcut değil — ilerideki yüklemelerle görünür olacak.
+        </p>
+      ) : (
+        <div className="divide-y" style={{ borderColor: '#f0ede8', maxHeight: 400, overflowY: 'auto' }}>
+          {filtered.slice(0, 50).map((p: any, i: number) => (
+            <div key={p.doi || p.title + i} className="py-2.5 flex gap-3">
+              <div className="w-6 text-xs text-muted font-semibold text-right flex-shrink-0">{i + 1}.</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-navy line-clamp-2">{p.title}</p>
+                <p className="text-xs text-muted mt-0.5">
+                  {p.journal ? p.journal + ' · ' : ''}{p.year || '—'}
+                  {p.openAccess?.isOa && <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold">OA</span>}
+                </p>
+                {p.authors && p.authors.length > 0 && (
+                  <p className="text-[11px] text-muted mt-0.5 line-clamp-1">
+                    {(Array.isArray(p.authors) ? p.authors : []).slice(0, 4).map((a: any) => typeof a === 'string' ? a : a.name).join(', ')}
+                  </p>
+                )}
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className="text-sm font-bold text-navy">{p?.citedBy?.best || 0}</p>
+                <p className="text-[10px] text-muted">atıf</p>
+                {p.doi && (
+                  <a href={`https://doi.org/${p.doi}`} target="_blank" rel="noopener noreferrer"
+                    className="text-[11px] text-navy-mid hover:underline inline-flex items-center gap-0.5 mt-0.5">
+                    DOI <Icon name="external" className="w-3 h-3" />
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {filtered.length > 50 && (
+        <p className="text-xs text-muted mt-2 text-center">İlk 50 yayın listelendi — tam liste rapor dışa aktarmada bulunur.</p>
       )}
     </div>
   );
