@@ -103,6 +103,7 @@ export default function UserProfilePage() {
         faculty: editForm.faculty, department: editForm.department,
         orcidId: editForm.orcidId, googleScholarId: editForm.googleScholarId,
         researchGateUrl: editForm.researchGateUrl,
+        yoksisAkademikUrl: editForm.yoksisAkademikUrl,
         expertiseArea: editForm.expertiseArea, bio: editForm.bio,
         scopusAuthorId: editForm.scopusAuthorId,
       };
@@ -283,6 +284,20 @@ export default function UserProfilePage() {
                 <input className="input" placeholder="https://www.researchgate.net/profile/..." value={editForm.researchGateUrl||''} onChange={e => set('researchGateUrl', e.target.value)} />
               </div>
               <div>
+                <label className="label flex items-center gap-1">
+                  <span className="w-4 h-4 rounded text-white text-[8px] font-bold flex items-center justify-center flex-shrink-0" style={{ background: '#0b5ed7' }}>YÖK</span>
+                  YÖK Akademik Profili
+                </label>
+                <input className="input" placeholder="https://akademik.yok.gov.tr/AkademikArama/AkademisyenArama?islem=..."
+                  value={editForm.yoksisAkademikUrl||''} onChange={e => set('yoksisAkademikUrl', e.target.value)} />
+                <p className="text-xs text-muted mt-1">
+                  <a href={`https://akademik.yok.gov.tr/AkademikArama/AkademisyenArama?aramaTuru=akademisyenArama&aramaKelime=${encodeURIComponent(((editForm.firstName||user?.firstName||'') + ' ' + (editForm.lastName||user?.lastName||'')).trim())}`}
+                     target="_blank" rel="noopener noreferrer" className="text-navy-mid hover:underline">
+                    YÖK Akademik'te ara &rarr;
+                  </a> sonra bulduğunuz profil URL'ini buraya yapıştırın.
+                </p>
+              </div>
+              <div>
                 <label className="label">Uzmanlık Alanı</label>
                 <input className="input" placeholder="Makine öğrenmesi, IoT, Biyomedikal..." value={editForm.expertiseArea||''} onChange={e => set('expertiseArea', e.target.value)} />
               </div>
@@ -379,45 +394,69 @@ export default function UserProfilePage() {
                 </div>
 
                 {/* Akademik profil linkleri */}
-                {((user as any).orcidId || (user as any).googleScholarId || (user as any).researchGateUrl || (user as any).scopusAuthorId) && (
-                  <div className="card p-5">
-                    <SectionTitle icon="external-link">Akademik Profiller</SectionTitle>
-                    <div className="flex flex-wrap gap-2">
-                      {(user as any).orcidId && (
-                        <a href={`https://orcid.org/${(user as any).orcidId}`} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold hover:shadow-sm transition-all"
-                          style={{ background: '#a6ce3915', color: '#5a8a00', border: '1px solid #a6ce3966' }}>
-                          <span className="w-4 h-4 rounded text-white text-[8px] font-bold flex items-center justify-center flex-shrink-0" style={{ background: '#a6ce39' }}>iD</span>
-                          ORCID
-                        </a>
-                      )}
-                      {(user as any).googleScholarId && (
-                        <a href={`https://scholar.google.com/citations?user=${(user as any).googleScholarId}`} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold hover:shadow-sm transition-all"
-                          style={{ background: '#4285f415', color: '#1a56c4', border: '1px solid #4285f466' }}>
-                          <Icon name="graduation" className="w-3.5 h-3.5" />
-                          Scholar
-                        </a>
-                      )}
-                      {(user as any).scopusAuthorId && (
-                        <a href={`https://www.scopus.com/authid/detail.uri?authorId=${(user as any).scopusAuthorId}`} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold hover:shadow-sm transition-all"
-                          style={{ background: '#e07a2b15', color: '#c2410c', border: '1px solid #e07a2b66' }}>
-                          <span className="w-4 h-4 rounded text-white text-[8px] font-bold flex items-center justify-center" style={{ background: '#e07a2b' }}>SC</span>
-                          Scopus
-                        </a>
-                      )}
-                      {(user as any).researchGateUrl && (
-                        <a href={(user as any).researchGateUrl} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold hover:shadow-sm transition-all"
-                          style={{ background: '#00ccbb15', color: '#008a7e', border: '1px solid #00ccbb66' }}>
-                          <Icon name="beaker" className="w-3.5 h-3.5" />
-                          ResearchGate
-                        </a>
-                      )}
-                    </div>
+                <div className="card p-5">
+                  <SectionTitle icon="external-link">Akademik Profiller</SectionTitle>
+                  <div className="flex flex-wrap gap-2">
+                    {(user as any).orcidId && (
+                      <a href={`https://orcid.org/${(user as any).orcidId}`} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold hover:shadow-sm transition-all"
+                        style={{ background: '#a6ce3915', color: '#5a8a00', border: '1px solid #a6ce3966' }}>
+                        <span className="w-4 h-4 rounded text-white text-[8px] font-bold flex items-center justify-center flex-shrink-0" style={{ background: '#a6ce39' }}>iD</span>
+                        ORCID
+                      </a>
+                    )}
+                    {(user as any).googleScholarId && (
+                      <a href={`https://scholar.google.com/citations?user=${(user as any).googleScholarId}`} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold hover:shadow-sm transition-all"
+                        style={{ background: '#4285f415', color: '#1a56c4', border: '1px solid #4285f466' }}>
+                        <Icon name="graduation" className="w-3.5 h-3.5" />
+                        Scholar
+                      </a>
+                    )}
+                    {(user as any).scopusAuthorId && (
+                      <a href={`https://www.scopus.com/authid/detail.uri?authorId=${(user as any).scopusAuthorId}`} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold hover:shadow-sm transition-all"
+                        style={{ background: '#e07a2b15', color: '#c2410c', border: '1px solid #e07a2b66' }}>
+                        <span className="w-4 h-4 rounded text-white text-[8px] font-bold flex items-center justify-center" style={{ background: '#e07a2b' }}>SC</span>
+                        Scopus
+                      </a>
+                    )}
+                    {(user as any).researchGateUrl && (
+                      <a href={(user as any).researchGateUrl} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold hover:shadow-sm transition-all"
+                        style={{ background: '#00ccbb15', color: '#008a7e', border: '1px solid #00ccbb66' }}>
+                        <Icon name="beaker" className="w-3.5 h-3.5" />
+                        ResearchGate
+                      </a>
+                    )}
+                    {(user as any).yoksisAkademikUrl ? (
+                      <a href={(user as any).yoksisAkademikUrl} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold hover:shadow-sm transition-all"
+                        style={{ background: '#0b5ed715', color: '#0b5ed7', border: '1px solid #0b5ed766' }}>
+                        <span className="w-4 h-4 rounded text-white text-[8px] font-bold flex items-center justify-center" style={{ background: '#0b5ed7' }}>YÖK</span>
+                        YÖK Akademik
+                      </a>
+                    ) : (
+                      <a href={`https://akademik.yok.gov.tr/AkademikArama/AkademisyenArama?aramaTuru=akademisyenArama&aramaKelime=${encodeURIComponent((user.firstName + ' ' + user.lastName).trim())}`}
+                        target="_blank" rel="noopener noreferrer"
+                        title="YÖK Akademik'te ismi ara"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold hover:shadow-sm transition-all"
+                        style={{ background: '#f3f4f6', color: '#6b7280', border: '1px dashed #9ca3af' }}>
+                        <span className="w-4 h-4 rounded text-white text-[8px] font-bold flex items-center justify-center" style={{ background: '#9ca3af' }}>YÖK</span>
+                        YÖK'te Ara
+                      </a>
+                    )}
+                    {/* Tez Merkezi danışmanlık araması */}
+                    <a href={`https://tez.yok.gov.tr/UlusalTezMerkezi/tarama.jsp`}
+                      target="_blank" rel="noopener noreferrer"
+                      title="Tez Merkezi'nde bu kişinin danışmanlık yaptığı tezleri ara"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold hover:shadow-sm transition-all"
+                      style={{ background: '#6d28d915', color: '#6d28d9', border: '1px solid #6d28d966' }}>
+                      <Icon name="document" className="w-3.5 h-3.5" />
+                      Tez Merkezi
+                    </a>
                   </div>
-                )}
+                </div>
 
                 {/* Biyografi */}
                 {(user as any).bio && (
