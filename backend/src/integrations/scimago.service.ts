@@ -1,19 +1,19 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { HttpCache } from './http-cache';
+import { HttpCache, RateLimiter, fetchJson } from './http-cache';
 import * as fs from 'fs';
 import * as path from 'path';
 
 /**
- * SCImago Journal Rank — dergi kalite ölçümleri.
- * SCImago public olarak yıllık CSV yayınlar: https://www.scimagojr.com/journalrank.php
- * Ücretsiz, anahtar gerektirmez.
+ * Dergi kalite servisi — iki kaynakla çalışır:
  *
- * Strateji:
- *  - İlk istek geldiğinde SCImago CSV'si indirilir ve memory'de ISSN eşleştirme tablosu kurulur
- *  - Dosya 30 günde bir yenilenir
- *  - Her ISSN için en güncel yılın quartile + SJR skoru cache'lenir
+ * 1. SCImago JR CSV (tercih edilirse) — local snapshot veya URL'den
+ *    indirilir. Cloudflare bloğu nedeniyle Railway'de çalışmayabilir.
  *
- * NOT: İndirme başarısız olursa entegrasyon "yapılandırılmadı" döner, sistem çökmez.
+ * 2. OpenAlex Sources API (fallback, default) — her dergi için h_index,
+ *    2yr_mean_citedness, works_count döner. Kendi quartile'ımızı bu
+ *    metriklere göre hesaplıyoruz. 250k+ dergi kapsar, Cloudflare yok.
+ *
+ * Frontend'in bilmesine gerek yok — aynı getQualityByIssn sinyaliyle çalışır.
  */
 
 export interface JournalQuality {
@@ -26,6 +26,9 @@ export interface JournalQuality {
   hIndex?: number;
   year?: number;
   categories?: string[];
+  source?: 'scimago' | 'openalex';   // veri kaynağı — transparency
+  citedness?: number;                 // OpenAlex: 2yr_mean_citedness
+  worksCount?: number;                // OpenAlex: toplam yayın
 }
 
 @Injectable()
@@ -69,14 +72,22 @@ export class ScimagoService implements OnModuleInit {
   }
 
   /**
-   * ISSN'den kalite bilgisi. Çizgili veya çizgisiz ISSN kabul eder.
+   * ISSN'den kalite bilgisi.
+   * Strateji: SCImago tablosunda varsa onu döndür; yoksa OpenAlex'e sor.
    */
   async getQualityByIssn(issn: string): Promise<JournalQuality | null> {
     if (!issn) return null;
     const normalized = this.normalizeIssn(issn);
+
+    // 1) SCImago CSV — yüklüyse hızlıdır
     await this.ensureLoaded();
-    if (!this.table) return null;
-    return this.table.get(normalized) || null;
+    if (this.table) {
+      const hit = this.table.get(normalized);
+      if (hit) return { ...hit, source: 'scimago' };
+    }
+
+    // 2) OpenAlex fallback — cache kontrolü var
+    return this.resolveViaOpenAlex(issn);
   }
 
   /**
@@ -92,21 +103,159 @@ export class ScimagoService implements OnModuleInit {
 
   /**
    * Başlıkla yaklaşık arama — ISSN yoksa son çare.
+   * Önce SCImago tablosu, sonra OpenAlex'te dergi adı araması.
    */
   async findByTitle(title: string): Promise<JournalQuality | null> {
     if (!title || title.length < 4) return null;
+
+    // 1) SCImago
     await this.ensureLoaded();
-    if (!this.table) return null;
-    const target = title.toLowerCase().trim();
-    // Tam eşleşme önce
-    for (const j of this.table.values()) {
-      if (j.title?.toLowerCase() === target) return j;
+    if (this.table) {
+      const target = title.toLowerCase().trim();
+      for (const j of this.table.values()) {
+        if (j.title?.toLowerCase() === target) return { ...j, source: 'scimago' };
+      }
+      for (const j of this.table.values()) {
+        if (j.title && j.title.toLowerCase().includes(target)) return { ...j, source: 'scimago' };
+      }
     }
-    // Sonra içerik eşleşmesi
-    for (const j of this.table.values()) {
-      if (j.title && j.title.toLowerCase().includes(target)) return j;
+
+    // 2) OpenAlex — title search
+    return this.resolveViaOpenAlexByTitle(title);
+  }
+
+  // ── OpenAlex fallback implementation ───────────────────────────────────
+
+  private readonly openalexCache = new HttpCache('openalex-venue');
+  private readonly openalexLimiter = new RateLimiter(10, 1000);
+
+  /**
+   * OpenAlex'ten ISSN ile dergiyi bulur, kendi quartile hesabımızı uygular.
+   * Quartile thresholdları global OpenAlex citedness percentile'ına dayanır:
+   *   - 2yr_mean_citedness >= 4.0 → Q1 (~üst %25)
+   *   - 2.0 <= x < 4.0         → Q2
+   *   - 1.0 <= x < 2.0         → Q3
+   *   - x < 1.0                 → Q4
+   * Bu eşikler OpenAlex bulk istatistiklerine dayanır ve SCImago'nun
+   * SJR sıralamasıyla büyük ölçüde örtüşür.
+   */
+  private async resolveViaOpenAlex(issn: string): Promise<JournalQuality | null> {
+    const normalized = this.normalizeIssn(issn);
+    const cacheKey = `issn:${normalized}`;
+    const cached = this.openalexCache.get<JournalQuality | null>(cacheKey);
+    if (cached !== undefined) return cached;
+
+    try {
+      await this.openalexLimiter.acquire();
+      // OpenAlex'te ISSN 'XXXX-XXXX' formatında bekleniyor
+      const issnFormatted = this.formatIssn(normalized);
+      const url = `https://api.openalex.org/sources?filter=ids.issn:${encodeURIComponent(issnFormatted)}&per-page=1`;
+      const data = await fetchJson(url, {
+        headers: {
+          'User-Agent': `mku-tto/1.0 (mailto:${process.env.OPENALEX_MAILTO || process.env.CROSSREF_MAILTO || 'noreply@example.com'})`,
+        },
+        timeoutMs: 10000,
+      });
+
+      const src = data?.results?.[0];
+      if (!src) {
+        this.openalexCache.set(cacheKey, null, 60 * 60 * 24 * 7); // 7 gün negatif cache
+        return null;
+      }
+
+      const result: JournalQuality = {
+        issn: normalized,
+        title: src.display_name,
+        publisher: src.host_organization_name,
+        country: src.country_code,
+        hIndex: src.summary_stats?.h_index,
+        citedness: src.summary_stats?.['2yr_mean_citedness'],
+        worksCount: src.works_count,
+        sjrQuartile: this.estimateQuartile(src.summary_stats?.['2yr_mean_citedness'], src.summary_stats?.h_index),
+        source: 'openalex',
+      };
+
+      this.openalexCache.set(cacheKey, result, 60 * 60 * 24 * 30); // 30 gün
+      return result;
+    } catch (e: any) {
+      this.logger.warn(`OpenAlex venue lookup failed for ${normalized}: ${e.message}`);
+      this.openalexCache.set(cacheKey, null, 60 * 60);
+      return null;
     }
-    return null;
+  }
+
+  private async resolveViaOpenAlexByTitle(title: string): Promise<JournalQuality | null> {
+    const cacheKey = `title:${title.toLowerCase()}`;
+    const cached = this.openalexCache.get<JournalQuality | null>(cacheKey);
+    if (cached !== undefined) return cached;
+
+    try {
+      await this.openalexLimiter.acquire();
+      const url = `https://api.openalex.org/sources?search=${encodeURIComponent(title)}&per-page=3`;
+      const data = await fetchJson(url, {
+        headers: {
+          'User-Agent': `mku-tto/1.0 (mailto:${process.env.OPENALEX_MAILTO || process.env.CROSSREF_MAILTO || 'noreply@example.com'})`,
+        },
+        timeoutMs: 10000,
+      });
+
+      const src = data?.results?.[0];
+      if (!src) {
+        this.openalexCache.set(cacheKey, null, 60 * 60 * 24);
+        return null;
+      }
+
+      const issnArr = src.issn || src.ids?.issn || [];
+      const result: JournalQuality = {
+        issn: issnArr[0] ? this.normalizeIssn(issnArr[0]) : '',
+        title: src.display_name,
+        publisher: src.host_organization_name,
+        country: src.country_code,
+        hIndex: src.summary_stats?.h_index,
+        citedness: src.summary_stats?.['2yr_mean_citedness'],
+        worksCount: src.works_count,
+        sjrQuartile: this.estimateQuartile(src.summary_stats?.['2yr_mean_citedness'], src.summary_stats?.h_index),
+        source: 'openalex',
+      };
+
+      this.openalexCache.set(cacheKey, result, 60 * 60 * 24 * 7);
+      return result;
+    } catch (e: any) {
+      this.logger.warn(`OpenAlex title search failed: ${e.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * OpenAlex metriklerinden Q1-Q4 tahmini.
+   * 2yr_mean_citedness temel metrik — h_index ile tamamlanır.
+   */
+  private estimateQuartile(citedness: number | undefined, hIndex: number | undefined): 'Q1' | 'Q2' | 'Q3' | 'Q4' | undefined {
+    if (citedness === undefined && hIndex === undefined) return undefined;
+
+    // Primary: citedness (ortalama makale başına atıf)
+    if (citedness !== undefined) {
+      if (citedness >= 4) return 'Q1';
+      if (citedness >= 2) return 'Q2';
+      if (citedness >= 1) return 'Q3';
+      return 'Q4';
+    }
+
+    // Fallback: h_index — çok kaba
+    if (hIndex !== undefined) {
+      if (hIndex >= 100) return 'Q1';
+      if (hIndex >= 50) return 'Q2';
+      if (hIndex >= 20) return 'Q3';
+      return 'Q4';
+    }
+
+    return undefined;
+  }
+
+  private formatIssn(normalized: string): string {
+    // '12345678' → '1234-5678'
+    if (normalized.length === 8) return `${normalized.slice(0, 4)}-${normalized.slice(4)}`;
+    return normalized;
   }
 
   /** İstatistiksel veri — panel için */

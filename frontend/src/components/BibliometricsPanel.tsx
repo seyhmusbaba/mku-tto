@@ -265,7 +265,7 @@ export function BibliometricsPanel({
               </div>
               {summary.quartileDistribution.unknown > 0 && summary.quartileDistribution.unknown === summary.total && (
                 <div className="mt-3 p-2.5 rounded-lg text-xs" style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}>
-                  <strong>Hepsi bilinmiyor:</strong> SCImago dergi tablosu henüz yüklenmemiş olabilir (Railway'de ilk başlangıçta ~30 sn). Backend admin'i <code className="bg-white/50 px-1 rounded">POST /integrations/scimago/refresh</code> ile yeniden yükleyebilir.
+                  <strong>Kalite sınıfı bulunamadı:</strong> Yayınlarda ISSN eksik olabilir veya dergi OpenAlex/SCImago'da indeksli değil.
                 </div>
               )}
             </>

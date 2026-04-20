@@ -59,7 +59,7 @@ export class IntegrationsStatusController {
   getStatus() {
     return {
       crossref:        { configured: this.crossref.isConfigured(), requiresKey: false, note: 'CROSSREF_MAILTO email için önerilir (polite pool)' },
-      scimago:         { configured: this.scimago.isConfigured(),  requiresKey: false, journalCount: this.scimago.getSize(), note: 'Kurumsal CSV — başlangıçta otomatik yüklenir. Hata için /integrations/scimago/diagnostic' },
+      scimago:         { configured: true,                        requiresKey: false, journalCount: this.scimago.getSize(), note: this.scimago.getSize() > 0 ? `SCImago tablosu yüklü (${this.scimago.getSize()} dergi)` : 'SCImago CSV yok — OpenAlex venue fallback devrede (250k+ dergi)' },
       openAccess:      { configured: this.oa.isConfigured(),       requiresKey: false, note: 'Unpaywall + DOAJ, UNPAYWALL_MAILTO önerilir' },
       scopus:          { configured: !!process.env.SCOPUS_API_KEY, requiresKey: true,  note: 'SCOPUS_API_KEY' },
       wos:             { configured: this.wos.isConfigured(),      requiresKey: true,  note: 'WOS_API_KEY Clarivate Developer Portal' },
