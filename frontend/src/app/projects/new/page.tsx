@@ -1108,7 +1108,7 @@ export default function NewProjectPage() {
               ...(form.tags ? form.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : []),
               ...(form.keywords ? form.keywords.split(',').map((k: string) => k.trim()).filter(Boolean) : []),
             ]}
-            type={form.type}
+            type={selectedType}
             budget={form.budget ? Number(form.budget) : undefined}
             faculty={form.faculty}
           />
