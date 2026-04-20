@@ -48,10 +48,6 @@ export class User {
   @Column({ nullable: true })
   academiaUrl: string;
 
-  // YÖK Akademik profil URL'i — akademik.yok.gov.tr/AkademikArama/AkademisyenArama?islem=...
-  @Column({ nullable: true })
-  yoksisAkademikUrl: string;
-
   @Column({ type: 'text', nullable: true })
   bio: string;
 
