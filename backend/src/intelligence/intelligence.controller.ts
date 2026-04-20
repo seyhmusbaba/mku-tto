@@ -125,7 +125,12 @@ export class IntelligenceController {
   }
 
   @Get('collaboration-network')
-  collaborationNetwork(@Query('userId') userId: string) {
-    return this.svc.getCollaborationNetwork(userId);
+  collaborationNetwork(
+    @Query('userId') userId: string,
+    @Query('keywords') keywords?: string,
+    @Query('title') title?: string,
+  ) {
+    const kw = (keywords || '').split(',').map(s => s.trim()).filter(Boolean);
+    return this.svc.getCollaborationNetwork(userId, kw, title);
   }
 }

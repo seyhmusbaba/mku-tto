@@ -1025,6 +1025,21 @@ export default function NewProjectPage() {
               </div>
             ))}
           </div>
+
+          {/* ═══ PROJE ZEKÂSI — bütçe ve tüm diğer bilgiler girildikten sonra ═══ */}
+          <div className="mt-6 pt-6 border-t" style={{ borderColor: '#e8e4dc' }}>
+            <ProjectIntelligencePanel
+              title={form.title}
+              description={form.description}
+              keywords={[
+                ...(form.tags ? form.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : []),
+                ...(form.keywords ? form.keywords.split(',').map((k: string) => k.trim()).filter(Boolean) : []),
+              ]}
+              type={selectedType}
+              budget={form.budget ? Number(form.budget) : undefined}
+              faculty={form.faculty}
+            />
+          </div>
         </div>
       );
 
@@ -1073,8 +1088,8 @@ export default function NewProjectPage() {
         </div>
       </div>
 
-      {/* Form alanı */}
-      <div className="p-6" style={{ maxWidth: 860, margin: '0 auto' }}>
+      {/* Form alanı — finalize fazında dashboard için genişler */}
+      <div className="p-6" style={{ maxWidth: PHASES[phase].key === 'finalize' ? 1400 : 860, margin: '0 auto', transition: 'max-width 0.3s' }}>
         <div className="mb-6">{renderPhase()}</div>
 
         {/* Navigasyon */}
@@ -1098,22 +1113,6 @@ export default function NewProjectPage() {
         </div>
       </div>
 
-      {/* Proje Zekâsı Dashboard — full-width, formun altında */}
-      <div className="px-6 pb-10 pt-4 border-t" style={{ borderColor: '#e8e4dc', background: '#faf8f4' }}>
-        <div className="max-w-[1400px] mx-auto">
-          <ProjectIntelligencePanel
-            title={form.title}
-            description={form.description}
-            keywords={[
-              ...(form.tags ? form.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : []),
-              ...(form.keywords ? form.keywords.split(',').map((k: string) => k.trim()).filter(Boolean) : []),
-            ]}
-            type={selectedType}
-            budget={form.budget ? Number(form.budget) : undefined}
-            faculty={form.faculty}
-          />
-        </div>
-      </div>
     </DashboardLayout>
   );
 }

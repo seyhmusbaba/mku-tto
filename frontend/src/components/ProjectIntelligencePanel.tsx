@@ -180,7 +180,7 @@ export function ProjectIntelligencePanel({ title, description, keywords = [], ty
       {/* ═══ Funding Simulator + Collaboration Network ═══ */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <FundingSimulatorModule type={dType} faculty={dFaculty} initialBudget={dBudget} />
-        <CollaborationNetworkModule />
+        <CollaborationNetworkModule keywords={kw} title={dTitle} />
       </div>
 
       {/* ═══ Türkiye Benchmark + Kontrol Listesi ═══ */}
@@ -731,6 +731,9 @@ function ImpactGaugeModule({ type, budget }: { type?: string; budget?: number })
               </div>
             </div>
           )}
+          {data.note && (
+            <p className="text-[10px] text-muted italic">ℹ {data.note}</p>
+          )}
         </div>
       )}
     </ModuleCard>
@@ -912,8 +915,8 @@ function FundingSimulatorModule({ type, faculty, initialBudget }: { type?: strin
   );
 }
 
-/* ─── Collaboration Network (SVG) ─── */
-function CollaborationNetworkModule() {
+/* ─── Collaboration Network (topic-based, mevcut vs potansiyel) ─── */
+function CollaborationNetworkModule({ keywords, title }: { keywords?: string[]; title?: string }) {
   const { user } = useAuth();
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
@@ -921,73 +924,141 @@ function CollaborationNetworkModule() {
   useEffect(() => {
     if (!user?.id) return;
     setLoading(true);
-    api.get('/intelligence/collaboration-network', { params: { userId: user.id } })
+    const params: any = { userId: user.id };
+    if (keywords && keywords.length > 0) params.keywords = keywords.join(',');
+    if (title) params.title = title;
+    api.get('/intelligence/collaboration-network', { params })
       .then(r => setData(r.data))
       .catch(() => setData(null))
       .finally(() => setLoading(false));
-  }, [user?.id]);
+  }, [user?.id, keywords?.join(','), title]);
+
+  const getNodeColor = (type: string) => {
+    if (type === 'both') return '#c8a45a';              // altın — hem tanıdık hem alanında
+    if (type === 'existing-coauthor') return '#7c3aed';  // mor — tanıdık
+    return '#94a3b8';                                     // gri — sadece konu uzmanı
+  };
+
+  const centerIsTopic = data?.center?.type === 'topic';
+  const centerLabel = data?.center?.label || 'Sen';
 
   return (
-    <ModuleCard icon="network" title="Ortak Yazar Ağı"
-      subtitle="OpenAlex üzerinden yayın ortaklarınız"
-      badge={data?.nodes?.length ? `${data.nodes.length} kişi` : undefined}>
+    <ModuleCard icon="network" title={centerIsTopic ? 'Konu Ağı — Potansiyel Ortaklar' : 'Ortak Yazar Ağı'}
+      subtitle={centerIsTopic ? 'Bu konuda aktif araştırmacılar + mevcut ortaklarınız vurgulu' : 'OpenAlex üzerinden yayın ortaklarınız'}
+      badge={data?.nodes?.length ? `${data.nodes.length}` : undefined}>
       {loading ? <Loader /> : !data || data.nodes?.length === 0 ? (
-        <EmptyNote text="ORCID ID'niz tanımlı değil veya yeterli yayın verisi yok" />
+        <EmptyNote text="Yeterli veri yok (ORCID tanımlı değil ya da konu çok spesifik)" />
       ) : (
         <div className="space-y-3">
-          {/* SVG network graph — radial layout */}
-          <div className="relative w-full" style={{ aspectRatio: '1 / 0.9' }}>
-            <svg viewBox="-200 -180 400 360" className="w-full h-full">
-              {/* Edges */}
-              {data.nodes.slice(0, 15).map((n: any, i: number) => {
-                const angle = (i / Math.min(data.nodes.length, 15)) * 2 * Math.PI;
-                const r = 120 + (i % 3) * 18;
+          {/* Legend */}
+          <div className="flex flex-wrap gap-2 text-[10px]">
+            {data.stats?.commonCount > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: '#c8a45a22', color: '#92651a' }}>
+                <span className="w-2 h-2 rounded-full" style={{ background: '#c8a45a' }} />
+                Hem tanıdık hem alanında: {data.stats.commonCount}
+              </span>
+            )}
+            {data.stats?.existingCount > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: '#7c3aed22', color: '#6d28d9' }}>
+                <span className="w-2 h-2 rounded-full" style={{ background: '#7c3aed' }} />
+                Eski ortak: {data.stats.existingCount}
+              </span>
+            )}
+            {data.stats?.topicExpertCount > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: '#94a3b822', color: '#475569' }}>
+                <span className="w-2 h-2 rounded-full" style={{ background: '#94a3b8' }} />
+                Yeni potansiyel: {data.stats.topicExpertCount}
+              </span>
+            )}
+          </div>
+
+          {/* Radial SVG */}
+          <div className="relative w-full" style={{ aspectRatio: '1 / 0.95' }}>
+            <svg viewBox="-210 -200 420 400" className="w-full h-full">
+              {/* Edges — tip bazlı renk */}
+              {data.nodes.slice(0, 18).map((n: any, i: number) => {
+                const angle = (i / Math.min(data.nodes.length, 18)) * 2 * Math.PI - Math.PI / 2;
+                const r = 130 + (i % 3) * 18;
                 const x = Math.cos(angle) * r;
                 const y = Math.sin(angle) * r;
                 const maxWeight = Math.max(...data.nodes.map((nd: any) => nd.weight));
-                const thickness = Math.max(0.5, (n.weight / maxWeight) * 3);
+                const color = getNodeColor(n.type);
+                const isPersonal = n.type === 'both' || n.type === 'existing-coauthor';
                 return (
                   <line key={`e${i}`} x1="0" y1="0" x2={x} y2={y}
-                    stroke="#1a3a6b" strokeOpacity={0.15 + (n.weight / maxWeight) * 0.4}
-                    strokeWidth={thickness} />
+                    stroke={color} strokeOpacity={isPersonal ? 0.6 : 0.25}
+                    strokeWidth={Math.max(0.5, (n.weight / maxWeight) * 2.5)}
+                    strokeDasharray={isPersonal ? undefined : '2 3'} />
                 );
               })}
 
               {/* Nodes */}
-              {data.nodes.slice(0, 15).map((n: any, i: number) => {
-                const angle = (i / Math.min(data.nodes.length, 15)) * 2 * Math.PI;
-                const r = 120 + (i % 3) * 18;
+              {data.nodes.slice(0, 18).map((n: any, i: number) => {
+                const angle = (i / Math.min(data.nodes.length, 18)) * 2 * Math.PI - Math.PI / 2;
+                const r = 130 + (i % 3) * 18;
                 const x = Math.cos(angle) * r;
                 const y = Math.sin(angle) * r;
                 const maxWeight = Math.max(...data.nodes.map((nd: any) => nd.weight));
-                const size = 6 + (n.weight / maxWeight) * 8;
+                const size = 6 + (n.weight / maxWeight) * 7;
+                const color = getNodeColor(n.type);
                 return (
                   <g key={`n${i}`}>
-                    <circle cx={x} cy={y} r={size} fill="#c8a45a" stroke="white" strokeWidth="1.5" />
-                    <text x={x} y={y + size + 10} textAnchor="middle" fontSize="8" fill="#374151">
-                      {n.name.split(' ').slice(-1)[0].slice(0, 12)}
+                    <circle cx={x} cy={y} r={size} fill={color}
+                      stroke={n.type === 'both' ? '#92651a' : 'white'} strokeWidth={n.type === 'both' ? 2 : 1.5} />
+                    <text x={x} y={y + size + 11} textAnchor="middle" fontSize="8.5" fill="#374151">
+                      {n.name.split(' ').slice(-1)[0].slice(0, 14)}
                     </text>
                   </g>
                 );
               })}
 
-              {/* Center — user */}
-              <circle cx="0" cy="0" r="22" fill="#0f2444" stroke="#c8a45a" strokeWidth="2.5" />
-              <text x="0" y="2" textAnchor="middle" fontSize="10" fill="white" fontWeight="bold">SEN</text>
+              {/* Center — proje konusu veya kullanıcı */}
+              <circle cx="0" cy="0" r="26" fill={centerIsTopic ? '#0f2444' : '#059669'} stroke="#c8a45a" strokeWidth="2.5" />
+              <text x="0" y="-2" textAnchor="middle" fontSize={centerIsTopic ? 9 : 11} fill="white" fontWeight="bold">
+                {centerIsTopic ? 'KONU' : 'SEN'}
+              </text>
+              {centerIsTopic && (
+                <text x="0" y="9" textAnchor="middle" fontSize="6.5" fill="white" opacity="0.8">
+                  {centerLabel.slice(0, 18)}
+                </text>
+              )}
             </svg>
           </div>
 
-          {/* Top listeleri */}
-          <div>
-            <p className="text-[10px] font-bold uppercase text-muted mb-1">EN SIK ORTAK YAZARLAR</p>
-            <div className="space-y-0.5 max-h-32 overflow-y-auto">
-              {data.nodes.slice(0, 8).map((n: any, i: number) => (
-                <div key={i} className="flex items-center justify-between text-xs py-0.5">
-                  <span className="text-navy truncate flex-1">{n.name}</span>
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#c8a45a33', color: '#92651a' }}>{n.weight}</span>
+          {/* Top listeleri — kategori bazlı */}
+          <div className="space-y-2">
+            {data.nodes.filter((n: any) => n.type === 'both').length > 0 && (
+              <div>
+                <p className="text-[10px] font-bold uppercase mb-1" style={{ color: '#92651a' }}>TANIDIK + ALANINDA UZMAN</p>
+                <div className="space-y-0.5">
+                  {data.nodes.filter((n: any) => n.type === 'both').slice(0, 3).map((n: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between text-xs p-1.5 rounded" style={{ background: '#c8a45a15' }}>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-navy truncate">{n.name}</p>
+                        {n.institution && <p className="text-[10px] text-muted truncate">{n.institution}</p>}
+                      </div>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded text-white" style={{ background: '#c8a45a' }}>{n.pubCount}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+            {data.nodes.filter((n: any) => n.type === 'topic-expert').length > 0 && (
+              <div>
+                <p className="text-[10px] font-bold uppercase mb-1 text-muted">YENİ POTANSİYEL ORTAKLAR</p>
+                <div className="space-y-0.5 max-h-28 overflow-y-auto">
+                  {data.nodes.filter((n: any) => n.type === 'topic-expert').slice(0, 5).map((n: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between text-xs py-0.5">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-navy truncate">{n.name}</p>
+                        {n.institution && <p className="text-[10px] text-muted truncate">{n.institution}</p>}
+                      </div>
+                      <span className="text-[10px] text-muted">{n.pubCount} yay.</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
