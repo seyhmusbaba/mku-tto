@@ -81,6 +81,128 @@ export class AiController {
     }
   }
 
+  // ── YILLIK RAPOR NARRATİVE ÜRETİMİ ──────────────────────────────
+  /**
+   * Rapor için profesyonel önsöz + değerlendirme paragrafları üretir.
+   * Bütün rapor verisi özet olarak geçilir — 3-4 paragraf çıktı verir.
+   */
+  @Post('annual-report-narrative')
+  async annualReportNarrative(@Body() body: {
+    year: number;
+    siteName: string;
+    totalProjects?: number;
+    activeProjects?: number;
+    completedProjects?: number;
+    successRate?: number;
+    totalBudget?: number;
+    totalPublications?: number;
+    totalCitations?: number;
+    hIndex?: number;
+    avgFwci?: number | null;
+    top1PctCount?: number;
+    top10PctCount?: number;
+    openAccessRatio?: number;
+    q1Count?: number;
+    quartileTotal?: number;
+    sdgCovered?: number;
+    internationalCoauthorRatio?: number;
+    pubGrowthPct?: number | null;
+    topFaculty?: string;
+    peerRank?: { mkuWorks?: number; peerCount?: number; position?: number };
+  }) {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+
+    // Fallback — API yoksa basit özet üret
+    if (!apiKey) {
+      return { preface: this.fallbackNarrative(body), evaluation: '', outlook: '' };
+    }
+
+    const dataSummary = `
+YIL: ${body.year}
+KURUM: ${body.siteName}
+
+PROJE PORTFÖYÜ:
+- Toplam proje: ${body.totalProjects || 0}
+- Aktif: ${body.activeProjects || 0}, Tamamlanan: ${body.completedProjects || 0}
+- Başarı oranı: %${body.successRate || 0}
+- Toplam bütçe: ${body.totalBudget ? (body.totalBudget / 1_000_000).toFixed(1) + 'M TL' : 'yok'}
+
+AKADEMİK ÇIKTI:
+- Yayın: ${body.totalPublications || 0}, Atıf: ${body.totalCitations || 0}
+- h-index: ${body.hIndex || 0}
+- Ortalama FWCI: ${body.avgFwci !== null && body.avgFwci !== undefined ? body.avgFwci : 'veri yok'}
+- Top 1% yayın: ${body.top1PctCount || 0} (toplam ${body.totalPublications ? Math.round(((body.top1PctCount || 0) / body.totalPublications) * 1000) / 10 : 0}%)
+- Top 10% yayın: ${body.top10PctCount || 0}
+- Q1 dergilerde yayın: ${body.q1Count || 0} (kalite bilinen ${body.quartileTotal || 0} yayının %${body.quartileTotal ? Math.round(((body.q1Count || 0) / body.quartileTotal) * 100) : 0}'i)
+- Açık erişim oranı: %${body.openAccessRatio || 0}
+
+ULUSLARARASI:
+- Yurt dışı ortak yazarlı yayın: %${body.internationalCoauthorRatio || 0}
+- Yıllık yayın değişimi: ${body.pubGrowthPct === null || body.pubGrowthPct === undefined ? 'hesaplanamadı' : (body.pubGrowthPct >= 0 ? '+' : '') + body.pubGrowthPct + '%'}
+
+KURUMSAL:
+- SDG kapsamı: ${body.sdgCovered || 0}/17
+- En başarılı fakülte: ${body.topFaculty || '—'}
+${body.peerRank?.peerCount ? `- Peer üniversiteler arasında yayın sırası: ${body.peerRank.position}/${body.peerRank.peerCount}` : ''}
+    `.trim();
+
+    const prompt = `Sen bir üniversite Teknoloji Transfer Ofisi yıllık raporu için profesyonel yazar rolündesin.
+Aşağıdaki veriler üzerinden yıllık bibliyometri raporu için 3 bölüm üret:
+
+${dataSummary}
+
+Üret:
+1. PREFACE (önsöz): 2 paragraf (~120-150 kelime). Resmi ama içten tonda — ${body.year} yılını değerlendiren, kurumun araştırma vizyonunu yansıtan, rektör/TTO direktörü ağzından bir önsöz. İlk paragraf yılın bağlamını, ikinci paragraf kurumsal taahhütleri anlatmalı.
+
+2. EVALUATION (değerlendirme): 2 paragraf (~150-180 kelime). Verileri analitik olarak yorumlayan bir profesyonel değerlendirme. Sayıları değil, onların ne anlama geldiğini yaz. Güçlü yönler ve gelişim alanları dengeli olsun. Spesifik sayı referansları ver (%X, Y yayın, Z başarı oranı gibi).
+
+3. OUTLOOK (gelecek bakış): 1 paragraf (~80-100 kelime). Gelecek yıl için makul hedefler. Mevcut trend üzerinden gerçekçi öngörüler — abartı yok.
+
+SADECE JSON döndür (markdown yok, kod bloğu yok):
+{
+  "preface": "...",
+  "evaluation": "...",
+  "outlook": "..."
+}`;
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1500,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+        signal: AbortSignal.timeout(30000),
+      });
+      if (!res.ok) {
+        return { preface: this.fallbackNarrative(body), evaluation: '', outlook: '' };
+      }
+      const data = await res.json();
+      const text = data?.content?.[0]?.text || '';
+      try {
+        const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+        return {
+          preface: parsed.preface || '',
+          evaluation: parsed.evaluation || '',
+          outlook: parsed.outlook || '',
+        };
+      } catch {
+        // JSON parse başarısızsa ham metni preface olarak kullan
+        return { preface: text.slice(0, 600), evaluation: '', outlook: '' };
+      }
+    } catch {
+      return { preface: this.fallbackNarrative(body), evaluation: '', outlook: '' };
+    }
+  }
+
+  private fallbackNarrative(body: any): string {
+    return `${body.siteName} ${body.year} yılında toplam ${body.totalProjects || 0} projeyi hayata geçirdi ve ` +
+      `${body.totalPublications || 0} yayın ile akademik çıktısını genişletmeye devam etti. ` +
+      `Kararlaşan projelerdeki %${body.successRate || 0} başarı oranı, kurumumuzun araştırma yönetimindeki olgunluğunun bir göstergesidir.`;
+  }
+
   // ── YZ PROJE UYGUNLUK KONTROLÜ ────────────────────────────────
   @Post('check-compliance')
   async checkCompliance(@Body() body: { title: string; description: string; projectText: string; type: string; ethicsRequired?: boolean }) {

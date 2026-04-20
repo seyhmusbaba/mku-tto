@@ -48,11 +48,14 @@ export interface OpenAlexWork {
   citedBy: number;
   openAccess?: { isOa: boolean; oaStatus?: string; oaUrl?: string };
   venue?: { displayName?: string; issn?: string[]; type?: string; publisher?: string };
-  authors: Array<{ id?: string; displayName: string; orcid?: string; institution?: string }>;
+  authors: Array<{ id?: string; displayName: string; orcid?: string; institution?: string; countries?: string[] }>;
   concepts: Array<{ displayName: string; level: number; score: number }>;
   sdgs?: Array<{ displayName: string; id: string; score: number }>;  // UN SDG eşlemesi — AVESIS seviyesini geçer
   referencesCount?: number;
   fwci?: number;                      // field-weighted citation impact
+  citedByPercentile?: { min: number; max: number };  // alan-yıl normalize yüzdelik
+  countriesDistinctCount?: number;    // farklı ülke sayısı (uluslararası işbirliği göstergesi)
+  institutionsDistinctCount?: number;
 }
 
 @Injectable()
@@ -285,12 +288,22 @@ export class OpenAlexService {
         type: primaryLocation.source.type,
         publisher: primaryLocation.source.host_organization_name,
       } : undefined,
-      authors: (w.authorships || []).map((a: any) => ({
-        id: a.author?.id,
-        displayName: a.author?.display_name || '',
-        orcid: a.author?.orcid ? String(a.author.orcid).replace(/^https?:\/\/orcid\.org\//, '') : undefined,
-        institution: a.institutions?.[0]?.display_name,
-      })),
+      authors: (w.authorships || []).map((a: any) => {
+        const countries = Array.from(new Set(
+          (a.institutions || []).map((i: any) => i.country_code).filter(Boolean)
+        )) as string[];
+        // Fallback — bazı kayıtlarda author ana düzeyinde countries var
+        if (countries.length === 0 && Array.isArray(a.countries)) {
+          for (const c of a.countries) if (c) countries.push(c);
+        }
+        return {
+          id: a.author?.id,
+          displayName: a.author?.display_name || '',
+          orcid: a.author?.orcid ? String(a.author.orcid).replace(/^https?:\/\/orcid\.org\//, '') : undefined,
+          institution: a.institutions?.[0]?.display_name,
+          countries,
+        };
+      }),
       concepts: (w.concepts || []).map((c: any) => ({
         displayName: c.display_name, level: c.level, score: c.score,
       })),
@@ -299,6 +312,61 @@ export class OpenAlexService {
       })),
       referencesCount: w.referenced_works_count,
       fwci: w.fwci,
+      citedByPercentile: w.cited_by_percentile_year
+        ? { min: w.cited_by_percentile_year.min || 0, max: w.cited_by_percentile_year.max || 0 }
+        : undefined,
+      countriesDistinctCount: w.countries_distinct_count,
+      institutionsDistinctCount: w.institutions_distinct_count,
     };
+  }
+
+  /**
+   * Kurum özeti — peer benchmark için kullanılır.
+   * /institutions/{id} endpoint'ine tek istekle tüm özet gelir.
+   */
+  async getInstitutionSummary(institutionId: string): Promise<{
+    id: string;
+    displayName: string;
+    country?: string;
+    worksCount: number;
+    citedByCount: number;
+    hIndex?: number;
+    i10Index?: number;
+    twoYearMeanCitedness?: number;
+    countsByYear: Array<{ year: number; worksCount: number; citedByCount: number }>;
+    topConcepts: Array<{ name: string; level: number; score: number }>;
+  } | null> {
+    if (!institutionId) return null;
+    const cleanId = institutionId.replace(/^https?:\/\/openalex\.org\//, '');
+    const cacheKey = `inst-summary:${cleanId}`;
+    const cached = this.cache.get<any>(cacheKey);
+    if (cached !== undefined) return cached;
+    try {
+      await this.limiter.acquire();
+      const url = `${this.baseUrl}/institutions/${cleanId}`;
+      const data = await fetchJson(url, { headers: { 'User-Agent': this.userAgent() } });
+      if (!data?.id) { this.cache.set(cacheKey, null, 60 * 60); return null; }
+      const mapped = {
+        id: data.id,
+        displayName: data.display_name,
+        country: data.country_code,
+        worksCount: data.works_count || 0,
+        citedByCount: data.cited_by_count || 0,
+        hIndex: data.summary_stats?.h_index,
+        i10Index: data.summary_stats?.i10_index,
+        twoYearMeanCitedness: data.summary_stats?.['2yr_mean_citedness'],
+        countsByYear: (data.counts_by_year || []).map((c: any) => ({
+          year: c.year, worksCount: c.works_count || 0, citedByCount: c.cited_by_count || 0,
+        })),
+        topConcepts: (data.x_concepts || []).slice(0, 8).map((c: any) => ({
+          name: c.display_name, level: c.level || 0, score: c.score || 0,
+        })),
+      };
+      this.cache.set(cacheKey, mapped, 60 * 60 * 24 * 7); // 7 gün
+      return mapped;
+    } catch (e: any) {
+      this.logger.warn(`OpenAlex institution summary failed: ${e.message}`);
+      return null;
+    }
   }
 }

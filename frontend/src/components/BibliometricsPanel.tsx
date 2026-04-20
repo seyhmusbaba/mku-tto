@@ -234,6 +234,60 @@ export function BibliometricsPanel({
           desc="Açık erişim (OA) yayın oranı — okuyucunun ücret ödemeden erişebildiği makaleler." />
       </div>
 
+      {/* Alan-normalize metrikler — FWCI + Top 1% */}
+      {(summary.avgFwci !== null && summary.avgFwci !== undefined) || summary.top1PctCount > 0 || summary.internationalCoauthorRatio !== undefined ? (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {summary.avgFwci !== null && summary.avgFwci !== undefined && (
+            <KpiBig label="Ort. FWCI" value={summary.avgFwci} icon="trending" color="#7c3aed"
+              sub={summary.avgFwci >= 1.5 ? 'global ort. çok üstü' : summary.avgFwci >= 1.0 ? 'global ort. ile uyumlu' : 'global ort. altı'}
+              desc="Field-Weighted Citation Impact — atıf, yayının alanı ve yılına göre normalize edilir. 1.00 global ortalamadır; 2.00 beklenenden iki kat etki demektir." />
+          )}
+          {summary.top1PctCount > 0 && (
+            <KpiBig label="Top 1% Yayın" value={summary.top1PctCount} sub={`%${summary.top1PctRatio}`} icon="award" color="#059669"
+              desc="Alan-yıl normalize atıf sıralamasında üst %1'de yer alan yayınlar — en yüksek etkili çalışmaların göstergesi." />
+          )}
+          {summary.top10PctCount > 0 && (
+            <KpiBig label="Top 10% Yayın" value={summary.top10PctCount} sub={`%${summary.top10PctRatio}`} icon="sparkles" color="#2563eb"
+              desc="Alan-yıl normalize atıf sıralamasında üst %10'da yer alan yayınlar." />
+          )}
+          {summary.internationalCoauthorRatio !== undefined && summary.internationalCoauthorRatio > 0 && (
+            <KpiBig label="Uluslararası Ortaklık" value={`%${summary.internationalCoauthorRatio}`}
+              sub={`${summary.internationalCoauthorCount} yayın`} icon="globe" color="#c8a45a"
+              desc="En az bir yabancı ülkeden ortak yazar içeren yayınların oranı — kurumsal küresel görünürlüğün göstergesi." />
+          )}
+        </div>
+      ) : null}
+
+      {/* Ülke işbirliği tablosu */}
+      {summary.countryCollaboration && summary.countryCollaboration.length > 0 && (
+        <div className="card p-5">
+          <h4 className="font-display text-sm font-semibold text-navy mb-1 inline-flex items-center gap-2">
+            <Icon name="globe" className="w-4 h-4" />
+            Uluslararası İşbirliği — Ülke Bazlı
+            <InfoTip text="Yayın yazarlarının kurum ülkelerine göre ortak yazarlık sayısı. Türkiye dışı ülkeler listelenir; yüksek sayı derin stratejik işbirliğini gösterir." />
+          </h4>
+          <p className="text-xs text-muted mb-4">İlk {Math.min(summary.countryCollaboration.length, 10)} ülke — ortak yayın sayısına göre</p>
+          <div className="space-y-1.5">
+            {summary.countryCollaboration.slice(0, 10).map((c: any) => {
+              const max = summary.countryCollaboration[0]?.count || 1;
+              const pct = (c.count / max) * 100;
+              return (
+                <div key={c.code} className="flex items-center gap-3">
+                  <span className="text-lg w-6">{/* flag will render from code */}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-navy">{c.code}</p>
+                    <div className="h-1.5 rounded-full mt-1" style={{ background: '#f0ede8' }}>
+                      <div className="h-1.5 rounded-full" style={{ width: `${pct}%`, background: '#1a3a6b' }} />
+                    </div>
+                  </div>
+                  <span className="text-sm font-bold text-navy w-8 text-right">{c.count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Q1-Q4 dağılımı + Yıllık trend */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div className="card p-5">

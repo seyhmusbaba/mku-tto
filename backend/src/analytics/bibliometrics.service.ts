@@ -25,17 +25,7 @@ export interface ResearcherBibliometrics {
     faculty?: string;
     department?: string;
   };
-  summary: {
-    total: number;
-    totalCitations: number;
-    hIndex: number;
-    i10Index: number;
-    openAccessCount: number;
-    openAccessRatio: number;
-    quartileDistribution: Record<string, number>;
-    byYear: Array<{ year: number; count: number; citations: number }>;
-    sdgDistribution: Array<{ id: string; name: string; count: number }>;
-  };
+  summary: ReturnType<PublicationsService['summarize']>;
   sourceCoverage: Record<string, number>;   // Her kaynaktan kaç yayın geldi
   topCited: UnifiedPublication[];            // En çok atıf alan 5 yayın
   publications?: UnifiedPublication[];       // İsteğe bağlı — full list
@@ -228,6 +218,102 @@ export class BibliometricsService {
         sources: p.sources,
         authors: (p.authors || []).slice(0, 5).map(a => a.name),
       })),
+    };
+  }
+
+  /**
+   * Peer benchmark — MKÜ'yü çevresindeki peer üniversitelerle karşılaştırır.
+   * OpenAlex institution summary endpoint'i tek istekte kurum metriklerini verir.
+   *
+   * Peer seti: bölgesel (Hatay), yakın ölçekli (orta büyüklükte devlet üniversiteleri).
+   * ENV ile override edilebilir (PEER_OPENALEX_IDS: virgüllü OpenAlex ID listesi).
+   */
+  async getPeerBenchmark(): Promise<{
+    peers: Array<{
+      id: string;
+      displayName: string;
+      country?: string;
+      worksCount: number;
+      citedByCount: number;
+      hIndex?: number;
+      i10Index?: number;
+      twoYearMeanCitedness?: number;
+      worksLastYear?: number;
+      worksThisYear?: number;
+      isMku: boolean;
+    }>;
+    note: string;
+  }> {
+    // Peer set — önce ENV, sonra varsayılan
+    const peerEnv = process.env.PEER_OPENALEX_IDS;
+    let peerIds: string[] = [];
+    let peerNames: string[] = [];
+
+    if (peerEnv) {
+      peerIds = peerEnv.split(',').map(s => s.trim()).filter(Boolean);
+    } else {
+      // Varsayılan peer seti — bölgesel ve benzer ölçekli TR devlet üniversiteleri
+      peerNames = [
+        'Mustafa Kemal University',          // MKÜ'nün kendisi
+        'Cukurova University',               // Bölgesel (Adana)
+        'Iskenderun Technical University',   // En yakın komşu (Hatay)
+        'Gaziantep University',              // Yakın büyük devlet
+        'Kahramanmaras Sutcu Imam University', // Bölgesel orta ölçek
+      ];
+    }
+
+    // Her peer için OpenAlex ID'sini bul (paralel)
+    if (peerIds.length === 0) {
+      const found = await Promise.all(
+        peerNames.map(async (name) => {
+          try {
+            const candidates = await this.openalex.searchInstitution(name, 'TR');
+            const match = candidates.find(c =>
+              c.displayName.toLowerCase().includes(name.toLowerCase().split(' ')[0])
+            ) || candidates[0];
+            return match?.id || null;
+          } catch { return null; }
+        }),
+      );
+      peerIds = found.filter((x): x is string => !!x);
+    }
+
+    const mkuId = await this.findMkuInstitutionId();
+    // MKÜ ilk olsun — ama zaten listedeyse eklemeyelim
+    const allIds = mkuId && !peerIds.includes(mkuId) ? [mkuId, ...peerIds] : peerIds;
+
+    // Her peer için summary çek (paralel)
+    const summaries = await Promise.all(
+      allIds.map(id => this.openalex.getInstitutionSummary(id).catch(() => null)),
+    );
+
+    const currentYear = new Date().getFullYear();
+    const peers = summaries
+      .filter((s): s is NonNullable<typeof s> => !!s)
+      .map(s => {
+        const lastYear = s.countsByYear.find(c => c.year === currentYear - 1)?.worksCount || 0;
+        const thisYear = s.countsByYear.find(c => c.year === currentYear)?.worksCount || 0;
+        return {
+          id: s.id,
+          displayName: s.displayName,
+          country: s.country,
+          worksCount: s.worksCount,
+          citedByCount: s.citedByCount,
+          hIndex: s.hIndex,
+          i10Index: s.i10Index,
+          twoYearMeanCitedness: s.twoYearMeanCitedness,
+          worksLastYear: lastYear,
+          worksThisYear: thisYear,
+          isMku: s.id === mkuId || s.displayName.toLowerCase().includes('mustafa kemal'),
+        };
+      })
+      .sort((a, b) => b.worksCount - a.worksCount); // En çok yayın üstte
+
+    return {
+      peers,
+      note: peers.length === 0
+        ? 'Peer kurum bulunamadı — PEER_OPENALEX_IDS env ile manuel tanımlayabilirsiniz.'
+        : `${peers.length} kurum karşılaştırıldı. OpenAlex institution summary kaynaklı.`,
     };
   }
 

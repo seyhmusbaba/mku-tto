@@ -32,7 +32,7 @@ export interface UnifiedPublication {
   publisher?: string;
 
   // Authors
-  authors: Array<{ name: string; orcid?: string; affiliation?: string }>;
+  authors: Array<{ name: string; orcid?: string; affiliation?: string; countries?: string[] }>;
 
   // Metrics (kaynakların max'ını al — bazen farklılık olur)
   citedBy: {
@@ -59,6 +59,13 @@ export interface UnifiedPublication {
 
   // Field-weighted citation impact
   fwci?: number;
+
+  // Alan-yıl normalize atıf yüzdelik aralığı (OpenAlex cited_by_percentile_year)
+  citedByPercentile?: { min: number; max: number };
+
+  // Uluslararası işbirliği göstergeleri
+  countriesDistinctCount?: number;
+  institutionsDistinctCount?: number;
 
   // Hangi kaynaklardan birleştirildi
   sources: Array<'crossref' | 'openalex' | 'wos' | 'scopus' | 'pubmed' | 'arxiv' | 'semanticScholar'>;
@@ -224,7 +231,15 @@ export class PublicationsService {
       if (!existing.abstract && (w as any).abstract) existing.abstract = (w as any).abstract;
       existing.citedBy.openalex = w.citedBy;
       existing.fwci = w.fwci ?? existing.fwci;
+      existing.citedByPercentile = w.citedByPercentile ?? existing.citedByPercentile;
+      existing.countriesDistinctCount = w.countriesDistinctCount ?? existing.countriesDistinctCount;
+      existing.institutionsDistinctCount = w.institutionsDistinctCount ?? existing.institutionsDistinctCount;
       existing.sdgs = (w.sdgs || []).map(s => ({ id: s.id, name: s.displayName, score: s.score }));
+      // OpenAlex'ten gelen yazar ülkelerini mevcut yazarlara ekle
+      for (let i = 0; i < Math.min(existing.authors.length, (w.authors || []).length); i++) {
+        const oa = w.authors[i];
+        if (oa && oa.countries && oa.countries.length > 0) existing.authors[i].countries = oa.countries;
+      }
       if (w.openAccess) {
         existing.openAccess = {
           isOa: w.openAccess.isOa,
@@ -249,9 +264,13 @@ export class PublicationsService {
           name: a.displayName,
           orcid: a.orcid,
           affiliation: a.institution,
+          countries: a.countries,
         })),
         citedBy: { openalex: w.citedBy, best: w.citedBy },
         fwci: w.fwci,
+        citedByPercentile: w.citedByPercentile,
+        countriesDistinctCount: w.countriesDistinctCount,
+        institutionsDistinctCount: w.institutionsDistinctCount,
         sdgs: (w.sdgs || []).map(s => ({ id: s.id, name: s.displayName, score: s.score })),
         openAccess: w.openAccess ? {
           isOa: w.openAccess.isOa,
@@ -386,6 +405,22 @@ export class PublicationsService {
     quartileDistribution: Record<string, number>;
     byYear: Array<{ year: number; count: number; citations: number }>;
     sdgDistribution: Array<{ id: string; name: string; count: number }>;
+    // Alan-normalize metrikler (FWCI)
+    avgFwci: number | null;
+    medianFwci: number | null;
+    fwciCoverage: number;                    // kaç yayında FWCI verisi var
+    top1PctCount: number;                    // cited_by_percentile_year.max >= 99
+    top10PctCount: number;                   // cited_by_percentile_year.max >= 90
+    top1PctRatio: number;
+    top10PctRatio: number;
+    // Uluslararası işbirliği
+    internationalCoauthorCount: number;      // en az bir yabancı ülke ile
+    internationalCoauthorRatio: number;
+    countryCollaboration: Array<{ code: string; count: number }>;
+    avgAuthorsPerPaper: number;
+    avgCountriesPerPaper: number | null;
+    // Dergi konsantrasyonu
+    topJournals: Array<{ name: string; count: number }>;
   } {
     const total = pubs.length;
     const totalCitations = pubs.reduce((s, p) => s + (p.citedBy.best || 0), 0);
@@ -433,6 +468,67 @@ export class PublicationsService {
     }
     const sdgDistribution = Array.from(sdgMap.values()).sort((a, b) => b.count - a.count);
 
+    // ── FWCI (Field-Weighted Citation Impact) ──
+    const fwciValues = pubs.map(p => p.fwci).filter((v): v is number => typeof v === 'number' && v > 0);
+    const fwciSorted = [...fwciValues].sort((a, b) => a - b);
+    const avgFwci = fwciValues.length > 0
+      ? +(fwciValues.reduce((x, v) => x + v, 0) / fwciValues.length).toFixed(2)
+      : null;
+    const medianFwci = fwciSorted.length > 0
+      ? +fwciSorted[Math.floor(fwciSorted.length / 2)].toFixed(2)
+      : null;
+
+    // ── Top 1% / Top 10% yayınlar ──
+    let top1 = 0;
+    let top10 = 0;
+    for (const p of pubs) {
+      const maxPct = p.citedByPercentile?.max;
+      if (maxPct !== undefined) {
+        if (maxPct >= 99) top1++;
+        if (maxPct >= 90) top10++;
+      }
+    }
+
+    // ── Uluslararası işbirliği ──
+    let intlCount = 0;
+    let totalAuthors = 0;
+    let countriesSum = 0;
+    let countriesPapers = 0;
+    const countryMap = new Map<string, number>();
+    for (const p of pubs) {
+      totalAuthors += p.authors?.length || 0;
+      const allCountries = new Set<string>();
+      for (const a of p.authors || []) {
+        for (const c of a.countries || []) {
+          if (c) allCountries.add(c.toUpperCase());
+        }
+      }
+      // Sadece Türkiye dışı ülke varsa uluslararası sayılır
+      const foreignCountries = Array.from(allCountries).filter(c => c !== 'TR');
+      if (foreignCountries.length > 0) intlCount++;
+      for (const c of foreignCountries) {
+        countryMap.set(c, (countryMap.get(c) || 0) + 1);
+      }
+      if (allCountries.size > 0) {
+        countriesSum += allCountries.size;
+        countriesPapers++;
+      }
+    }
+    const countryCollaboration = Array.from(countryMap.entries())
+      .map(([code, count]) => ({ code, count }))
+      .sort((a, b) => b.count - a.count);
+
+    // ── Dergi konsantrasyonu ──
+    const journalMap = new Map<string, number>();
+    for (const p of pubs) {
+      const j = p.journal?.trim();
+      if (j) journalMap.set(j, (journalMap.get(j) || 0) + 1);
+    }
+    const topJournals = Array.from(journalMap.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 15);
+
     return {
       total,
       totalCitations,
@@ -443,6 +539,19 @@ export class PublicationsService {
       quartileDistribution,
       byYear,
       sdgDistribution,
+      avgFwci,
+      medianFwci,
+      fwciCoverage: fwciValues.length,
+      top1PctCount: top1,
+      top10PctCount: top10,
+      top1PctRatio: total > 0 ? Math.round((top1 / total) * 1000) / 10 : 0, // 1 ondalık
+      top10PctRatio: total > 0 ? Math.round((top10 / total) * 1000) / 10 : 0,
+      internationalCoauthorCount: intlCount,
+      internationalCoauthorRatio: total > 0 ? Math.round((intlCount / total) * 100) : 0,
+      countryCollaboration,
+      avgAuthorsPerPaper: total > 0 ? +((totalAuthors / total)).toFixed(1) : 0,
+      avgCountriesPerPaper: countriesPapers > 0 ? +((countriesSum / countriesPapers)).toFixed(1) : null,
+      topJournals,
     };
   }
 }

@@ -81,6 +81,11 @@ export class AnalyticsController {
     return this.bibliometrics.getInstitutional(institutionId, year ? +year : undefined);
   }
 
+  @Get('bibliometrics/peer-benchmark')
+  async peerBenchmark() {
+    return this.bibliometrics.getPeerBenchmark();
+  }
+
   // ── INSTITUTIONAL COMPARISON ──────────────────────────────────────────
   @Get('institutional/faculty-radar')
   async facultyRadar() {
