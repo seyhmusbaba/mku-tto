@@ -1,8 +1,11 @@
-import { Injectable, OnApplicationBootstrap } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Permission } from './database/entities/permission.entity';
 import { Role } from './database/entities/role.entity';
+import { Project } from './database/entities/project.entity';
+import { User } from './database/entities/user.entity';
+import { DEMO_PROJECTS } from './database/demo-projects';
 
 const REQUIRED_PERMISSIONS = [
   { name: 'ethics:read',   module: 'ethics', action: 'read',   description: 'Etik kurul başvurularını görüntüle' },
@@ -15,9 +18,13 @@ const RECTOR_PERMS = [
 
 @Injectable()
 export class BootstrapService implements OnApplicationBootstrap {
+  private readonly logger = new Logger(BootstrapService.name);
+
   constructor(
     @InjectRepository(Permission) private permRepo: Repository<Permission>,
     @InjectRepository(Role)       private roleRepo: Repository<Role>,
+    @InjectRepository(Project)    private projectRepo: Repository<Project>,
+    @InjectRepository(User)       private userRepo: Repository<User>,
   ) {}
 
   async onApplicationBootstrap() {
@@ -76,6 +83,68 @@ export class BootstrapService implements OnApplicationBootstrap {
     } catch (e) {
       // Bootstrap hataları uygulamayı durdurmasin
       console.warn('[Bootstrap] Yetki/rol oluşturma hatası:', e?.message);
+    }
+
+    // 5. Demo projeleri idempotent seed — SEED_DEMO_PROJECTS=false ile kapatılabilir
+    if (process.env.SEED_DEMO_PROJECTS !== 'false') {
+      await this.seedDemoProjects();
+    }
+  }
+
+  /**
+   * Demo projeleri sisteme ekler — mevcut olanları atlar. Her başlangıçta
+   * çalışır, sadece ilk kezinde gerçek iş yapar. SEED_DEMO_PROJECTS=false ile
+   * tamamen kapatılabilir.
+   */
+  private async seedDemoProjects() {
+    try {
+      // Admin kullanıcıyı bul — default owner olarak kullanacağız
+      const admin = await this.userRepo.findOne({ where: { email: 'admin@mku.edu.tr' } });
+      const allUsers = await this.userRepo.find();
+      const byEmail: Record<string, User> = {};
+      for (const u of allUsers) byEmail[u.email] = u;
+
+      const defaultOwner = admin?.id || allUsers[0]?.id;
+      if (!defaultOwner) {
+        this.logger.warn('[Demo Seed] Sistemde kullanıcı yok — demo projeler atlandı');
+        return;
+      }
+
+      let inserted = 0;
+      for (const pd of DEMO_PROJECTS) {
+        const exists = await this.projectRepo.findOne({ where: { title: pd.title } });
+        if (exists) continue;
+
+        const ownerId = (pd.ownerEmail && byEmail[pd.ownerEmail]?.id) || defaultOwner;
+        const proj = new Project();
+        proj.title = pd.title;
+        proj.description = pd.description;
+        if (pd.projectText) (proj as any).projectText = pd.projectText;
+        proj.type = pd.type;
+        proj.status = pd.status;
+        proj.faculty = pd.faculty;
+        proj.department = pd.department;
+        proj.budget = pd.budget;
+        proj.fundingSource = pd.fundingSource;
+        proj.startDate = pd.startDate;
+        proj.endDate = pd.endDate;
+        proj.ownerId = ownerId;
+        proj.tags = pd.tags || [];
+        if (pd.keywords) proj.keywords = pd.keywords;
+        if (pd.sdgGoals) proj.sdgGoals = pd.sdgGoals;
+        if (pd.ethicsRequired) (proj as any).ethicsRequired = pd.ethicsRequired;
+        if (pd.ethicsApproved) (proj as any).ethicsApproved = pd.ethicsApproved;
+        if (pd.ipStatus) (proj as any).ipStatus = pd.ipStatus;
+
+        await this.projectRepo.save(proj);
+        inserted++;
+      }
+
+      if (inserted > 0) {
+        this.logger.log(`[Demo Seed] ${inserted} demo proje eklendi (${DEMO_PROJECTS.length - inserted} zaten mevcuttu)`);
+      }
+    } catch (e: any) {
+      this.logger.warn(`[Demo Seed] Hata: ${e.message}`);
     }
   }
 }
