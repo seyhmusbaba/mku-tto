@@ -340,8 +340,7 @@ export default function EditProjectPage() {
         }
       />
 
-      <div className="p-6 max-w-[1400px] mx-auto grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6">
-        <div>
+      <div className="p-6" style={{ maxWidth: 900, margin: '0 auto' }}>
         {/* Audit log uyarısı */}
         <div className="mb-4 p-3 rounded-xl text-xs flex items-center gap-2" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8' }}>
           <EPIcon name="info" className="w-4 h-4 flex-shrink-0" />
@@ -578,10 +577,11 @@ export default function EditProjectPage() {
             {saving ? <><span className="spinner w-4 h-4" />Kaydediliyor...</> : <><EPIcon name="save" className="w-4 h-4" />Değişiklikleri Kaydet</>}
           </button>
         </div>
-        </div>
+      </div>
 
-        {/* Sağ: Proje Zekası Paneli */}
-        <div className="hidden xl:block">
+      {/* Proje Zekâsı Dashboard — full-width, formun altında */}
+      <div className="px-6 pb-10 pt-4 border-t" style={{ borderColor: '#e8e4dc', background: '#faf8f4' }}>
+        <div className="max-w-[1400px] mx-auto">
           <ProjectIntelligencePanel
             title={form.title}
             description={form.description}

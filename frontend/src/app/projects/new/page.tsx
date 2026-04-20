@@ -1073,34 +1073,34 @@ export default function NewProjectPage() {
         </div>
       </div>
 
-      <div className="p-6 max-w-[1400px] mx-auto grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6">
-        {/* Sol: form */}
-        <div>
-          <div className="mb-6">{renderPhase()}</div>
+      {/* Form alanı */}
+      <div className="p-6" style={{ maxWidth: 860, margin: '0 auto' }}>
+        <div className="mb-6">{renderPhase()}</div>
 
-          {/* Navigasyon */}
-          <div className="flex items-center justify-between pt-4 border-t" style={{ borderColor: '#e8e4dc' }}>
-            <button type="button" onClick={goPrev} disabled={phase === 0}
-              className="btn-secondary disabled:opacity-40 inline-flex items-center gap-1.5">
-              <NPIcon name="arrow-left" className="w-3.5 h-3.5" />
-              Geri
-            </button>
-            <span className="text-xs text-muted">{phase + 1} / {PHASES.length}</span>
-            {isLast
-              ? <button type="button" onClick={handleSubmit} disabled={saving}
-                  className="btn-primary px-8 inline-flex items-center gap-2">
-                  {saving ? <><span className="spinner w-4 h-4" />Kaydediliyor...</> : <><NPIcon name="rocket" className="w-4 h-4" />Projeyi Oluştur</>}
-                </button>
-              : <button type="button" onClick={goNext} className="btn-primary inline-flex items-center gap-1.5">
-                  Devam Et
-                  <NPIcon name="arrow-right" className="w-3.5 h-3.5" />
-                </button>
-            }
-          </div>
+        {/* Navigasyon */}
+        <div className="flex items-center justify-between pt-4 border-t" style={{ borderColor: '#e8e4dc' }}>
+          <button type="button" onClick={goPrev} disabled={phase === 0}
+            className="btn-secondary disabled:opacity-40 inline-flex items-center gap-1.5">
+            <NPIcon name="arrow-left" className="w-3.5 h-3.5" />
+            Geri
+          </button>
+          <span className="text-xs text-muted">{phase + 1} / {PHASES.length}</span>
+          {isLast
+            ? <button type="button" onClick={handleSubmit} disabled={saving}
+                className="btn-primary px-8 inline-flex items-center gap-2">
+                {saving ? <><span className="spinner w-4 h-4" />Kaydediliyor...</> : <><NPIcon name="rocket" className="w-4 h-4" />Projeyi Oluştur</>}
+              </button>
+            : <button type="button" onClick={goNext} className="btn-primary inline-flex items-center gap-1.5">
+                Devam Et
+                <NPIcon name="arrow-right" className="w-3.5 h-3.5" />
+              </button>
+          }
         </div>
+      </div>
 
-        {/* Sağ: Proje Zekası Paneli */}
-        <div className="hidden xl:block">
+      {/* Proje Zekâsı Dashboard — full-width, formun altında */}
+      <div className="px-6 pb-10 pt-4 border-t" style={{ borderColor: '#e8e4dc', background: '#faf8f4' }}>
+        <div className="max-w-[1400px] mx-auto">
           <ProjectIntelligencePanel
             title={form.title}
             description={form.description}
