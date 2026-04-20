@@ -49,6 +49,7 @@ import { ScopusModule } from './scopus/scopus.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { IntelligenceModule } from './intelligence/intelligence.module';
 import { AdminModule } from './admin/admin.module';
+import { SearchModule } from './search/search.module';
 import { BootstrapService } from './bootstrap.service';
 
 @Module({
@@ -79,7 +80,7 @@ import { BootstrapService } from './bootstrap.service';
     TypeOrmModule.forFeature([Permission, Role, Project, User]),
     AuthModule, UsersModule, RolesModule, ProjectsModule,
     DocumentsModule, ReportsModule, DashboardModule, SettingsModule,
-    DynamicFieldsModule, NotificationsModule, ProjectTypesModule, FacultiesModule, ReportTypesModule, PartnersModule, AiModule, AnalyticsModule, ExportModule, AuditModule, CompetitionsModule, EthicsModule, ScopusModule, IntegrationsModule, IntelligenceModule, AdminModule,
+    DynamicFieldsModule, NotificationsModule, ProjectTypesModule, FacultiesModule, ReportTypesModule, PartnersModule, AiModule, AnalyticsModule, ExportModule, AuditModule, CompetitionsModule, EthicsModule, ScopusModule, IntegrationsModule, IntelligenceModule, AdminModule, SearchModule,
   ],
 })
 export class AppModule {}

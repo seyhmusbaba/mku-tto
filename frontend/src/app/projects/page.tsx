@@ -252,12 +252,25 @@ function ProjectsPageInner() {
   return (
     <DashboardLayout>
       <Header title="Projeler" subtitle="Akademik proje yönetimi"
-        actions={canCreate ? (
-          <Link href="/projects/new" className="btn-primary inline-flex items-center gap-1.5">
-            <Icon name="plus" className="w-4 h-4" />
-            Yeni Proje
-          </Link>
-        ) : undefined} />
+        actions={
+          <div className="flex items-center gap-2">
+            <button onClick={() => exportCurrentToCsv(result?.data || [], projectTypes)}
+              disabled={!result?.data?.length}
+              className="btn-secondary text-sm inline-flex items-center gap-1.5 disabled:opacity-40"
+              title="Görünen sonuçları CSV olarak indir">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              CSV
+            </button>
+            {canCreate && (
+              <Link href="/projects/new" className="btn-primary inline-flex items-center gap-1.5">
+                <Icon name="plus" className="w-4 h-4" />
+                Yeni Proje
+              </Link>
+            )}
+          </div>
+        } />
 
       <div className="p-6 xl:p-8 space-y-5">
         {/* Filtre barı */}
@@ -516,6 +529,33 @@ function Chip({ label, onRemove, color }: { label: string; onRemove: () => void;
       </button>
     </span>
   );
+}
+
+/** Görünen sonuçları CSV olarak indir — tarayıcıda oluşturulur, backend'e gitmez */
+function exportCurrentToCsv(projects: any[], projectTypes: any[]) {
+  if (!projects.length) return;
+  const escape = (v: any) => {
+    if (v === null || v === undefined) return '';
+    const s = String(v).replace(/"/g, '""');
+    return /[;"\n]/.test(s) ? `"${s}"` : s;
+  };
+  const typeLabel = (k: string) => projectTypes.find((t: any) => t.key === k)?.label || k;
+  const headers = ['ID', 'Başlık', 'Tür', 'Durum', 'Fakülte', 'Bölüm', 'Bütçe (₺)', 'Fon Kaynağı', 'Başlangıç', 'Bitiş', 'Yürütücü', 'Oluşturma'];
+  const rows = projects.map(p => [
+    p.id, p.title, typeLabel(p.type), p.status || '', p.faculty || '', p.department || '',
+    p.budget || '', p.fundingSource || '', p.startDate || '', p.endDate || '',
+    p.owner ? `${p.owner.firstName || ''} ${p.owner.lastName || ''}`.trim() : '',
+    p.createdAt ? new Date(p.createdAt).toISOString().slice(0, 10) : '',
+  ]);
+  const csv = [headers, ...rows].map(r => r.map(escape).join(';')).join('\r\n');
+  // UTF-8 BOM — Excel'de Türkçe düzgün açılır
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `projeler-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function Pagination({ result, page, setPage }: { result: any; page: number; setPage: (p: number) => void }) {
