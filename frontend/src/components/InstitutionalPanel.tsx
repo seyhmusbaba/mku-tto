@@ -53,6 +53,8 @@ export function InstitutionalPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedFaculties, setSelectedFaculties] = useState<string[]>([]);
+  const [collabCell, setCollabCell] = useState<{ facultyA: string; facultyB: string; projects: any[] } | null>(null);
+  const [heatCell, setHeatCell] = useState<{ faculty: string; sdgCode: string; projects: any[] } | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -99,10 +101,10 @@ export function InstitutionalPanel() {
   }, [collab]);
 
   const collabLookup = useMemo(() => {
-    const map = new Map<string, number>();
+    const map = new Map<string, { count: number; projects: any[] }>();
     for (const c of collab?.cells || []) {
       const [a, b] = [c.facultyA, c.facultyB].sort();
-      map.set(`${a}||${b}`, c.sharedProjects);
+      map.set(`${a}||${b}`, { count: c.sharedProjects, projects: c.projects || [] });
     }
     return map;
   }, [collab]);
@@ -113,9 +115,9 @@ export function InstitutionalPanel() {
   }, [heatmap]);
 
   const heatLookup = useMemo(() => {
-    const map = new Map<string, number>();
+    const map = new Map<string, { count: number; projects: any[] }>();
     for (const c of heatmap?.cells || []) {
-      map.set(`${c.faculty}||${c.sdgCode}`, c.count);
+      map.set(`${c.faculty}||${c.sdgCode}`, { count: c.count, projects: c.projects || [] });
     }
     return map;
   }, [heatmap]);
@@ -277,18 +279,26 @@ export function InstitutionalPanel() {
                     {collab.faculties.map((fb: string) => {
                       if (fa === fb) return <td key={fb} className="p-0" style={{ background: '#f0ede8' }}></td>;
                       const [a, b] = [fa, fb].sort();
-                      const count = collabLookup.get(`${a}||${b}`) || 0;
+                      const entry = collabLookup.get(`${a}||${b}`);
+                      const count = entry?.count || 0;
                       const intensity = maxCollab > 0 ? count / maxCollab : 0;
                       return (
                         <td key={fb} className="p-0 text-center" style={{ minWidth: 50, height: 50 }}>
-                          <div className="w-full h-full flex items-center justify-center font-bold"
+                          <button
+                            onClick={() => {
+                              if (count > 0 && entry) setCollabCell({ facultyA: a, facultyB: b, projects: entry.projects });
+                            }}
+                            disabled={count === 0}
+                            title={count > 0 ? `${a} ↔ ${b} ortak proje listesini görmek için tıklayın` : undefined}
+                            className="w-full h-full flex items-center justify-center font-bold transition-all"
                             style={{
                               background: count > 0 ? `rgba(26, 58, 107, ${0.1 + intensity * 0.75})` : 'white',
                               color: intensity > 0.5 ? 'white' : '#0f2444',
                               border: '1px solid #f0ede8',
+                              cursor: count > 0 ? 'pointer' : 'default',
                             }}>
                             {count > 0 ? count : ''}
-                          </div>
+                          </button>
                         </td>
                       );
                     })}
@@ -307,19 +317,39 @@ export function InstitutionalPanel() {
               </p>
               <div className="space-y-1.5">
                 {collab.cells.slice(0, 5).map((c: any) => (
-                  <div key={`${c.facultyA}||${c.facultyB}`} className="flex items-center justify-between text-xs p-2 rounded-lg" style={{ background: '#faf8f4' }}>
-                    <span className="text-navy">
+                  <button key={`${c.facultyA}||${c.facultyB}`}
+                    onClick={() => setCollabCell({ facultyA: c.facultyA, facultyB: c.facultyB, projects: c.projects || [] })}
+                    className="w-full flex items-center justify-between text-xs p-2 rounded-lg transition-all hover:brightness-95" style={{ background: '#faf8f4', border: '1px solid transparent' }}>
+                    <span className="text-navy text-left">
                       <strong>{c.facultyA}</strong> ↔ <strong>{c.facultyB}</strong>
                     </span>
                     <span className="font-bold px-2 py-0.5 rounded-full" style={{ background: '#1a3a6b', color: 'white' }}>
                       {c.sharedProjects} ortak proje
                     </span>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
           )}
         </div>
+      )}
+
+      {/* Proje drilldown modal — işbirliği hücresi */}
+      {collabCell && (
+        <ProjectListModal
+          title={`${collabCell.facultyA} ↔ ${collabCell.facultyB} — Ortak Projeler`}
+          projects={collabCell.projects}
+          onClose={() => setCollabCell(null)}
+        />
+      )}
+
+      {/* Proje drilldown modal — SDG hücresi */}
+      {heatCell && (
+        <ProjectListModal
+          title={`${heatCell.faculty} — ${heatCell.sdgCode} Projeleri`}
+          projects={heatCell.projects}
+          onClose={() => setHeatCell(null)}
+        />
       )}
 
       {/* ═══ SDG × FAKÜLTE HEATMAP ═══ */}
@@ -358,20 +388,28 @@ export function InstitutionalPanel() {
                       {f}
                     </td>
                     {heatmap.sdgs.map((s: string) => {
-                      const count = heatLookup.get(`${f}||${s}`) || 0;
+                      const entry = heatLookup.get(`${f}||${s}`);
+                      const count = entry?.count || 0;
                       const intensity = maxHeat > 0 ? count / maxHeat : 0;
                       const num = parseInt(s.match(/\d+/)?.[0] || '0');
                       const color = SDG_COLORS[(num - 1) % SDG_COLORS.length] || '#94a3b8';
                       return (
                         <td key={s} className="p-0 text-center" style={{ minWidth: 48, height: 44 }}>
-                          <div className="w-full h-full flex items-center justify-center font-bold text-xs"
+                          <button
+                            onClick={() => {
+                              if (count > 0 && entry) setHeatCell({ faculty: f, sdgCode: s, projects: entry.projects });
+                            }}
+                            disabled={count === 0}
+                            title={count > 0 ? `${f} · SDG ${num} projelerini görmek için tıklayın` : undefined}
+                            className="w-full h-full flex items-center justify-center font-bold text-xs transition-all"
                             style={{
                               background: count > 0 ? `${color}${Math.round(25 + intensity * 70).toString(16)}` : 'white',
                               color: intensity > 0.5 ? 'white' : '#0f2444',
                               border: '1px solid #f0ede8',
+                              cursor: count > 0 ? 'pointer' : 'default',
                             }}>
                             {count > 0 ? count : ''}
-                          </div>
+                          </button>
                         </td>
                       );
                     })}
@@ -382,6 +420,70 @@ export function InstitutionalPanel() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ─── Proje listesi modal ─── */
+const STATUS_LABELS_MAP: Record<string, string> = {
+  application: 'Başvuru', pending: 'Beklemede', active: 'Aktif',
+  completed: 'Tamamlandı', suspended: 'Askıda', cancelled: 'İptal',
+};
+const STATUS_COLOR_MAP: Record<string, string> = {
+  application: '#d97706', pending: '#d97706', active: '#059669',
+  completed: '#2563eb', suspended: '#6b7280', cancelled: '#dc2626',
+};
+
+function ProjectListModal({ title, projects, onClose }: {
+  title: string;
+  projects: Array<{ id: string; name: string; status?: string }>;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(15, 36, 68, 0.6)' }} onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col"
+        style={{ border: '1px solid #c8a45a' }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: '#e8e4dc' }}>
+          <h3 className="font-display text-base font-bold text-navy">{title}</h3>
+          <button onClick={onClose}
+            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-cream transition-colors"
+            style={{ border: '1px solid #e8e4dc' }}>
+            <svg className="w-4 h-4 text-navy" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-5">
+          {!projects || projects.length === 0 ? (
+            <p className="text-sm text-muted text-center py-8">Bu eşleşmede proje bilgisi bulunamadı.</p>
+          ) : (
+            <div className="space-y-2">
+              {projects.map((p, i) => (
+                <a key={p.id} href={`/projects/${p.id}`} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center justify-between p-3 rounded-xl transition-all hover:bg-cream"
+                  style={{ border: '1px solid #e8e4dc' }}>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-xs text-muted w-5 text-right font-semibold">{i + 1}.</span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-navy line-clamp-1">{p.name}</p>
+                    </div>
+                  </div>
+                  {p.status && (
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
+                      style={{ background: (STATUS_COLOR_MAP[p.status] || '#6b7280') + '22', color: STATUS_COLOR_MAP[p.status] || '#6b7280' }}>
+                      {STATUS_LABELS_MAP[p.status] || p.status}
+                    </span>
+                  )}
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="px-5 py-3 border-t text-xs text-muted" style={{ borderColor: '#e8e4dc' }}>
+          {projects.length} proje · Tıklayınca yeni sekmede proje detayı açılır
+        </div>
+      </div>
     </div>
   );
 }

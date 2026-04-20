@@ -207,17 +207,23 @@ export class BibliometricsService {
     return {
       ...summary,
       institutionId,
-      publications: pubs.map(p => ({
-        title: p.title,
-        year: p.year,
-        journal: p.journal,
-        doi: p.doi,
-        citedBy: p.citedBy,
-        quality: p.quality,
-        openAccess: p.openAccess,
-        sources: p.sources,
-        authors: (p.authors || []).slice(0, 5).map(a => a.name),
-      })),
+      publications: pubs.map(p => {
+        const countries = Array.from(new Set(
+          (p.authors || []).flatMap(a => (a.countries || []).map(c => c.toUpperCase()))
+        ));
+        return {
+          title: p.title,
+          year: p.year,
+          journal: p.journal,
+          doi: p.doi,
+          citedBy: p.citedBy,
+          quality: p.quality,
+          openAccess: p.openAccess,
+          sources: p.sources,
+          authors: (p.authors || []).slice(0, 5).map(a => a.name),
+          countries, // yazar kurumlarının ülke kodu birleşimi — ülke drilldown için
+        };
+      }),
     };
   }
 

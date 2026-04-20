@@ -93,6 +93,7 @@ export class AiController {
     totalProjects?: number;
     activeProjects?: number;
     completedProjects?: number;
+    cancelledProjects?: number;
     successRate?: number;
     totalBudget?: number;
     totalPublications?: number;
@@ -146,17 +147,32 @@ KURUMSAL:
 ${body.peerRank?.peerCount ? `- Peer üniversiteler arasında yayın sırası: ${body.peerRank.position}/${body.peerRank.peerCount}` : ''}
     `.trim();
 
-    const prompt = `Sen bir üniversite Teknoloji Transfer Ofisi yıllık raporu için profesyonel yazar rolündesin.
-Aşağıdaki veriler üzerinden yıllık bibliyometri raporu için 3 bölüm üret:
+    const prompt = `Sen kurumsal bibliyometri raporu için kıdemli bir analist rolündesin — üniversite rektörlüğü ve senato seviyesinde okunacak bir belge yazıyorsun. Verilen kurumun ${body.year} yılına dair raporu için 3 bölümlük profesyonel metin üret.
 
+GÖRÜNEN VERİ:
 ${dataSummary}
 
-Üret:
-1. PREFACE (önsöz): 2 paragraf (~120-150 kelime). Resmi ama içten tonda — ${body.year} yılını değerlendiren, kurumun araştırma vizyonunu yansıtan, rektör/TTO direktörü ağzından bir önsöz. İlk paragraf yılın bağlamını, ikinci paragraf kurumsal taahhütleri anlatmalı.
+YAZIM KURALLARI:
+• Türkçe, resmi ama mekanik değil — akıcı bir analist tonu.
+• KESİNLİKLE "önemli bir yıl oldu", "büyük başarı" gibi klişe ifadeler yok.
+• Her iddiayı spesifik sayıyla destekle. ("FWCI 1.2 ile alan ortalamasının üstünde", "%${body.internationalCoauthorRatio} uluslararası ortaklık oranı" gibi).
+• Güçlü yönlerle zayıf yönleri dengeli tut. Örtbas yapma — veri eksikse "şu metrik için yeterli veri yok" de.
+• FWCI 1.0 altındaysa, top 1% sıfırsa, uluslararası oran düşükse bunu açıkça yorumla ve neden olabileceğini tahmin et.
+• Spesifik karşılaştırma yap: peer üniversiteler var mı, var ise konumunu söyle.
+• Rakamları havada bırakma: "%72 başarı" değil "%72 — kararlaşan projelerin büyük çoğunluğu tamamlanıyor, ancak ${body.totalProjects ? Math.round(((body.cancelledProjects || 0) / body.totalProjects) * 100) : 0}% iptal oranı da mevcut".
 
-2. EVALUATION (değerlendirme): 2 paragraf (~150-180 kelime). Verileri analitik olarak yorumlayan bir profesyonel değerlendirme. Sayıları değil, onların ne anlama geldiğini yaz. Güçlü yönler ve gelişim alanları dengeli olsun. Spesifik sayı referansları ver (%X, Y yayın, Z başarı oranı gibi).
+3 BÖLÜMÜN İÇERİĞİ:
 
-3. OUTLOOK (gelecek bakış): 1 paragraf (~80-100 kelime). Gelecek yıl için makul hedefler. Mevcut trend üzerinden gerçekçi öngörüler — abartı yok.
+1. PREFACE (önsöz): ~130 kelime, 2 paragraf. Kurumsal bakış açısıyla yılın özetini anlatan bir önsöz — TTO/rektörlük imzasından çıkmış gibi hissettirsin. İlk paragrafta yılın bağlamı (hangi büyüme alanı dikkat çekti), ikincide araştırma politikasına dair kısa bir mesaj.
+
+2. EVALUATION (analitik değerlendirme): ~200 kelime, 3 paragraf.
+   - 1. paragraf: Üretkenlik ve büyüme analizi (yayın sayısı, atıf birikimi, pubGrowthPct). Pozitif VEYA negatifse neden olabileceği.
+   - 2. paragraf: Kalite ve etki analizi (FWCI, Top 1%/10%, Q1 payı, OA oranı). Zayıf göstergeleri açıkça söyle.
+   - 3. paragraf: Uluslararasılaşma ve portföy çeşitliliği (intl ortaklık, ülke sayısı, SDG kapsamı). Peer karşılaştırma varsa yorumla.
+
+3. OUTLOOK (gelecek): ~90 kelime, 1 paragraf. Gerçekçi somut hedefler — "çok yayın yapalım" gibi değil, "FWCI'yi 1.X seviyesine çekmek için yüksek IF'li dergilerde 2-3 stratejik yayın hedeflenebilir" gibi. Mevcut zayıf noktaları telafi edecek öneriler.
+
+TONU HATIRLA: Bu rapor dekan ve rektöre gidecek. Klişe veya reklam dili DEĞİL — kararlı analitik dil kullan.
 
 SADECE JSON döndür (markdown yok, kod bloğu yok):
 {

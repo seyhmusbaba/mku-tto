@@ -93,14 +93,14 @@ export default function AnalysisPage() {
       .finally(() => setOverviewLoading(false));
   }, [filterYear, filterFaculty, filterType]);
 
-  const handleExportPdf = async () => {
+  const handleOpenTabReport = () => {
     setExporting(true);
     try {
-      // Tarayıcının yazdırma diyaloğunu açar, kullanıcı "PDF olarak kaydet" seçer.
-      // @media print kuralı sidebar/header/tab'ları gizler, sadece içerik kalır.
-      // Kısa bir gecikme: son state güncellemelerinin DOM'a yansımasını bekle.
-      await new Promise(r => setTimeout(r, 150));
-      window.print();
+      if (typeof window !== 'undefined') {
+        const token = localStorage.getItem('tto_token');
+        if (token) sessionStorage.setItem('tto_print_token', token);
+      }
+      window.open(`/analysis/section-report?tab=${tab}`, '_blank');
     } finally {
       setExporting(false);
     }
@@ -158,9 +158,10 @@ export default function AnalysisPage() {
                 </button>
               ) : null;
             })()}
-            <button onClick={handleExportPdf} disabled={exporting} className="btn-secondary text-sm inline-flex items-center gap-1.5">
-              {exporting ? <span className="spinner w-3 h-3" /> : <AIcon name="download" className="w-3.5 h-3.5" />}
-              Sayfayı Yazdır
+            <button onClick={handleOpenTabReport} disabled={exporting || tab === 'gantt'} className="btn-secondary text-sm inline-flex items-center gap-1.5"
+              title={tab === 'gantt' ? 'Gantt sekmesi için rapor desteği yok' : 'Bu sekmenin verilerini PDF raporuna çevir'}>
+              {exporting ? <span className="spinner w-3 h-3" /> : <AIcon name="document" className="w-3.5 h-3.5" />}
+              Bu Sekmeyi Raporla
             </button>
           </div>
         </div>

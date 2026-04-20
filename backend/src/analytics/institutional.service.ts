@@ -41,12 +41,15 @@ export interface CollaborationCell {
   facultyB: string;
   sharedProjects: number;
   projectIds: string[];
+  projects?: Array<{ id: string; name: string; code?: string; status?: string }>;
 }
 
 export interface SdgHeatmapCell {
   faculty: string;
   sdgCode: string;
   count: number;
+  projectIds?: string[];
+  projects?: Array<{ id: string; name: string; code?: string; status?: string }>;
 }
 
 @Injectable()
@@ -172,13 +175,22 @@ export class InstitutionalService {
       relations: ['owner', 'members', 'members.user'],
     });
 
+    // Proje lookup (id → özet bilgi)
+    const projectLookup = new Map<string, { id: string; name: string; code?: string; status?: string }>();
+    for (const p of projects) {
+      projectLookup.set(p.id, {
+        id: p.id,
+        name: p.title || '(İsimsiz proje)',
+        status: p.status,
+      });
+    }
+
     const facultySet = new Set<string>();
     const pairMap = new Map<string, { facultyA: string; facultyB: string; projectIds: Set<string> }>();
 
     for (const p of projects) {
       if (!p.faculty) continue;
       const facultiesInProject = new Set<string>();
-      // Owner'ın user.faculty değil, project.faculty baz alınır — projenin fakültesi zaten vardır
       facultiesInProject.add(p.faculty);
       if (p.owner?.faculty) facultiesInProject.add(p.owner.faculty);
       for (const m of p.members || []) {
@@ -190,7 +202,6 @@ export class InstitutionalService {
 
       if (arr.length < 2) continue;
 
-      // Sıralı ikili kombinasyonlar
       for (let i = 0; i < arr.length; i++) {
         for (let j = i + 1; j < arr.length; j++) {
           const [a, b] = [arr[i], arr[j]].sort();
@@ -206,12 +217,16 @@ export class InstitutionalService {
     }
 
     const cells: CollaborationCell[] = Array.from(pairMap.values())
-      .map(p => ({
-        facultyA: p.facultyA,
-        facultyB: p.facultyB,
-        sharedProjects: p.projectIds.size,
-        projectIds: Array.from(p.projectIds),
-      }))
+      .map(p => {
+        const ids = Array.from(p.projectIds);
+        return {
+          facultyA: p.facultyA,
+          facultyB: p.facultyB,
+          sharedProjects: ids.length,
+          projectIds: ids,
+          projects: ids.map(id => projectLookup.get(id)).filter(Boolean) as any[],
+        };
+      })
       .sort((a, b) => b.sharedProjects - a.sharedProjects);
 
     return {
@@ -226,14 +241,14 @@ export class InstitutionalService {
   async getSdgHeatmap(): Promise<{ faculties: string[]; sdgs: string[]; cells: SdgHeatmapCell[] }> {
     const raw = await this.projectRepo
       .createQueryBuilder('p')
-      .select(['p.faculty as faculty', 'p."sdgGoalsJson" as sdg'])
+      .select(['p.id as id', 'p.title as title', 'p.status as status', 'p.faculty as faculty', 'p."sdgGoalsJson" as sdg'])
       .where('p.faculty IS NOT NULL AND p.faculty != \'\'')
       .andWhere('p."sdgGoalsJson" IS NOT NULL')
       .getRawMany();
 
     const facultySet = new Set<string>();
     const sdgSet = new Set<string>();
-    const counter = new Map<string, number>();
+    const cellMap = new Map<string, { faculty: string; sdgCode: string; projects: Array<{ id: string; name: string; code?: string; status?: string }> }>();
 
     for (const r of raw) {
       const faculty = r.faculty;
@@ -244,18 +259,25 @@ export class InstitutionalService {
           if (!s) continue;
           sdgSet.add(s);
           const key = `${faculty}||${s}`;
-          counter.set(key, (counter.get(key) || 0) + 1);
+          const cur = cellMap.get(key);
+          const proj = { id: r.id, name: r.title || '(İsimsiz)', status: r.status };
+          if (cur) {
+            cur.projects.push(proj);
+          } else {
+            cellMap.set(key, { faculty, sdgCode: s, projects: [proj] });
+          }
         }
       } catch {}
     }
 
-    const cells: SdgHeatmapCell[] = [];
-    for (const [key, count] of counter.entries()) {
-      const [faculty, sdgCode] = key.split('||');
-      cells.push({ faculty, sdgCode, count });
-    }
+    const cells: SdgHeatmapCell[] = Array.from(cellMap.values()).map(c => ({
+      faculty: c.faculty,
+      sdgCode: c.sdgCode,
+      count: c.projects.length,
+      projectIds: c.projects.map(p => p.id),
+      projects: c.projects,
+    }));
 
-    // SDG'leri numarayla sırala
     const sdgs = Array.from(sdgSet).sort((a, b) => {
       const na = parseInt(a.match(/\d+/)?.[0] || '99');
       const nb = parseInt(b.match(/\d+/)?.[0] || '99');

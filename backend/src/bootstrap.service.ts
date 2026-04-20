@@ -5,6 +5,7 @@ import { Permission } from './database/entities/permission.entity';
 import { Role } from './database/entities/role.entity';
 import { Project } from './database/entities/project.entity';
 import { User } from './database/entities/user.entity';
+import { SystemSetting } from './database/entities/system-setting.entity';
 import { DEMO_PROJECTS } from './database/demo-projects';
 
 const REQUIRED_PERMISSIONS = [
@@ -25,6 +26,7 @@ export class BootstrapService implements OnApplicationBootstrap {
     @InjectRepository(Role)       private roleRepo: Repository<Role>,
     @InjectRepository(Project)    private projectRepo: Repository<Project>,
     @InjectRepository(User)       private userRepo: Repository<User>,
+    @InjectRepository(SystemSetting) private settingRepo: Repository<SystemSetting>,
   ) {}
 
   async onApplicationBootstrap() {
@@ -85,9 +87,35 @@ export class BootstrapService implements OnApplicationBootstrap {
       console.warn('[Bootstrap] Yetki/rol oluşturma hatası:', e?.message);
     }
 
-    // 5. Demo projeleri idempotent seed — SEED_DEMO_PROJECTS=false ile kapatılabilir
+    // 5. Eksik sistem ayarlarını idempotent olarak oluştur
+    await this.seedMissingSettings();
+
+    // 6. Demo projeleri idempotent seed — SEED_DEMO_PROJECTS=false ile kapatılabilir
     if (process.env.SEED_DEMO_PROJECTS !== 'false') {
       await this.seedDemoProjects();
+    }
+  }
+
+  /**
+   * Yeni sistem ayarı eklendiğinde (yeni kurum adı, rektör adı vb.)
+   * mevcut DB'de olmayan anahtarları oluştur. Var olanlara dokunma —
+   * admin tarafından değiştirilen değerler korunmalı.
+   */
+  private async seedMissingSettings() {
+    const required = [
+      { key: 'institution_name', value: 'Hatay Mustafa Kemal Üniversitesi', label: 'Kurum Adı (Raporlar için)', type: 'text' },
+      { key: 'rector_name',      value: 'Prof. Dr. Veysel EREN',            label: 'Rektör Adı',                 type: 'text' },
+    ];
+    for (const r of required) {
+      const ex = await this.settingRepo.findOne({ where: { key: r.key } });
+      if (!ex) {
+        try {
+          await this.settingRepo.save(this.settingRepo.create(r));
+          this.logger.log(`[Settings] Eksik ayar eklendi: ${r.key}`);
+        } catch (e: any) {
+          this.logger.warn(`[Settings] ${r.key} eklenemedi: ${e.message}`);
+        }
+      }
     }
   }
 

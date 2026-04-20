@@ -151,6 +151,8 @@ async function seed() {
   const settingDefs = [
     { key: 'site_name', value: 'MKÜ TTO', label: 'Site Adı', type: 'text' },
     { key: 'site_title', value: 'Hatay Mustafa Kemal Üniversitesi Teknoloji Transfer Ofisi', label: 'Site Başlığı', type: 'text' },
+    { key: 'institution_name', value: 'Hatay Mustafa Kemal Üniversitesi', label: 'Kurum Adı (Raporlar için)', type: 'text' },
+    { key: 'rector_name', value: 'Prof. Dr. Veysel EREN', label: 'Rektör Adı', type: 'text' },
     { key: 'primary_color', value: '#1a3a6b', label: 'Ana Renk', type: 'color' },
     { key: 'secondary_color', value: '#c8a45a', label: 'Vurgu Rengi', type: 'color' },
     { key: 'footer_text', value: '© 2025 Hatay MKÜ TTO. Tüm hakları saklıdır.', label: 'Footer', type: 'text' },

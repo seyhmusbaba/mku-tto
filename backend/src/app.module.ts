@@ -78,7 +78,7 @@ import { BootstrapService } from './bootstrap.service';
       synchronize: true,
       logging: false,
     }),
-    TypeOrmModule.forFeature([Permission, Role, Project, User]),
+    TypeOrmModule.forFeature([Permission, Role, Project, User, SystemSetting]),
     AuthModule, UsersModule, RolesModule, ProjectsModule,
     DocumentsModule, ReportsModule, DashboardModule, SettingsModule,
     DynamicFieldsModule, NotificationsModule, ProjectTypesModule, FacultiesModule, ReportTypesModule, PartnersModule, AiModule, AnalyticsModule, ExportModule, AuditModule, CompetitionsModule, EthicsModule, ScopusModule, IntegrationsModule, IntelligenceModule, AdminModule, SearchModule, HealthModule,

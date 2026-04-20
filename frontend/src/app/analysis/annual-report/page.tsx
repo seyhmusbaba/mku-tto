@@ -67,6 +67,9 @@ export default function AnnualReportPage() {
   const [narrative, setNarrative] = useState<{preface: string; evaluation: string; outlook: string}>({ preface: '', evaluation: '', outlook: '' });
   const [narrativeLoading, setNarrativeLoading] = useState(false);
   const [siteName, setSiteName] = useState('MKÜ TTO');
+  const [institutionName, setInstitutionName] = useState('Hatay Mustafa Kemal Üniversitesi');
+  const [rectorName, setRectorName] = useState('Prof. Dr. Veysel EREN');
+  const [currentUser, setCurrentUser] = useState<{ name: string; title?: string; role?: string } | null>(null);
   const year = new Date().getFullYear();
 
   useEffect(() => {
@@ -91,7 +94,18 @@ export default function AnnualReportPage() {
       axios.get(`${base}/analytics/funding-success`, { headers }).then(r => r.data).catch(() => null),
       axios.get(`${base}/analytics/budget-utilization`, { headers }).then(r => r.data).catch(() => null),
       axios.get(`${base}/analytics/bibliometrics/peer-benchmark`, { headers }).then(r => r.data).catch(() => null),
-      axios.get(`${base}/settings`, { headers }).then(r => { if (r.data?.site_name) setSiteName(r.data.site_name); }).catch(() => {}),
+      axios.get(`${base}/settings`, { headers }).then(r => {
+        if (r.data?.site_name) setSiteName(r.data.site_name);
+        if (r.data?.institution_name) setInstitutionName(r.data.institution_name);
+        if (r.data?.rector_name) setRectorName(r.data.rector_name);
+      }).catch(() => {}),
+      axios.get(`${base}/users/me`, { headers }).then(r => {
+        const u = r.data;
+        if (u) {
+          const fullName = [u.title, u.firstName, u.lastName].filter(Boolean).join(' ').trim();
+          setCurrentUser({ name: fullName || u.email, title: u.title, role: u.role?.name });
+        }
+      }).catch(() => {}),
     ])
       .then(([ov, rad, col, sdg, res, inst, cord, tml, fnd, bud, peer]) => {
         setOverview(ov); setRadar(rad); setCollab(col); setSdgHeat(sdg);
@@ -247,7 +261,7 @@ export default function AnnualReportPage() {
             color: #6b7280;
           }
           @bottom-left {
-            content: "${siteName.replace(/"/g, '\\"')} · Yıllık Rapor ${year}";
+            content: "${institutionName.replace(/"/g, '\\"')} · Yıllık Rapor ${year}";
             font-family: system-ui, sans-serif;
             font-size: 9pt;
             color: #9ca3af;
@@ -274,7 +288,7 @@ export default function AnnualReportPage() {
           <div style={s.coverTop}>
             <div>
               <p style={s.coverDate}>{new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-              <p style={s.coverInst}>{siteName}</p>
+              <p style={s.coverInst}>{institutionName}</p>
             </div>
             <div style={s.coverLogoBox} aria-label="Kurum logosu">
               <svg viewBox="0 0 60 60" width="60" height="60" style={{ display: 'block' }}>
@@ -341,7 +355,7 @@ export default function AnnualReportPage() {
               {narrative.preface.split('\n').filter(Boolean).map((para, i) => (
                 <p key={i} style={s.prefacePara}>{para}</p>
               ))}
-              <p style={s.prefaceSign}>— {siteName} · {year}</p>
+              <p style={s.prefaceSign}>— {institutionName} Teknoloji Transfer Ofisi · {year}</p>
             </div>
           </div>
         )}
@@ -774,6 +788,45 @@ export default function AnnualReportPage() {
               programlarının hedefi olmalıdır. Çeşitlilik (farklı ülke sayısı) kurumun küresel görünürlüğünü,
               yoğunluk ise stratejik ortaklıkları gösterir.</em>
             </p>
+
+            {/* İlk 5 ülke için ortak yayın örnekleri */}
+            {topCountries.slice(0, 5).map((c) => {
+              const pubs = instPublications
+                .filter((p: any) => Array.isArray(p.countries) && p.countries.includes(c.code))
+                .sort((a: any, b: any) => (b?.citedBy?.best || 0) - (a?.citedBy?.best || 0))
+                .slice(0, 5);
+              if (pubs.length === 0) return null;
+              return (
+                <div key={c.code} style={{ marginTop: 14, pageBreakInside: 'avoid' }}>
+                  <h3 style={s.h3}>
+                    <span style={{ marginRight: 6 }}>{countryFlag(c.code)}</span>
+                    {countryName(c.code)} — En Çok Atıf Alan Ortak Yayınlar
+                  </h3>
+                  <table style={s.table}>
+                    <thead>
+                      <tr>
+                        <th style={s.th}>#</th>
+                        <th style={s.th}>Başlık</th>
+                        <th style={s.th}>Dergi</th>
+                        <th style={s.thR}>Yıl</th>
+                        <th style={s.thR}>Atıf</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pubs.map((p: any, i: number) => (
+                        <tr key={p.doi || i}>
+                          <td style={s.td}>{i + 1}</td>
+                          <td style={s.tdSmall}>{p.title}</td>
+                          <td style={s.tdSmall}>{p.journal || '—'}</td>
+                          <td style={s.tdR}>{p.year || '—'}</td>
+                          <td style={{ ...s.tdR, fontWeight: 700 }}>{p?.citedBy?.best || 0}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -945,6 +998,56 @@ export default function AnnualReportPage() {
                 </table>
               </>
             )}
+
+            {/* Her SDG'ye değen projelerin detayı — en yoğun 5 SDG */}
+            {sdgHeat?.cells?.length > 0 && (() => {
+              // SDG başına proje listesi
+              const sdgToProjects = new Map<string, any[]>();
+              for (const c of sdgHeat.cells) {
+                const cur = sdgToProjects.get(c.sdgCode) || [];
+                if (Array.isArray(c.projects)) cur.push(...c.projects);
+                sdgToProjects.set(c.sdgCode, cur);
+              }
+              const topSdgs = (sdgHeat.sdgs || []).slice().sort((a: string, b: string) => {
+                const ca = (sdgToProjects.get(a) || []).length;
+                const cb = (sdgToProjects.get(b) || []).length;
+                return cb - ca;
+              }).slice(0, 5);
+              return topSdgs.map((sdg: string) => {
+                const projs = sdgToProjects.get(sdg) || [];
+                if (projs.length === 0) return null;
+                const num = parseInt(sdg.match(/\d+/)?.[0] || '0');
+                const color = SDG_COLORS[(num - 1) % SDG_COLORS.length];
+                // Deduplike
+                const uniq = Array.from(new Map(projs.map(p => [p.id, p])).values()).slice(0, 10);
+                return (
+                  <div key={sdg} style={{ marginTop: 14, pageBreakInside: 'avoid' }}>
+                    <h3 style={s.h3}>
+                      <span style={{ ...s.sdgNumSmall, background: color, marginRight: 6 }}>{num}</span>
+                      SDG {num} — Projeler ({projs.length} katkı)
+                    </h3>
+                    <table style={s.table}>
+                      <thead>
+                        <tr>
+                          <th style={s.th}>#</th>
+                          <th style={s.th}>Proje</th>
+                          <th style={s.thR}>Durum</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {uniq.map((p: any, i: number) => (
+                          <tr key={p.id || i}>
+                            <td style={s.td}>{i + 1}</td>
+                            <td style={s.tdSmall}>{p.name}</td>
+                            <td style={s.tdR}>{p.status || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              });
+            })()}
           </div>
         )}
 
@@ -976,6 +1079,36 @@ export default function AnnualReportPage() {
                 ))}
               </tbody>
             </table>
+
+            {/* İlk 5 işbirliği çifti için proje detayı */}
+            {collab.cells.slice(0, 5).map((c: any, idx: number) => {
+              if (!c.projects || c.projects.length === 0) return null;
+              return (
+                <div key={`pair-${idx}`} style={{ marginTop: 14, pageBreakInside: 'avoid' }}>
+                  <h3 style={s.h3}>
+                    {c.facultyA} ↔ {c.facultyB} — Ortak Projeler ({c.sharedProjects})
+                  </h3>
+                  <table style={s.table}>
+                    <thead>
+                      <tr>
+                        <th style={s.th}>#</th>
+                        <th style={s.th}>Proje</th>
+                        <th style={s.thR}>Durum</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {c.projects.slice(0, 10).map((p: any, i: number) => (
+                        <tr key={p.id || i}>
+                          <td style={s.td}>{i + 1}</td>
+                          <td style={s.tdSmall}>{p.name}</td>
+                          <td style={s.tdR}>{p.status || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -1241,7 +1374,7 @@ export default function AnnualReportPage() {
           </div>
 
           <div style={s.footerMeta}>
-            <p>Rapor üretici: {siteName} · Yıl {year}</p>
+            <p>Rapor üretici: {institutionName} Teknoloji Transfer Ofisi · Yıl {year}</p>
             <p>Oluşturulma: {new Date().toLocaleString('tr-TR')}</p>
             <p>Bu rapor otomatik olarak üretilmiştir. Veri kaynakları sürekli güncellendiği için
                farklı tarihlerde üretilen raporlar arasında küçük farklar olabilir.</p>
@@ -1249,12 +1382,14 @@ export default function AnnualReportPage() {
               <div style={s.signCell}>
                 <div style={s.signLine}></div>
                 <p style={s.signLbl}>Hazırlayan</p>
-                <p style={s.signName}>TTO Direktörlüğü</p>
+                <p style={s.signName}>{currentUser?.name || 'TTO Direktörlüğü'}</p>
+                {currentUser?.role && <p style={s.signRole}>{currentUser.role}</p>}
               </div>
               <div style={s.signCell}>
                 <div style={s.signLine}></div>
                 <p style={s.signLbl}>Onaylayan</p>
-                <p style={s.signName}>Rektör Yardımcılığı</p>
+                <p style={s.signName}>{rectorName}</p>
+                <p style={s.signRole}>Rektör</p>
               </div>
             </div>
           </div>
@@ -1393,5 +1528,6 @@ const s: Record<string, React.CSSProperties> = {
   signCell: { textAlign: 'center' as const },
   signLine: { height: 1, background: '#374151', margin: '30px 10px 6px' },
   signLbl: { fontSize: 9, color: '#6b7280', margin: 0, textTransform: 'uppercase' as const, letterSpacing: 1 },
-  signName: { fontSize: 10, color: '#374151', margin: '4px 0 0', fontWeight: 600 },
+  signName: { fontSize: 11, color: '#0f2444', margin: '4px 0 0', fontWeight: 700 },
+  signRole: { fontSize: 9, color: '#6b7280', margin: '2px 0 0', fontStyle: 'italic' as const },
 };

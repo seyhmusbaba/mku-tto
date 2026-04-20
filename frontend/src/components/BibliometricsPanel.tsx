@@ -58,6 +58,27 @@ const QUARTILE_COLORS: Record<string, string> = {
   Q1: '#059669', Q2: '#2563eb', Q3: '#d97706', Q4: '#dc2626', unknown: '#94a3b8',
 };
 
+const COUNTRY_NAMES_TR: Record<string, string> = {
+  US: 'Amerika Birleşik Devletleri', GB: 'Birleşik Krallık', DE: 'Almanya', FR: 'Fransa',
+  IT: 'İtalya', ES: 'İspanya', NL: 'Hollanda', JP: 'Japonya', CN: 'Çin', IN: 'Hindistan',
+  CA: 'Kanada', AU: 'Avustralya', RU: 'Rusya', BR: 'Brezilya', SA: 'Suudi Arabistan',
+  IR: 'İran', IQ: 'Irak', SY: 'Suriye', EG: 'Mısır', AE: 'BAE', QA: 'Katar', KW: 'Kuveyt',
+  PL: 'Polonya', BE: 'Belçika', CH: 'İsviçre', AT: 'Avusturya', SE: 'İsveç', NO: 'Norveç',
+  DK: 'Danimarka', FI: 'Finlandiya', GR: 'Yunanistan', PT: 'Portekiz', IE: 'İrlanda',
+  CZ: 'Çekya', HU: 'Macaristan', RO: 'Romanya', BG: 'Bulgaristan', RS: 'Sırbistan',
+  UA: 'Ukrayna', BY: 'Belarus', KR: 'Güney Kore', SG: 'Singapur',
+  MY: 'Malezya', TH: 'Tayland', PK: 'Pakistan', ID: 'Endonezya', VN: 'Vietnam',
+  MX: 'Meksika', AR: 'Arjantin', CL: 'Şili', ZA: 'Güney Afrika', NG: 'Nijerya',
+  TR: 'Türkiye', IL: 'İsrail', AZ: 'Azerbaycan', GE: 'Gürcistan', AM: 'Ermenistan',
+  UZ: 'Özbekistan', KZ: 'Kazakistan', KG: 'Kırgızistan', TJ: 'Tacikistan', TM: 'Türkmenistan',
+};
+function countryNameTR(code: string) { return COUNTRY_NAMES_TR[code] || code; }
+function countryFlag(code: string): string {
+  if (!code || code.length !== 2) return '';
+  const cp = code.toUpperCase().split('').map(c => 0x1f1e6 + (c.charCodeAt(0) - 65));
+  try { return String.fromCodePoint(...cp); } catch { return ''; }
+}
+
 const SOURCE_LABELS: Record<string, string> = {
   crossref: 'Crossref', openalex: 'OpenAlex', wos: 'Web of Science',
   scopus: 'Scopus', pubmed: 'PubMed', arxiv: 'arXiv', semanticScholar: 'Semantic Scholar',
@@ -83,6 +104,7 @@ export function BibliometricsPanel({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedQuartile, setSelectedQuartile] = useState<string | null>(null);
+  const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -264,27 +286,40 @@ export function BibliometricsPanel({
           <h4 className="font-display text-sm font-semibold text-navy mb-1 inline-flex items-center gap-2">
             <Icon name="globe" className="w-4 h-4" />
             Uluslararası İşbirliği — Ülke Bazlı
-            <InfoTip text="Yayın yazarlarının kurum ülkelerine göre ortak yazarlık sayısı. Türkiye dışı ülkeler listelenir; yüksek sayı derin stratejik işbirliğini gösterir." />
+            <InfoTip text="Yayın yazarlarının kurum ülkelerine göre ortak yazarlık sayısı. Türkiye dışı ülkeler listelenir. Bir ülkeye tıklayarak hangi yayınların o ülkeyle ortak yapıldığını görebilirsiniz." />
           </h4>
-          <p className="text-xs text-muted mb-4">İlk {Math.min(summary.countryCollaboration.length, 10)} ülke — ortak yayın sayısına göre</p>
+          <p className="text-xs text-muted mb-4">İlk {Math.min(summary.countryCollaboration.length, 15)} ülke — tıklayarak yayın listesini görün</p>
           <div className="space-y-1.5">
-            {summary.countryCollaboration.slice(0, 10).map((c: any) => {
+            {summary.countryCollaboration.slice(0, 15).map((c: any) => {
               const max = summary.countryCollaboration[0]?.count || 1;
               const pct = (c.count / max) * 100;
+              const active = selectedCountry === c.code;
               return (
-                <div key={c.code} className="flex items-center gap-3">
-                  <span className="text-lg w-6">{/* flag will render from code */}</span>
+                <button key={c.code}
+                  onClick={() => setSelectedCountry(prev => prev === c.code ? null : c.code)}
+                  className="w-full flex items-center gap-3 p-1.5 rounded-lg transition-all hover:bg-[#faf8f4] text-left"
+                  style={{ background: active ? '#f0ede8' : 'transparent', border: active ? '1px solid #c8a45a' : '1px solid transparent' }}>
+                  <span style={{ fontSize: 18, width: 24, flexShrink: 0 }}>{countryFlag(c.code)}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-navy">{c.code}</p>
+                    <p className="text-sm font-medium text-navy">{countryNameTR(c.code)} <span className="text-[11px] text-muted">({c.code})</span></p>
                     <div className="h-1.5 rounded-full mt-1" style={{ background: '#f0ede8' }}>
                       <div className="h-1.5 rounded-full" style={{ width: `${pct}%`, background: '#1a3a6b' }} />
                     </div>
                   </div>
-                  <span className="text-sm font-bold text-navy w-8 text-right">{c.count}</span>
-                </div>
+                  <span className="text-sm font-bold text-navy w-10 text-right flex-shrink-0">{c.count}</span>
+                </button>
               );
             })}
           </div>
+
+          {/* Seçili ülke için yayın drilldown */}
+          {selectedCountry && (
+            <CountryDrilldown
+              country={selectedCountry}
+              publications={publications}
+              onClose={() => setSelectedCountry(null)}
+            />
+          )}
         </div>
       )}
 
@@ -607,6 +642,59 @@ function QuartileDrilldown({ quartile, publications, onClose }: {
       )}
       {filtered.length > 50 && (
         <p className="text-xs text-muted mt-2 text-center">İlk 50 yayın listelendi — tam liste rapor dışa aktarmada bulunur.</p>
+      )}
+    </div>
+  );
+}
+
+/* ─── Seçili ülke için yayın listesi ─── */
+function CountryDrilldown({ country, publications, onClose }: {
+  country: string;
+  publications: any[];
+  onClose: () => void;
+}) {
+  const filtered = (publications || [])
+    .filter((p: any) => Array.isArray(p.countries) && p.countries.includes(country))
+    .sort((a: any, b: any) => (b?.citedBy?.best || 0) - (a?.citedBy?.best || 0));
+
+  return (
+    <div className="mt-4 p-3 rounded-lg" style={{ background: '#faf8f4', border: '1px solid #c8a45a' }}>
+      <div className="flex items-center justify-between mb-2">
+        <h5 className="text-sm font-semibold text-navy inline-flex items-center gap-2">
+          <span style={{ fontSize: 18 }}>{countryFlag(country)}</span>
+          {countryNameTR(country)} ile ortak yayınlar ({filtered.length})
+        </h5>
+        <button onClick={onClose} className="text-xs text-muted hover:text-navy font-semibold">Kapat ✕</button>
+      </div>
+      {filtered.length === 0 ? (
+        <p className="text-xs text-muted py-2">Bu ülke için yayın listesi yüklenmemiş — detay sadece kurumsal bibliyometri panelinde mevcuttur.</p>
+      ) : (
+        <div className="divide-y" style={{ borderColor: '#f0ede8', maxHeight: 320, overflowY: 'auto' }}>
+          {filtered.slice(0, 30).map((p: any, i: number) => (
+            <div key={p.doi || p.title + i} className="py-2 flex gap-3">
+              <div className="w-5 text-xs text-muted font-semibold text-right flex-shrink-0">{i + 1}.</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-navy line-clamp-2">{p.title}</p>
+                <p className="text-[11px] text-muted mt-0.5">
+                  {p.journal ? p.journal + ' · ' : ''}{p.year || '—'}
+                  {p.quality?.sjrQuartile && (
+                    <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded text-white font-bold"
+                      style={{ background: QUARTILE_COLORS[p.quality.sjrQuartile] }}>
+                      {p.quality.sjrQuartile}
+                    </span>
+                  )}
+                </p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className="text-sm font-bold text-navy">{p?.citedBy?.best || 0}</p>
+                <p className="text-[10px] text-muted">atıf</p>
+              </div>
+            </div>
+          ))}
+          {filtered.length > 30 && (
+            <p className="text-[11px] text-muted text-center pt-2">İlk 30 yayın gösterildi (toplam {filtered.length}).</p>
+          )}
+        </div>
       )}
     </div>
   );
