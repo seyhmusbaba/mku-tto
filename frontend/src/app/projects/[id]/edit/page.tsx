@@ -6,6 +6,7 @@ import { Header } from '@/components/layout/Header';
 import { api, projectsApi, documentsApi, facultiesApi } from '@/lib/api';
 import { BudgetEstimator } from '@/components/BudgetEstimator';
 import { SdgPicker } from '@/components/SdgPicker';
+import { ProjectIntelligencePanel } from '@/components/ProjectIntelligencePanel';
 import { useAuth } from '@/lib/auth-context';
 import toast from 'react-hot-toast';
 
@@ -339,7 +340,8 @@ export default function EditProjectPage() {
         }
       />
 
-      <div className="p-6" style={{ maxWidth: 900, margin: '0 auto' }}>
+      <div className="p-6 max-w-[1400px] mx-auto grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6">
+        <div>
         {/* Audit log uyarısı */}
         <div className="mb-4 p-3 rounded-xl text-xs flex items-center gap-2" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8' }}>
           <EPIcon name="info" className="w-4 h-4 flex-shrink-0" />
@@ -575,6 +577,22 @@ export default function EditProjectPage() {
           <button onClick={handleSave} disabled={saving} className="btn-primary inline-flex items-center gap-1.5">
             {saving ? <><span className="spinner w-4 h-4" />Kaydediliyor...</> : <><EPIcon name="save" className="w-4 h-4" />Değişiklikleri Kaydet</>}
           </button>
+        </div>
+        </div>
+
+        {/* Sağ: Proje Zekası Paneli */}
+        <div className="hidden xl:block">
+          <ProjectIntelligencePanel
+            title={form.title}
+            description={form.description}
+            keywords={[
+              ...(form.tags ? form.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : []),
+              ...(form.keywords ? form.keywords.split(',').map((k: string) => k.trim()).filter(Boolean) : []),
+            ]}
+            type={form.type}
+            budget={form.budget ? Number(form.budget) : undefined}
+            faculty={form.faculty}
+          />
         </div>
       </div>
     </DashboardLayout>
