@@ -11,6 +11,7 @@ import { DergiparkService } from './dergipark.service';
 import { CordisService } from './cordis.service';
 import { LiteratureService } from './literature.service';
 import { PublicationsService } from './publications.service';
+import { TrDizinService } from './trdizin.service';
 
 /**
  * Entegrasyonlar modülü — akademik veri kaynaklarıyla köprü.
@@ -33,12 +34,12 @@ import { PublicationsService } from './publications.service';
   providers: [
     CrossrefService, ScimagoService, OpenAccessService, WosService, PatentService,
     OpenAlexService, DergiparkService, CordisService, LiteratureService,
-    PublicationsService,
+    PublicationsService, TrDizinService,
   ],
   exports: [
     CrossrefService, ScimagoService, OpenAccessService, WosService, PatentService,
     OpenAlexService, DergiparkService, CordisService, LiteratureService,
-    PublicationsService,
+    PublicationsService, TrDizinService,
   ],
 })
 export class IntegrationsModule {}

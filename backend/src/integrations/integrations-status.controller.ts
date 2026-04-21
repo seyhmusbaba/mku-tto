@@ -8,6 +8,7 @@ import { PatentService } from './patent.service';
 import { OpenAlexService } from './openalex.service';
 import { DergiparkService } from './dergipark.service';
 import { CordisService } from './cordis.service';
+import { TrDizinService } from './trdizin.service';
 
 /**
  * Entegrasyon durum endpoint'i — AUTH GEREKTİRMEZ.
@@ -28,7 +29,31 @@ export class IntegrationsStatusController {
     private readonly openalex: OpenAlexService,
     private readonly dergipark: DergiparkService,
     private readonly cordis: CordisService,
+    private readonly trdizin: TrDizinService,
   ) {}
+
+  @Get('trdizin/diagnostic')
+  async trdizinDiagnostic() {
+    return this.trdizin.diagnostic();
+  }
+
+  @Get('trdizin/test')
+  async trdizinLiveTest() {
+    const pubs = await this.trdizin.getInstitutionPublications(undefined, { limit: 5 });
+    return {
+      itemsReturned: pubs.length,
+      firstItem: pubs[0] ? {
+        id: pubs[0].id,
+        title: pubs[0].title,
+        year: pubs[0].year,
+        journal: pubs[0].journal?.name,
+        doi: pubs[0].doi,
+        authors: pubs[0].authors.slice(0, 3).map(a => a.name),
+        citedBy: pubs[0].citedBy,
+        isOpenAccess: pubs[0].isOpenAccess,
+      } : null,
+    };
+  }
 
   // Public diagnostic — SCImago'nun yüklenip yüklenmediğini ve yüklenmediyse
   // hangi hatayla karşılaştığını tarayıcıdan direkt gör.
@@ -70,6 +95,7 @@ export class IntegrationsStatusController {
       pubmed:          { configured: true,                         requiresKey: false, note: 'NCBI E-utilities — PUBMED_MAILTO önerilir' },
       arxiv:           { configured: true,                         requiresKey: false, note: 'STEM preprint' },
       semanticScholar: { configured: true,                         requiresKey: false, note: 'SEMANTIC_SCHOLAR_KEY opsiyonel (yüksek rate için)' },
+      trdizin:         { configured: this.trdizin.isConfigured(),  requiresKey: false, note: 'TR Dizin (TÜBİTAK ULAKBİM) — Türkçe akademik yayınlar, MKÜ inst code: ' + (process.env.TRDIZIN_INST_CODE || 'MzU1MDg2') },
     };
   }
 }

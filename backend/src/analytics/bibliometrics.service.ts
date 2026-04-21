@@ -73,16 +73,16 @@ export class BibliometricsService {
       pubs = await this.publications.getAuthorPublicationsByOrcid(user.orcidId, 200);
     }
 
-    // ORCID yoksa ama Scopus ID varsa, OpenAlex üzerinden dene
-    if (pubs.length === 0 && user.scopusAuthorId) {
+    // ORCID yoksa veya ORCID'den hiç yayın gelmediyse — isim bazlı fallback
+    // (TR Dizin + OpenAlex hem Türkçe hem uluslararası yakalar)
+    if (pubs.length === 0) {
+      const fullName = `${user.firstName} ${user.lastName}`.trim();
+      // Kurum hint: sadece "Mustafa Kemal" ver — OpenAlex full affiliation ister
+      const instHint = 'Mustafa Kemal';
       try {
-        const oaAuthor = await this.openalex.searchAuthorByName(`${user.firstName} ${user.lastName}`, user.faculty, 5);
-        if (oaAuthor.length > 0) {
-          const works = await this.openalex.getAuthorWorks(oaAuthor[0].id, 200);
-          pubs = works.map(w => this.normalizeOaToUnified(w));
-        }
+        pubs = await this.publications.getAuthorPublicationsByName(fullName, instHint, 200);
       } catch (e: any) {
-        this.logger.warn(`OpenAlex fallback failed: ${e.message}`);
+        this.logger.warn(`Name-based publications failed: ${e.message}`);
       }
     }
 

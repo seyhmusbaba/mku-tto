@@ -6,6 +6,7 @@ import { WosService, WosPublication } from './wos.service';
 import { OpenAccessService } from './open-access.service';
 import { ScimagoService, JournalQuality } from './scimago.service';
 import { LiteratureService, LiteraturePublication } from './literature.service';
+import { TrDizinService, TrDizinPublication } from './trdizin.service';
 
 /**
  * Birleşik yayın servisi.
@@ -68,7 +69,7 @@ export interface UnifiedPublication {
   institutionsDistinctCount?: number;
 
   // Hangi kaynaklardan birleştirildi
-  sources: Array<'crossref' | 'openalex' | 'wos' | 'scopus' | 'pubmed' | 'arxiv' | 'semanticScholar'>;
+  sources: Array<'crossref' | 'openalex' | 'wos' | 'scopus' | 'pubmed' | 'arxiv' | 'semanticScholar' | 'trdizin'>;
 
   // Kaynak bazlı dış ID'ler
   externalIds: {
@@ -79,6 +80,7 @@ export interface UnifiedPublication {
     arxivId?: string;
     s2PaperId?: string;
     scopusId?: string;
+    trdizinId?: string;
   };
 
   url?: string;
@@ -96,6 +98,7 @@ export class PublicationsService {
     private oa: OpenAccessService,
     private scimago: ScimagoService,
     private literature: LiteratureService,
+    private trdizin: TrDizinService,
   ) {}
 
   /**
@@ -130,6 +133,51 @@ export class PublicationsService {
       .sort((a, b) => (b.citedBy.best || 0) - (a.citedBy.best || 0))
       .slice(0, limit);
     this.cache.set(cacheKey, result, 60 * 60 * 6); // 6 saat
+    return result;
+  }
+
+  /**
+   * Yazar adı + kurum hint ile yayın arama (ORCID yoksa fallback).
+   * TR Dizin üzerinden Türkçe yayınları yakalar — Google Scholar açığını kapatır.
+   */
+  async getAuthorPublicationsByName(
+    fullName: string,
+    institutionHint?: string,
+    limit = 100,
+  ): Promise<UnifiedPublication[]> {
+    if (!fullName || fullName.trim().length < 3) return [];
+    const cacheKey = `name:${fullName.toLowerCase()}:${institutionHint || ''}:${limit}`;
+    const cached = this.cache.get<UnifiedPublication[]>(cacheKey);
+    if (cached) return cached;
+
+    const map = new Map<string, UnifiedPublication>();
+
+    // TR Dizin — Türkçe yayınlar için
+    try {
+      const trPubs = await this.trdizin.searchByAuthorName(fullName, institutionHint, limit);
+      for (const p of trPubs) this.mergeTrDizin(map, p);
+    } catch (e: any) {
+      this.logger.warn(`TR Dizin author search failed: ${e.message}`);
+    }
+
+    // OpenAlex — uluslararası kapsama
+    try {
+      const oaAuthors = await this.openalex.searchAuthorByName(fullName, institutionHint, 3);
+      if (oaAuthors.length > 0) {
+        // En yüksek yayın sayısına sahip adayı seç
+        const best = oaAuthors.sort((a, b) => (b.worksCount || 0) - (a.worksCount || 0))[0];
+        const works = await this.openalex.getAuthorWorks(best.id, limit);
+        for (const w of works) this.mergeOpenAlex(map, w);
+      }
+    } catch (e: any) {
+      this.logger.warn(`OpenAlex author name search failed: ${e.message}`);
+    }
+
+    await this.enrichAll(map);
+    const result = Array.from(map.values())
+      .sort((a, b) => (b.citedBy.best || 0) - (a.citedBy.best || 0))
+      .slice(0, limit);
+    this.cache.set(cacheKey, result, 60 * 60 * 6);
     return result;
   }
 
@@ -173,13 +221,76 @@ export class PublicationsService {
     const cached = this.cache.get<UnifiedPublication[]>(cacheKey);
     if (cached) return cached;
 
-    const works = await this.openalex.getInstitutionWorks(institutionId, year, limit);
     const map = new Map<string, UnifiedPublication>();
-    for (const w of works) this.mergeOpenAlex(map, w);
+
+    // 1. OpenAlex — uluslararası kapsama (DOI'li yayınlar ağırlıklı)
+    try {
+      const works = await this.openalex.getInstitutionWorks(institutionId, year, limit);
+      for (const w of works) this.mergeOpenAlex(map, w);
+    } catch (e: any) {
+      this.logger.warn(`OpenAlex institution works failed: ${e.message}`);
+    }
+
+    // 2. TR Dizin — OpenAlex'in kaçırdığı Türkçe yayınları ekler
+    try {
+      const thisYear = new Date().getFullYear();
+      const fromYear = year || (thisYear - 5);
+      const toYear = year || thisYear;
+      const trPubs = await this.trdizin.getInstitutionPublications(undefined, {
+        fromYear, toYear, limit: Math.min(limit, 150),
+      });
+      for (const p of trPubs) this.mergeTrDizin(map, p);
+    } catch (e: any) {
+      this.logger.warn(`TR Dizin institution works failed: ${e.message}`);
+    }
+
     await this.enrichAll(map);
     const result = Array.from(map.values()).sort((a, b) => (b.citedBy.best || 0) - (a.citedBy.best || 0));
     this.cache.set(cacheKey, result, 60 * 60 * 6);
     return result;
+  }
+
+  /**
+   * TR Dizin yayınını unified formata merge et.
+   * DOI varsa DOI bazlı dedupe, yoksa başlık bazlı.
+   */
+  private mergeTrDizin(map: Map<string, UnifiedPublication>, p: TrDizinPublication) {
+    const key = this.keyFor(p.doi, p.title);
+    const existing = map.get(key);
+    if (existing) {
+      // Başka kaynakta varsa: TR Dizin'den sadece eksik alanları tamamla
+      if (!existing.abstract && p.abstracts?.length) {
+        existing.abstract = p.abstracts[0].abstract;
+      }
+      if (!existing.journal && p.journal?.name) existing.journal = p.journal.name;
+      if (!existing.issn && p.journal?.issn) existing.issn = [p.journal.issn];
+      if (p.isOpenAccess && !existing.openAccess?.isOa) {
+        existing.openAccess = { isOa: true, oaStatus: 'trdizin-open' };
+      }
+      existing.sources.push('trdizin');
+      existing.externalIds.trdizinId = p.id;
+    } else {
+      map.set(key, {
+        doi: p.doi,
+        title: p.title,
+        abstract: p.abstracts?.[0]?.abstract,
+        year: p.year,
+        type: p.docType,
+        journal: p.journal?.name,
+        issn: p.journal?.issn ? [p.journal.issn] : undefined,
+        authors: p.authors.map(a => ({
+          name: a.name,
+          orcid: a.orcid,
+          affiliation: a.institutionName,
+        })),
+        citedBy: { best: p.citedBy },
+        openAccess: p.isOpenAccess
+          ? { isOa: true, oaStatus: 'trdizin-open' }
+          : { isOa: false },
+        sources: ['trdizin'],
+        externalIds: { doi: p.doi, trdizinId: p.id },
+      });
+    }
   }
 
   // ── Dedupe merge helpers ──────────────────────────────────────────────

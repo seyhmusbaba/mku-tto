@@ -14,6 +14,7 @@ const tests = [
   { name: 'Integrations status',       url: `${BASE}/integrations/status`,               expect: (d) => typeof d.crossref === 'object' },
   { name: 'SCImago diagnostic',        url: `${BASE}/integrations/scimago/diagnostic`,   expect: (d) => 'loaded' in d },
   { name: 'CORDIS diagnostic',         url: `${BASE}/integrations/cordis/diagnostic`,    expect: (d) => 'hasData' in d },
+  { name: 'TR Dizin diagnostic',       url: `${BASE}/integrations/trdizin/diagnostic`,   expect: (d) => 'canReach' in d },
 ];
 
 let passed = 0;
