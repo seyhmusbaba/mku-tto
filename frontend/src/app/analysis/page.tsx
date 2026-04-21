@@ -451,15 +451,16 @@ export default function AnalysisPage() {
                   <span className="text-sm font-semibold text-navy">Kapsam:</span>
                   <div className="flex gap-1 p-1 rounded-xl" style={{ background: '#f0ede8' }}>
                     {(() => {
+                      type BiblioScope = 'me' | 'faculty' | 'institutional' | 'faculty-compare' | 'dept-compare';
                       const roleName = user?.role?.name || '';
                       const canCompare = ['Süper Admin', 'Rektör', 'Dekan', 'Bölüm Başkanı'].includes(roleName);
-                      const opts = [
+                      const opts: Array<{ v: BiblioScope; l: string }> = [
                         { v: 'me',            l: 'Benim Scorecardım' },
                         { v: 'faculty',       l: 'Fakülte' },
                         { v: 'institutional', l: 'Kurumsal (MKÜ)' },
-                        ...(canCompare ? [{ v: 'faculty-compare', l: 'Fakülte Karşılaştırma' }] : []),
-                        ...(canCompare ? [{ v: 'dept-compare',    l: 'Bölüm Karşılaştırma' }] : []),
-                      ] as const;
+                        ...(canCompare ? [{ v: 'faculty-compare' as BiblioScope, l: 'Fakülte Karşılaştırma' }] : []),
+                        ...(canCompare ? [{ v: 'dept-compare' as BiblioScope,    l: 'Bölüm Karşılaştırma' }] : []),
+                      ];
                       return opts.map(o => (
                       <button key={o.v} onClick={() => setBiblioScope(o.v)}
                         className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
