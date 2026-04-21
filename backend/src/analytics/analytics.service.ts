@@ -79,7 +79,7 @@ export class AnalyticsService {
     return ids;
   }
 
-  async getOverview(q: { year?: string; faculty?: string; type?: string }, userId: string, roleName: string) {
+  async getOverview(q: { year?: string; faculty?: string; type?: string; from?: string; to?: string }, userId: string, roleName: string) {
     const scope = await this.resolveScope(userId, roleName);
     const qb = this.projectRepo.createQueryBuilder('p');
 
@@ -92,6 +92,8 @@ export class AnalyticsService {
     }
 
     if (q.year) qb.andWhere(`p."startDate" IS NOT NULL AND SUBSTRING(p."startDate", 1, 4) = :year`, { year: q.year });
+    if (q.from) qb.andWhere(`p."startDate" IS NOT NULL AND p."startDate" >= :from`, { from: q.from });
+    if (q.to) qb.andWhere(`p."startDate" IS NOT NULL AND p."startDate" <= :to`, { to: q.to });
     if (q.faculty) qb.andWhere('p.faculty = :faculty', { faculty: q.faculty });
     if (q.type) qb.andWhere('p.type = :type', { type: q.type });
 
@@ -112,12 +114,32 @@ export class AnalyticsService {
     const activeBudget = projects.filter(p => p.status === 'active').reduce((s, p) => s + (p.budget || 0), 0);
     // Başarı oranı: sonucu belli olan projeler (tamamlandı + iptal) üzerinden
     const completed = projects.filter(p => p.status === 'completed').length;
-    const decided = projects.filter(p => ['completed', 'cancelled'].includes(p.status)).length;
+    const active = projects.filter(p => p.status === 'active').length;
+    const cancelled = projects.filter(p => p.status === 'cancelled').length;
+    const pending = projects.filter(p => ['application','pending'].includes(p.status)).length;
+    const suspended = projects.filter(p => p.status === 'suspended').length;
+    const decided = completed + cancelled;
     const successRate = decided > 0 ? Math.round((completed / decided) * 100) : 0;
     const avgBudget = total > 0 ? Math.round(totalBudget / total) : 0;
 
+    // Proje türüne göre dağılım
+    const typeCounts: Record<string, number> = {};
+    for (const p of projects) {
+      const t = p.type || 'other';
+      typeCounts[t] = (typeCounts[t] || 0) + 1;
+    }
+    const byType = Object.entries(typeCounts)
+      .map(([type, count]) => ({ type, count }))
+      .sort((a, b) => b.count - a.count);
+
     return {
-      total, byStatus, totalBudget, activeBudget, successRate, avgBudget,
+      total, byStatus, byType, totalBudget, activeBudget, successRate, avgBudget,
+      // Durum bazlı sayılar — frontend'in doğrudan kullanabileceği isimler
+      activeProjects: active,
+      completedProjects: completed,
+      cancelledProjects: cancelled,
+      pendingProjects: pending,
+      suspendedProjects: suspended,
       completed, decided,
       restricted: scope.kind !== 'global',
       scope: scope.kind,

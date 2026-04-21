@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Header } from '@/components/layout/Header';
 import { api, projectTypesApi, facultiesApi, scopusApi } from '@/lib/api';
@@ -72,6 +73,7 @@ export default function AnalysisPage() {
   const [filterFaculty, setFilterFaculty] = useState('');
   const [filterType, setFilterType] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [periodModalOpen, setPeriodModalOpen] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -142,20 +144,30 @@ export default function AnalysisPage() {
               const roleName = user?.role?.name || '';
               const canSeeAnnualReport = ['Süper Admin', 'Rektör', 'Dekan', 'Bölüm Başkanı'].includes(roleName);
               return canSeeAnnualReport ? (
-                <button
-                  onClick={() => {
-                    if (typeof window !== 'undefined') {
-                      const token = localStorage.getItem('tto_token');
-                      if (token) sessionStorage.setItem('tto_print_token', token);
-                    }
-                    window.open('/analysis/annual-report', '_blank');
-                  }}
-                  className="btn-primary text-sm inline-flex items-center gap-1.5"
-                  title="Tüm kurumsal metrikleri içeren yıllık PDF raporu"
-                >
-                  <AIcon name="document" className="w-3.5 h-3.5" />
-                  Yıllık Kurumsal Rapor
-                </button>
+                <>
+                  <button
+                    onClick={() => {
+                      if (typeof window !== 'undefined') {
+                        const token = localStorage.getItem('tto_token');
+                        if (token) sessionStorage.setItem('tto_print_token', token);
+                      }
+                      window.open('/analysis/annual-report', '_blank');
+                    }}
+                    className="btn-primary text-sm inline-flex items-center gap-1.5"
+                    title="Tüm kurumsal metrikleri içeren yıllık PDF raporu"
+                  >
+                    <AIcon name="document" className="w-3.5 h-3.5" />
+                    Yıllık Kurumsal Rapor
+                  </button>
+                  <button
+                    onClick={() => setPeriodModalOpen(true)}
+                    className="btn-secondary text-sm inline-flex items-center gap-1.5"
+                    title="Belirli bir tarih aralığı için özel rapor (haftalık, aylık, dönemsel)"
+                  >
+                    <AIcon name="chart" className="w-3.5 h-3.5" />
+                    Dönemsel Rapor
+                  </button>
+                </>
               ) : null;
             })()}
             <button onClick={handleOpenTabReport} disabled={exporting || tab === 'gantt'} className="btn-secondary text-sm inline-flex items-center gap-1.5"
@@ -165,6 +177,11 @@ export default function AnalysisPage() {
             </button>
           </div>
         </div>
+
+        {/* Dönemsel Rapor Modal */}
+        {periodModalOpen && (
+          <PeriodReportModal onClose={() => setPeriodModalOpen(false)} />
+        )}
 
         {/* Filtreler (overview sekmesinde) */}
         {tab === 'overview' && (
@@ -673,6 +690,133 @@ function ScopusAnalyticsTab() {
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ─── Dönemsel Rapor Modal ─── */
+function PeriodReportModal({ onClose }: { onClose: () => void }) {
+  const [preset, setPreset] = useState<'custom' | '7d' | '30d' | '90d' | '1y' | 'qtr' | 'ytd'>('30d');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+
+  // Preset'e göre tarihleri otomatik ayarla
+  const applyPreset = (p: typeof preset) => {
+    setPreset(p);
+    const today = new Date();
+    const toStr = today.toISOString().slice(0, 10);
+    const back = (days: number) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() - days);
+      return d.toISOString().slice(0, 10);
+    };
+    switch (p) {
+      case '7d':  setFrom(back(7));   setTo(toStr); break;
+      case '30d': setFrom(back(30));  setTo(toStr); break;
+      case '90d': setFrom(back(90));  setTo(toStr); break;
+      case '1y':  setFrom(back(365)); setTo(toStr); break;
+      case 'qtr': {
+        // Bu çeyreğin başı
+        const q = Math.floor(today.getMonth() / 3);
+        const start = new Date(today.getFullYear(), q * 3, 1);
+        setFrom(start.toISOString().slice(0, 10));
+        setTo(toStr);
+        break;
+      }
+      case 'ytd': {
+        const start = new Date(today.getFullYear(), 0, 1);
+        setFrom(start.toISOString().slice(0, 10));
+        setTo(toStr);
+        break;
+      }
+    }
+  };
+
+  // İlk açılışta 30 günlük preset uygula
+  useEffect(() => { applyPreset('30d'); }, []); // eslint-disable-line
+
+  const handleGenerate = () => {
+    if (!from || !to) {
+      toast.error('Tarih aralığı seçin');
+      return;
+    }
+    if (from > to) {
+      toast.error('Başlangıç tarihi bitişten sonra olamaz');
+      return;
+    }
+    // Token'ı session'a geçir ve yeni sekmede aç
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('tto_token');
+      if (token) sessionStorage.setItem('tto_print_token', token);
+    }
+    const url = `/analysis/period-report?from=${from}&to=${to}&preset=${preset}`;
+    window.open(url, '_blank');
+    onClose();
+  };
+
+  const presetBtn = (p: typeof preset, label: string) => (
+    <button
+      key={p}
+      onClick={() => applyPreset(p)}
+      className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+      style={{
+        background: preset === p ? '#1a3a6b' : '#f0ede8',
+        color: preset === p ? 'white' : '#6b7280',
+        border: preset === p ? '1.5px solid #1a3a6b' : '1.5px solid #e8e4dc',
+      }}>
+      {label}
+    </button>
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(15, 36, 68, 0.6)' }} onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6" style={{ border: '1px solid #c8a45a' }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-display text-lg font-bold text-navy">Dönemsel Rapor</h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-cream" style={{ border: '1px solid #e8e4dc' }}>
+            <svg className="w-4 h-4 text-navy" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <p className="text-sm text-muted mb-4">Belirli bir tarih aralığı için PDF raporu üretir — başvurulan/aktifleşen/tamamlanan projeler dönem içinde.</p>
+
+        <label className="label">Hazır Aralık</label>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {presetBtn('7d', 'Son 7 Gün')}
+          {presetBtn('30d', 'Son 30 Gün')}
+          {presetBtn('90d', 'Son 90 Gün')}
+          {presetBtn('qtr', 'Bu Çeyrek')}
+          {presetBtn('ytd', 'Yıl Başından Bugüne')}
+          {presetBtn('1y', 'Son 1 Yıl')}
+          {presetBtn('custom', 'Özel')}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div>
+            <label className="label">Başlangıç</label>
+            <input type="date" className="input" value={from} onChange={e => { setFrom(e.target.value); setPreset('custom'); }} />
+          </div>
+          <div>
+            <label className="label">Bitiş</label>
+            <input type="date" className="input" value={to} onChange={e => { setTo(e.target.value); setPreset('custom'); }} />
+          </div>
+        </div>
+
+        {from && to && (
+          <p className="text-xs text-muted mb-4">
+            Seçilen aralık: <strong className="text-navy">{from}</strong> → <strong className="text-navy">{to}</strong> · {Math.ceil((new Date(to).getTime() - new Date(from).getTime()) / 86400000)} gün
+          </p>
+        )}
+
+        <div className="flex gap-2">
+          <button onClick={handleGenerate} disabled={!from || !to} className="btn-primary flex-1 inline-flex items-center justify-center gap-2">
+            <AIcon name="document" className="w-4 h-4" />
+            Raporu Oluştur
+          </button>
+          <button onClick={onClose} className="btn-secondary">İptal</button>
+        </div>
+      </div>
     </div>
   );
 }
