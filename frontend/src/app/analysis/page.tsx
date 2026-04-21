@@ -217,9 +217,17 @@ export default function AnalysisPage() {
             {tab === 'overview' && !overviewLoading && overview && (
               <div className="space-y-6">
                 {overview.restricted && (
-                  <div className="flex items-center gap-2 p-3 rounded-xl text-sm mb-2" style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}>
-                    <AIcon name="lock" className="w-4 h-4 flex-shrink-0" />
-                    <span>Yalnızca yetkili olduğunuz projeler gösteriliyor. Tüm analizlere erişim için yöneticinizle iletişime geçin.</span>
+                  <div className="flex items-center gap-2 p-3 rounded-xl text-sm mb-2" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af' }}>
+                    <AIcon name="info" className="w-4 h-4 flex-shrink-0" />
+                    <span>
+                      {overview.scope === 'faculty' && overview.scopeValue ? (
+                        <><strong>{overview.scopeValue}</strong> fakültesi görünümü — kendi fakültenizin analiz verileri. Kurumsal Karşılaştırma sekmesinde diğer fakültelerle kıyaslayabilirsiniz.</>
+                      ) : overview.scope === 'department' && overview.scopeValue ? (
+                        <><strong>{overview.scopeValue}</strong> bölüm görünümü — kendi bölümünüzün analiz verileri. Fakülteler sekmesinde diğer bölümlerle karşılaştırabilirsiniz.</>
+                      ) : (
+                        <>Yalnızca yetkili olduğunuz projeler gösteriliyor. Tüm analizlere erişim için yöneticinizle iletişime geçin.</>
+                      )}
+                    </span>
                   </div>
                 )}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -434,7 +442,7 @@ export default function AnalysisPage() {
 
             {/* ── SCOPUS ANALİTİK ── */}
             {/* ── KURUMSAL KARŞILAŞTIRMA ── */}
-            {tab === 'institutional' && <InstitutionalPanel />}
+            {tab === 'institutional' && <InstitutionalPanel highlightFaculty={user?.faculty} />}
 
             {/* ── BİBLİYOMETRİ ── */}
             {tab === 'bibliometrics' && (

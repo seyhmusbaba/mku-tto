@@ -46,7 +46,7 @@ const FACULTY_COLORS = ['#0f2444', '#1a3a6b', '#c8a45a', '#7c3aed', '#059669', '
 // UN SDG resmi renkleri
 const SDG_COLORS = ['#e5243b', '#dda63a', '#4c9f38', '#c5192d', '#ff3a21', '#26bde2', '#fcc30b', '#a21942', '#fd6925', '#dd1367', '#fd9d24', '#bf8b2e', '#3f7e44', '#0a97d9', '#56c02b', '#00689d', '#19486a'];
 
-export function InstitutionalPanel() {
+export function InstitutionalPanel({ highlightFaculty }: { highlightFaculty?: string } = {}) {
   const [radar, setRadar] = useState<any[]>([]);
   const [collab, setCollab] = useState<any>(null);
   const [heatmap, setHeatmap] = useState<any>(null);
@@ -67,8 +67,15 @@ export function InstitutionalPanel() {
         setRadar(r);
         setCollab(c);
         setHeatmap(h);
-        // İlk 4 fakülteyi default seç
-        setSelectedFaculties((r || []).slice(0, 4).map((f: any) => f.faculty));
+        // Default seçim: Dekan'ın fakültesi varsa onu + ilk 3; yoksa ilk 4
+        const allFaculties = (r || []).map((f: any) => f.faculty);
+        let defaults: string[] = [];
+        if (highlightFaculty && allFaculties.includes(highlightFaculty)) {
+          defaults = [highlightFaculty, ...allFaculties.filter((f: string) => f !== highlightFaculty).slice(0, 3)];
+        } else {
+          defaults = allFaculties.slice(0, 4);
+        }
+        setSelectedFaculties(defaults);
       })
       .catch(e => setError('Veri yüklenemedi'))
       .finally(() => setLoading(false));
@@ -225,11 +232,13 @@ export function InstitutionalPanel() {
             <tbody>
               {radar.map((f: any, i: number) => {
                 const color = FACULTY_COLORS[i % FACULTY_COLORS.length];
+                const isOwn = highlightFaculty && f.faculty === highlightFaculty;
                 return (
-                  <tr key={f.faculty} className="border-b" style={{ borderColor: '#f5f2ee' }}>
+                  <tr key={f.faculty} className="border-b" style={{ borderColor: '#f5f2ee', background: isOwn ? '#fef3c7' : undefined, fontWeight: isOwn ? 700 : undefined }}>
                     <td className="px-3 py-2 font-semibold text-navy inline-flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full" style={{ background: color }} />
                       {f.faculty}
+                      {isOwn && <span className="text-xs px-1.5 py-0.5 rounded font-bold" style={{ background: '#c8a45a', color: 'white' }}>SİZİN</span>}
                     </td>
                     <td className="px-3 py-2 text-right text-navy">{f.totalProjects}</td>
                     <td className="px-3 py-2 text-right text-emerald-600">{f.activeProjects}</td>
