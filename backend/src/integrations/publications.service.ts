@@ -282,6 +282,9 @@ export class PublicationsService {
           name: a.name,
           orcid: a.orcid,
           affiliation: a.institutionName,
+          // TR Dizin yazarlarının kurumu Türkçe isimli — ülke verisi yok ama
+          // TR Dizin Türkiye indeksi olduğu için varsayılan TR
+          countries: ['TR'],
         })),
         citedBy: { best: p.citedBy },
         openAccess: p.isOpenAccess
@@ -674,18 +677,22 @@ export class PublicationsService {
       'supplementary-materials': 'Ek Materyaller',
       'other':                 'Diğer',
     };
-    const typeMap = new Map<string, { count: number; citations: number }>();
+    // Dedupe LABEL bazında — aynı Türkçe labela gelen farklı kodları birleştir
+    // (article + journal-article + PAPER hepsi "Makale" → tek satır)
+    const typeMap = new Map<string, { label: string; count: number; citations: number; rawTypes: Set<string> }>();
     for (const p of pubs) {
-      const t = (p.type || 'other').toLowerCase();
-      const cur = typeMap.get(t) || { count: 0, citations: 0 };
+      const raw = (p.type || 'other').toLowerCase();
+      const label = typeLabels[raw] || (raw.charAt(0).toUpperCase() + raw.slice(1).replace(/-/g, ' '));
+      const cur = typeMap.get(label) || { label, count: 0, citations: 0, rawTypes: new Set() };
       cur.count++;
       cur.citations += p.citedBy.best || 0;
-      typeMap.set(t, cur);
+      cur.rawTypes.add(raw);
+      typeMap.set(label, cur);
     }
-    const typeDistribution = Array.from(typeMap.entries())
-      .map(([type, v]) => ({
-        type,
-        label: typeLabels[type] || type.charAt(0).toUpperCase() + type.slice(1),
+    const typeDistribution = Array.from(typeMap.values())
+      .map(v => ({
+        type: Array.from(v.rawTypes).join(','),
+        label: v.label,
         count: v.count,
         citations: v.citations,
       }))

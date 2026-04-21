@@ -333,7 +333,7 @@ export class OpenAlexService {
     hIndex?: number;
     i10Index?: number;
     twoYearMeanCitedness?: number;
-    countsByYear: Array<{ year: number; worksCount: number; citedByCount: number }>;
+    countsByYear: Array<{ year: number; worksCount: number; citedByCount: number; oaWorksCount: number }>;
     topConcepts: Array<{ name: string; level: number; score: number }>;
   } | null> {
     if (!institutionId) return null;
@@ -356,7 +356,10 @@ export class OpenAlexService {
         i10Index: data.summary_stats?.i10_index,
         twoYearMeanCitedness: data.summary_stats?.['2yr_mean_citedness'],
         countsByYear: (data.counts_by_year || []).map((c: any) => ({
-          year: c.year, worksCount: c.works_count || 0, citedByCount: c.cited_by_count || 0,
+          year: c.year,
+          worksCount: c.works_count || 0,
+          citedByCount: c.cited_by_count || 0,
+          oaWorksCount: c.oa_works_count || 0,
         })),
         topConcepts: (data.x_concepts || []).slice(0, 8).map((c: any) => ({
           name: c.display_name, level: c.level || 0, score: c.score || 0,

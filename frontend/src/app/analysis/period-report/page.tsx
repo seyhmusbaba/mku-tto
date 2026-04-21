@@ -50,6 +50,9 @@ function PeriodReportContent() {
   const [radar, setRadar] = useState<any[]>([]);
   const [timeline, setTimeline] = useState<any[]>([]);
   const [researchers, setResearchers] = useState<any[]>([]);
+  const [institutional, setInstitutional] = useState<any>(null);
+  const [cordisProjects, setCordisProjects] = useState<any[]>([]);
+  const [funding, setFunding] = useState<any>(null);
   const [institutionName, setInstitutionName] = useState('Hatay Mustafa Kemal Üniversitesi');
   const [rectorName, setRectorName] = useState('Prof. Dr. Veysel EREN');
   const [currentUser, setCurrentUser] = useState<{ name: string; role?: string } | null>(null);
@@ -71,7 +74,10 @@ function PeriodReportContent() {
       axios.get(`${base}/analytics/overview`, { headers, params: { from, to } }).then(r => r.data).catch(() => null),
       axios.get(`${base}/analytics/institutional/faculty-radar`, { headers }).then(r => r.data).catch(() => []),
       axios.get(`${base}/analytics/timeline`, { headers }).then(r => r.data).catch(() => []),
-      axios.get(`${base}/analytics/researcher-productivity`, { headers, params: { limit: 15 } }).then(r => r.data).catch(() => []),
+      axios.get(`${base}/analytics/researcher-productivity`, { headers, params: { limit: 20 } }).then(r => r.data).catch(() => []),
+      axios.get(`${base}/analytics/bibliometrics/institutional`, { headers }).then(r => r.data).catch(() => null),
+      axios.get(`${base}/integrations/cordis/organization`, { headers, params: { name: 'Mustafa Kemal University', limit: 15 } }).then(r => r.data).catch(() => []),
+      axios.get(`${base}/analytics/funding-success`, { headers }).then(r => r.data).catch(() => null),
       axios.get(`${base}/settings`, { headers }).then(r => {
         if (r.data?.institution_name) setInstitutionName(r.data.institution_name);
         if (r.data?.rector_name) setRectorName(r.data.rector_name);
@@ -84,8 +90,9 @@ function PeriodReportContent() {
         }
       }).catch(() => {}),
     ])
-      .then(([ov, rad, tml, res]) => {
+      .then(([ov, rad, tml, res, inst, cord, fnd]) => {
         setOverview(ov); setRadar(rad); setTimeline(tml || []); setResearchers(res);
+        setInstitutional(inst); setCordisProjects(cord || []); setFunding(fnd);
       })
       .catch(() => setError('Rapor hazırlanamadı'))
       .finally(() => setLoading(false));
@@ -305,6 +312,229 @@ function PeriodReportContent() {
           </div>
         )}
 
+        {/* BİBLİYOMETRİK GÖSTERGELER (kurum genel — dönem filtresi yok) */}
+        {institutional && institutional.configured !== false && (
+          <div style={s.section}>
+            <h2 style={s.h2}>BİBLİYOMETRİK GÖSTERGELER (KURUM GENEL)</h2>
+            <p style={s.p}>
+              <em>Bibliyometri göstergeleri kurum genelidir — dönem filtresi uygulanmaz.
+              Kurumun toplam yayın ve atıf birikimi burada özetlenmiştir.</em>
+            </p>
+            <div style={s.kpiGrid}>
+              <Kpi label="Toplam Yayın" value={formatNum(institutional.total || 0)} color="#1a3a6b" />
+              <Kpi label="Toplam Atıf" value={formatNum(institutional.totalCitations || 0)} color="#7c3aed" />
+              <Kpi label="h-index" value={institutional.hIndex || 0} color="#c8a45a" />
+              <Kpi label="i10-index" value={formatNum(institutional.i10Index || 0)} color="#059669" />
+              <Kpi label="Açık Erişim" value={`%${institutional.openAccessRatio || 0}`} color="#0891b2" sub={`${formatNum(institutional.openAccessCount || 0)} yayın`} />
+              <Kpi label="2 Yıl Ort. Atıf" value={institutional.twoYearMeanCitedness !== undefined ? (+institutional.twoYearMeanCitedness).toFixed(2) : '—'} color="#2563eb" />
+            </div>
+
+            {/* Top-cited publications örneklem */}
+            {institutional.publications && institutional.publications.length > 0 && (() => {
+              const topCited = [...institutional.publications]
+                .sort((a: any, b: any) => (b?.citedBy?.best || 0) - (a?.citedBy?.best || 0))
+                .slice(0, 10);
+              return (
+                <>
+                  <h3 style={s.h3}>En Çok Atıf Alan 10 Yayın (kurum geneli)</h3>
+                  <table style={s.table}>
+                    <thead>
+                      <tr>
+                        <th style={s.th}>#</th>
+                        <th style={s.th}>Başlık</th>
+                        <th style={s.th}>Dergi</th>
+                        <th style={s.thR}>Yıl</th>
+                        <th style={s.thR}>Atıf</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {topCited.map((p: any, i: number) => (
+                        <tr key={p.doi || i}>
+                          <td style={s.td}>{i + 1}</td>
+                          <td style={s.tdSmall}>{p.title}</td>
+                          <td style={s.tdSmall}>{p.journal || '—'}</td>
+                          <td style={s.tdR}>{p.year || '—'}</td>
+                          <td style={{ ...s.tdR, fontWeight: 700 }}>{p.citedBy?.best || 0}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              );
+            })()}
+
+            {/* Yıllık trend */}
+            {institutional.byYear && institutional.byYear.length > 0 && (() => {
+              const byYear = institutional.byYear.slice(-8); // son 8 yıl
+              const maxPub = Math.max(1, ...byYear.map((y: any) => y.count || 0));
+              return (
+                <>
+                  <h3 style={s.h3}>Son 8 Yıl Yayın Sayısı</h3>
+                  <table style={s.table}>
+                    <thead>
+                      <tr>
+                        <th style={s.th}>Yıl</th>
+                        <th style={s.thR}>Yayın</th>
+                        <th style={s.thR}>Atıf</th>
+                        <th style={s.thR}>Oran</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {byYear.map((y: any) => (
+                        <tr key={y.year}>
+                          <td style={s.td}>{y.year}</td>
+                          <td style={{ ...s.tdR, fontWeight: 700 }}>{y.count}</td>
+                          <td style={s.tdR}>{y.citations}</td>
+                          <td style={s.tdR}>{maxPub > 0 ? Math.round((y.count / maxPub) * 100) : 0}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              );
+            })()}
+
+            {/* Dergi kalitesi */}
+            {institutional.quartileDistribution && Object.values(institutional.quartileDistribution).some((v: any) => v > 0) && (
+              <>
+                <h3 style={s.h3}>Dergi Kalite Dağılımı (örneklem)</h3>
+                <table style={s.table}>
+                  <thead>
+                    <tr>
+                      <th style={s.th}>Q Kademesi</th>
+                      <th style={s.thR}>Yayın</th>
+                      <th style={s.thR}>Pay</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {['Q1','Q2','Q3','Q4','unknown'].map(k => {
+                      const count = institutional.quartileDistribution[k] || 0;
+                      const total = ['Q1','Q2','Q3','Q4','unknown'].reduce((x, kk) => x + (institutional.quartileDistribution[kk] || 0), 0);
+                      const pct = total > 0 ? (count / total) * 100 : 0;
+                      return (
+                        <tr key={k}>
+                          <td style={s.td}>{k === 'unknown' ? 'Bilinmiyor' : k}</td>
+                          <td style={{ ...s.tdR, fontWeight: 700 }}>{count}</td>
+                          <td style={s.tdR}>%{pct.toFixed(1)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </>
+            )}
+
+            {/* Yayın türü dağılımı */}
+            {institutional.typeDistribution && institutional.typeDistribution.length > 0 && (
+              <>
+                <h3 style={s.h3}>Yayın Türüne Göre Dağılım (örneklem)</h3>
+                <table style={s.table}>
+                  <thead>
+                    <tr>
+                      <th style={s.th}>Tür</th>
+                      <th style={s.thR}>Adet</th>
+                      <th style={s.thR}>Toplam Atıf</th>
+                      <th style={s.thR}>Ort. Atıf</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {institutional.typeDistribution.map((t: any) => (
+                      <tr key={t.label}>
+                        <td style={s.td}>{t.label}</td>
+                        <td style={{ ...s.tdR, fontWeight: 700 }}>{t.count}</td>
+                        <td style={s.tdR}>{formatNum(t.citations)}</td>
+                        <td style={s.tdR}>{t.count > 0 ? (t.citations / t.count).toFixed(1) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+
+            {/* Uluslararası işbirliği */}
+            {institutional.countryCollaboration && institutional.countryCollaboration.length > 0 && (
+              <>
+                <h3 style={s.h3}>Uluslararası İşbirliği (ilk 10 ülke, örneklem)</h3>
+                <table style={s.table}>
+                  <thead>
+                    <tr>
+                      <th style={s.th}>#</th>
+                      <th style={s.th}>Ülke Kodu</th>
+                      <th style={s.thR}>Ortak Yayın</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {institutional.countryCollaboration.slice(0, 10).map((c: any, i: number) => (
+                      <tr key={c.code}>
+                        <td style={s.td}>{i + 1}</td>
+                        <td style={s.td}>{c.code}</td>
+                        <td style={{ ...s.tdR, fontWeight: 700 }}>{c.count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* AB PROJELERİ */}
+        {cordisProjects.length > 0 && (
+          <div style={s.section}>
+            <h2 style={s.h2}>ULUSLARARASI FONLAMA (CORDIS)</h2>
+            <p style={s.p}><em>Kurum geneli — dönem filtresi yok.</em></p>
+            <table style={s.table}>
+              <thead>
+                <tr>
+                  <th style={s.th}>Program</th>
+                  <th style={s.th}>Akronim</th>
+                  <th style={s.th}>Başlık</th>
+                  <th style={s.thR}>AB Katkısı</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cordisProjects.slice(0, 10).map((p: any) => (
+                  <tr key={p.id}>
+                    <td style={s.td}>{p.framework}</td>
+                    <td style={s.td}>{p.acronym || '—'}</td>
+                    <td style={{ ...s.tdSmall }}>{p.title}</td>
+                    <td style={s.tdR}>{p.ecMaxContribution ? '€' + Number(p.ecMaxContribution).toLocaleString('tr-TR') : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* FONLAMA KAYNAKLARI */}
+        {funding?.bySource && funding.bySource.length > 0 && (
+          <div style={s.section}>
+            <h2 style={s.h2}>FONLAMA KAYNAĞI BAŞARI ORANI</h2>
+            <p style={s.p}><em>Kurum geneli — dönem filtresi yok.</em></p>
+            <table style={s.table}>
+              <thead>
+                <tr>
+                  <th style={s.th}>Kaynak</th>
+                  <th style={s.thR}>Başvuru</th>
+                  <th style={s.thR}>Kabul</th>
+                  <th style={s.thR}>Başarı</th>
+                </tr>
+              </thead>
+              <tbody>
+                {funding.bySource.map((f: any) => (
+                  <tr key={f.source}>
+                    <td style={s.td}>{f.source || '—'}</td>
+                    <td style={s.tdR}>{f.totalApplications || 0}</td>
+                    <td style={s.tdR}>{f.accepted || 0}</td>
+                    <td style={{ ...s.tdR, fontWeight: 700 }}>%{f.successRate || 0}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Dönem içindeki tdR tdSmall */}
         {/* DÖNEMİN EN AKTİF ARAŞTIRMACILARI */}
         {researchers.length > 0 && (
           <div style={s.section}>
@@ -435,6 +665,7 @@ const s: Record<string, React.CSSProperties> = {
   thR: { textAlign: 'right' as const, padding: '6px 8px', background: '#faf8f4', borderBottom: '1px solid #e8e4dc', fontWeight: 700, color: '#374151' },
   td: { padding: '5px 8px', borderBottom: '1px solid #f0ede8' },
   tdR: { padding: '5px 8px', borderBottom: '1px solid #f0ede8', textAlign: 'right' as const },
+  tdSmall: { padding: '5px 8px', borderBottom: '1px solid #f0ede8', fontSize: 9, maxWidth: 300 },
 
   footerMeta: { marginTop: 14, paddingTop: 8, borderTop: '1px solid #e5e7eb', fontSize: 9, color: '#9ca3af', textAlign: 'center' as const },
   signatureBlock: { marginTop: 24, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60, maxWidth: 500, marginLeft: 'auto', marginRight: 'auto' },

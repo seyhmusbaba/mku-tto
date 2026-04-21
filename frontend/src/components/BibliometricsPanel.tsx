@@ -105,6 +105,7 @@ export function BibliometricsPanel({
   const [error, setError] = useState('');
   const [selectedQuartile, setSelectedQuartile] = useState<string | null>(null);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -432,31 +433,67 @@ export function BibliometricsPanel({
           </h4>
           <p className="text-xs text-muted mb-4">Yayın sayısı (mavi) vs. atıf birikimi (altın)</p>
           {summary.byYear?.length > 0 ? (
-            <ResponsiveContainer width="100%" height={240}>
-              <AreaChart data={summary.byYear}>
-                <defs>
-                  <linearGradient id="bg-cnt" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#1a3a6b" stopOpacity={0.25} />
-                    <stop offset="100%" stopColor="#1a3a6b" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="bg-cit" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#c8a45a" stopOpacity={0.25} />
-                    <stop offset="100%" stopColor="#c8a45a" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0ede8" />
-                <XAxis dataKey="year" tick={{ fontSize: 11 }} />
-                <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
-                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Area yAxisId="left" type="monotone" dataKey="count" name="Yayın" stroke="#1a3a6b" strokeWidth={2} fill="url(#bg-cnt)" />
-                <Area yAxisId="right" type="monotone" dataKey="citations" name="Atıf" stroke="#c8a45a" strokeWidth={2} fill="url(#bg-cit)" />
-              </AreaChart>
-            </ResponsiveContainer>
+            <>
+              <ResponsiveContainer width="100%" height={240}>
+                <AreaChart data={summary.byYear} onClick={(e: any) => {
+                  if (e?.activeLabel) {
+                    const y = typeof e.activeLabel === 'number' ? e.activeLabel : parseInt(e.activeLabel);
+                    if (y) setSelectedYear(prev => prev === y ? null : y);
+                  }
+                }}>
+                  <defs>
+                    <linearGradient id="bg-cnt" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#1a3a6b" stopOpacity={0.25} />
+                      <stop offset="100%" stopColor="#1a3a6b" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="bg-cit" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#c8a45a" stopOpacity={0.25} />
+                      <stop offset="100%" stopColor="#c8a45a" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0ede8" />
+                  <XAxis dataKey="year" tick={{ fontSize: 11 }} />
+                  <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
+                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Area yAxisId="left" type="monotone" dataKey="count" name="Yayın" stroke="#1a3a6b" strokeWidth={2} fill="url(#bg-cnt)" style={{ cursor: 'pointer' }} />
+                  <Area yAxisId="right" type="monotone" dataKey="citations" name="Atıf" stroke="#c8a45a" strokeWidth={2} fill="url(#bg-cit)" style={{ cursor: 'pointer' }} />
+                </AreaChart>
+              </ResponsiveContainer>
+
+              {/* Yıl butonları — hem tıklanabilir liste hem de grafik için alternatif navigasyon */}
+              <div className="mt-2 flex flex-wrap gap-1">
+                {summary.byYear.map((y: any) => (
+                  <button key={y.year}
+                    onClick={() => setSelectedYear(prev => prev === y.year ? null : y.year)}
+                    className="text-[11px] px-2 py-1 rounded-md font-semibold transition-all"
+                    style={{
+                      background: selectedYear === y.year ? '#1a3a6b' : (y.count > 0 ? '#f0ede8' : 'transparent'),
+                      color: selectedYear === y.year ? 'white' : (y.count > 0 ? '#374151' : '#9ca3af'),
+                      border: selectedYear === y.year ? '1px solid #1a3a6b' : '1px solid transparent',
+                    }}>
+                    {y.year} · {y.count}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted mt-2 text-center">
+                {selectedYear ? 'Başka bir yıla tıklayın veya aynısına basarak kapatın' : 'Bir yıla tıklayın — o yılın yayınları listelenir'}
+              </p>
+            </>
           ) : <p className="text-sm text-muted text-center py-8">Yıl verisi yok</p>}
         </div>
       </div>
+
+      {/* Seçili yıl için yayın drilldown */}
+      {selectedYear && (
+        <YearDrilldown
+          year={selectedYear}
+          publications={publications}
+          topCited={topCited}
+          onClose={() => setSelectedYear(null)}
+        />
+      )}
 
       {/* Quartile drill-down — seçili Q için yayın listesi */}
       {selectedQuartile && (
@@ -687,6 +724,78 @@ function QuartileDrilldown({ quartile, publications, onClose }: {
       )}
       {filtered.length > 50 && (
         <p className="text-xs text-muted mt-2 text-center">İlk 50 yayın listelendi — tam liste rapor dışa aktarmada bulunur.</p>
+      )}
+    </div>
+  );
+}
+
+/* ─── Seçili yıl için yayın listesi ─── */
+function YearDrilldown({ year, publications, topCited, onClose }: {
+  year: number;
+  publications: any[];
+  topCited: any[];
+  onClose: () => void;
+}) {
+  // Hem publications hem topCited'ı birleştir, DOI bazlı dedupe
+  const all = [...(publications || []), ...(topCited || [])];
+  const seen = new Set<string>();
+  const filtered = all.filter(p => {
+    if (p.year !== year) return false;
+    const key = p.doi?.toLowerCase() || (p.title || '').toLowerCase().slice(0, 100);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).sort((a, b) => (b?.citedBy?.best || 0) - (a?.citedBy?.best || 0));
+
+  return (
+    <div className="card p-5" style={{ borderLeft: '4px solid #1a3a6b' }}>
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="font-display text-sm font-semibold text-navy inline-flex items-center gap-2">
+          <span className="text-xs px-2 py-0.5 rounded text-white font-bold" style={{ background: '#1a3a6b' }}>{year}</span>
+          yılının yayınları ({filtered.length})
+        </h4>
+        <button onClick={onClose} className="text-xs text-muted hover:text-navy font-semibold">Kapat ✕</button>
+      </div>
+      {filtered.length === 0 ? (
+        <p className="text-sm text-muted text-center py-6">
+          {year} yılında yayın örneği bulunamadı (sample dışı kalmış olabilir — kurumsal toplam daha yüksek).
+        </p>
+      ) : (
+        <div className="divide-y" style={{ borderColor: '#f0ede8', maxHeight: 400, overflowY: 'auto' }}>
+          {filtered.slice(0, 50).map((p: any, i: number) => (
+            <div key={p.doi || (p.title || '') + i} className="py-2.5 flex gap-3">
+              <div className="w-6 text-xs text-muted font-semibold text-right flex-shrink-0">{i + 1}.</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-navy line-clamp-2">{p.title}</p>
+                <p className="text-xs text-muted mt-0.5">
+                  {p.journal ? p.journal + ' · ' : ''}
+                  {p.quality?.sjrQuartile && (
+                    <span className="ml-2 text-xs px-1.5 py-0.5 rounded text-white font-bold"
+                      style={{ background: QUARTILE_COLORS[p.quality.sjrQuartile] }}>
+                      {p.quality.sjrQuartile}
+                    </span>
+                  )}
+                  {p.openAccess?.isOa && (
+                    <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold">OA</span>
+                  )}
+                </p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className="text-sm font-bold text-navy">{p?.citedBy?.best || 0}</p>
+                <p className="text-[10px] text-muted">atıf</p>
+                {p.doi && (
+                  <a href={`https://doi.org/${p.doi}`} target="_blank" rel="noopener noreferrer"
+                    className="text-[11px] text-navy-mid hover:underline inline-flex items-center gap-0.5 mt-0.5">
+                    DOI <Icon name="external" className="w-3 h-3" />
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {filtered.length > 50 && (
+        <p className="text-xs text-muted mt-2 text-center">İlk 50 yayın gösterildi (toplam {filtered.length}).</p>
       )}
     </div>
   );

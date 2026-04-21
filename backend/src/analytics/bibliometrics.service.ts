@@ -219,23 +219,32 @@ export class BibliometricsService {
     const pubs = await this.publications.getInstitutionPublications(institutionId, year, 500);
     const sampleSummary = this.publications.summarize(pubs);
 
-    // Kurumsal gerçek byYear — tüm yıllar için works + citations
-    let byYearReal: Array<{ year: number; count: number; citations: number }> = [];
+    // Kurumsal gerçek byYear — tüm yıllar için works + citations + OA
+    let byYearReal: Array<{ year: number; count: number; citations: number; oaCount: number }> = [];
+    let realTotalOaCount = 0;
+    let realTotalWorksForOa = 0;
     if (instSummary?.countsByYear) {
       const currentYear = new Date().getFullYear();
-      const byYearMap = new Map<number, { count: number; citations: number }>();
+      const byYearMap = new Map<number, { count: number; citations: number; oaCount: number }>();
       for (const c of instSummary.countsByYear) {
-        byYearMap.set(c.year, { count: c.worksCount, citations: c.citedByCount });
+        byYearMap.set(c.year, { count: c.worksCount, citations: c.citedByCount, oaCount: c.oaWorksCount || 0 });
+        realTotalOaCount += c.oaWorksCount || 0;
+        realTotalWorksForOa += c.worksCount || 0;
       }
       const years = Array.from(byYearMap.keys());
       if (years.length > 0) {
         const minYear = Math.min(...years);
         for (let y = minYear; y <= currentYear; y++) {
-          const v = byYearMap.get(y) || { count: 0, citations: 0 };
-          byYearReal.push({ year: y, count: v.count, citations: v.citations });
+          const v = byYearMap.get(y) || { count: 0, citations: 0, oaCount: 0 };
+          byYearReal.push({ year: y, count: v.count, citations: v.citations, oaCount: v.oaCount });
         }
       }
     }
+
+    // Kurumsal gerçek OA oranı — counts_by_year'dan
+    const realOaRatio = realTotalWorksForOa > 0
+      ? Math.round((realTotalOaCount / realTotalWorksForOa) * 100)
+      : null;
 
     return {
       institutionId,
@@ -253,9 +262,13 @@ export class BibliometricsService {
       quartileDistribution: sampleSummary.quartileDistribution,
       sdgDistribution: sampleSummary.sdgDistribution,
 
-      // Açık erişim — sample'dan hesaplanır (kurumsal API bu oranı vermez)
-      openAccessCount: sampleSummary.openAccessCount,
-      openAccessRatio: sampleSummary.openAccessRatio,
+      // Açık erişim — kurumsal gerçek (OpenAlex counts_by_year'dan) varsa onu kullan
+      // yoksa sample'dan
+      openAccessCount: realOaRatio !== null ? realTotalOaCount : sampleSummary.openAccessCount,
+      openAccessRatio: realOaRatio !== null ? realOaRatio : sampleSummary.openAccessRatio,
+      openAccessSource: realOaRatio !== null ? 'institutional' : 'sample',
+      sampleOpenAccessCount: sampleSummary.openAccessCount,
+      sampleOpenAccessRatio: sampleSummary.openAccessRatio,
 
       // FWCI ve Top Percentile — SAMPLE BAZLI — dürüst etiket
       // Bunlar "en çok atıf alan 500 yayının" istatistiği; tüm kurumun değil

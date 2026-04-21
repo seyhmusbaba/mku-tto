@@ -747,6 +747,48 @@ export default function AnnualReportPage() {
                     })}
                   </tbody>
                 </table>
+
+                {/* Her yılın en çok atıf alan örnek yayınları */}
+                {latestYears.slice().reverse().slice(0, 3).map((y) => {
+                  const yearPubs = instPublications
+                    .filter((p: any) => p.year === y.year)
+                    .sort((a: any, b: any) => (b?.citedBy?.best || 0) - (a?.citedBy?.best || 0))
+                    .slice(0, 5);
+                  if (yearPubs.length === 0) return null;
+                  return (
+                    <div key={y.year} style={{ marginTop: 14, pageBreakInside: 'avoid' }}>
+                      <h3 style={s.h3}>{y.year} Yılının En Çok Atıf Alan Yayınları (örnek)</h3>
+                      <table style={s.table}>
+                        <thead>
+                          <tr>
+                            <th style={s.th}>#</th>
+                            <th style={s.th}>Başlık</th>
+                            <th style={s.th}>Dergi</th>
+                            <th style={s.thR}>Q</th>
+                            <th style={s.thR}>Atıf</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {yearPubs.map((p: any, i: number) => (
+                            <tr key={p.doi || i}>
+                              <td style={s.td}>{i + 1}</td>
+                              <td style={s.tdSmall}>{p.title}</td>
+                              <td style={s.tdSmall}>{p.journal || '—'}</td>
+                              <td style={s.tdR}>
+                                {p.quality?.sjrQuartile ? (
+                                  <span style={{ ...s.qBadge, background: QUARTILE_COLORS[p.quality.sjrQuartile] }}>
+                                    {p.quality.sjrQuartile}
+                                  </span>
+                                ) : '—'}
+                              </td>
+                              <td style={{ ...s.tdR, fontWeight: 700 }}>{p.citedBy?.best || 0}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })}
               </>
             )}
           </div>
