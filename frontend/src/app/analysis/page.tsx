@@ -56,8 +56,7 @@ type Tab = 'overview' | 'institutional' | 'bibliometrics' | 'faculty' | 'researc
 export default function AnalysisPage() {
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>('overview');
-  const [biblioScope, setBiblioScope] = useState<'me' | 'faculty' | 'institutional' | 'faculty-compare' | 'dept-compare'>('me');
-  const [biblioFaculty, setBiblioFaculty] = useState<string>('');
+  const [biblioScope, setBiblioScope] = useState<'me' | 'faculty-compare' | 'dept-compare' | 'institutional'>('me');
   const [overview, setOverview] = useState<any>(null);
   const [facultyData, setFacultyData] = useState<any[]>([]);
   const [researcherData, setResearcherData] = useState<any[]>([]);
@@ -451,15 +450,14 @@ export default function AnalysisPage() {
                   <span className="text-sm font-semibold text-navy">Kapsam:</span>
                   <div className="flex gap-1 p-1 rounded-xl" style={{ background: '#f0ede8' }}>
                     {(() => {
-                      type BiblioScope = 'me' | 'faculty' | 'institutional' | 'faculty-compare' | 'dept-compare';
+                      type BiblioScope = 'me' | 'faculty-compare' | 'dept-compare' | 'institutional';
                       const roleName = user?.role?.name || '';
                       const canCompare = ['Süper Admin', 'Rektör', 'Dekan', 'Bölüm Başkanı'].includes(roleName);
                       const opts: Array<{ v: BiblioScope; l: string }> = [
-                        { v: 'me',            l: 'Benim Scorecardım' },
-                        { v: 'faculty',       l: 'Fakülte' },
-                        { v: 'institutional', l: 'Kurumsal (MKÜ)' },
+                        { v: 'me',               l: 'Benim Scorecardım' },
                         ...(canCompare ? [{ v: 'faculty-compare' as BiblioScope, l: 'Fakülte Karşılaştırma' }] : []),
-                        ...(canCompare ? [{ v: 'dept-compare' as BiblioScope,    l: 'Bölüm Karşılaştırma' }] : []),
+                        ...(canCompare ? [{ v: 'dept-compare'    as BiblioScope, l: 'Bölüm Karşılaştırma'   }] : []),
+                        { v: 'institutional',    l: 'Kurumsal Analiz (HMKÜ)' },
                       ];
                       return opts.map(o => (
                       <button key={o.v} onClick={() => setBiblioScope(o.v)}
@@ -474,37 +472,19 @@ export default function AnalysisPage() {
                       ));
                     })()}
                   </div>
-                  {biblioScope === 'faculty' && (
-                    <select className="input text-sm py-1.5 w-56" value={biblioFaculty} onChange={e => setBiblioFaculty(e.target.value)}>
-                      <option value="">Fakülte seçin...</option>
-                      {faculties.map(f => <option key={f.id} value={f.name}>{f.name}</option>)}
-                    </select>
-                  )}
-                  <p className="text-xs text-muted ml-auto max-w-md">
-                    Scopus + WoS + OpenAlex + Crossref + SCImago + Unpaywall + PubMed kaynakları birleştirilerek hesaplanır.
-                    {biblioScope === 'me' && ' ORCID ID\'nizin profilde tanımlı olması gerekir.'}
-                  </p>
                 </div>
 
                 {biblioScope === 'me' && user?.id && (
                   <BibliometricsPanel mode="researcher" userId={user.id} />
-                )}
-                {biblioScope === 'faculty' && biblioFaculty && (
-                  <BibliometricsPanel mode="faculty" faculty={biblioFaculty} />
-                )}
-                {biblioScope === 'faculty' && !biblioFaculty && (
-                  <div className="card py-12 text-center text-sm text-muted">
-                    Fakülte seçin — aynı fakültedeki tüm araştırmacıların yayınları birleştirilerek analiz edilir.
-                  </div>
-                )}
-                {biblioScope === 'institutional' && (
-                  <BibliometricsPanel mode="institutional" />
                 )}
                 {biblioScope === 'faculty-compare' && (
                   <FacultyComparisonPanel highlightFaculty={user?.faculty} />
                 )}
                 {biblioScope === 'dept-compare' && (
                   <DepartmentComparisonPanel userFaculty={user?.faculty} userDept={user?.department} roleName={user?.role?.name} />
+                )}
+                {biblioScope === 'institutional' && (
+                  <BibliometricsPanel mode="institutional" />
                 )}
               </div>
             )}
