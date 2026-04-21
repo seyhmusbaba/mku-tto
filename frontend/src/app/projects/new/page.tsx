@@ -243,8 +243,6 @@ export default function NewProjectPage() {
   // YZ durumları
   const [complianceResult, setComplianceResult] = useState<any>(null);
   const [complianceDone,   setComplianceDone]   = useState(false);
-  const [ethicsAnalysis,   setEthicsAnalysis]   = useState<any>(null);
-  const [ethicsLoading,    setEthicsLoading]    = useState(false);
   const [ipVerifying,      setIpVerifying]      = useState(false);
   const [ipVerifyResult,   setIpVerifyResult]   = useState<{ok: boolean; data?: any; message?: string} | null>(null);
   const [extracting,       setExtracting]       = useState(false);
@@ -300,25 +298,12 @@ export default function NewProjectPage() {
     setDocReviewLoading(true);
     api.post('/ai/review-documents', {
       projectTitle: form.title, projectType: selectedType, documents: docs,
-      ipStatus: form.ipStatus, ethicsRequired: ethicsAnalysis?.required || false, ethicsApproved: false,
+      ipStatus: form.ipStatus, ethicsRequired: true, ethicsApproved: false,
     }).then(r => setDocReview(r.data))
       .catch(() => setDocReview(null))
       .finally(() => setDocReviewLoading(false));
   }, [phase]);
 
-  // Etik analiz — içerik adımından geçince
-  const runEthicsAnalysis = useCallback(async () => {
-    if (ethicsAnalysis) return;
-    setEthicsLoading(true);
-    try {
-      const r = await api.post('/ethics/preview-analyze', {
-        title: form.title, description: form.description,
-        projectText: form.projectText, type: selectedType,
-        faculty: form.faculty, department: form.department,
-      });
-      setEthicsAnalysis(r.data);
-    } catch {} finally { setEthicsLoading(false); }
-  }, [form.title, form.description, form.projectText, selectedType, ethicsAnalysis]);
 
   // Doğrulama
   const canGoNext = (): boolean => {
@@ -331,7 +316,6 @@ export default function NewProjectPage() {
 
   const goNext = () => {
     if (!canGoNext()) return;
-    if (PHASES[phase].key === 'content') runEthicsAnalysis();
     setPhase(p => p + 1);
   };
   const goPrev = () => setPhase(p => p - 1);
@@ -379,7 +363,7 @@ export default function NewProjectPage() {
         ipStatus: form.ipStatus, ipType: form.ipType || null,
         ipRegistrationNo: form.ipRegistrationNo || null,
         ipDate: form.ipDate || null, ipNotes: form.ipNotes || null,
-        ethicsRequired: ethicsAnalysis?.required || false, ethicsApproved: false,
+        ethicsRequired: true, ethicsApproved: false,
         aiComplianceScore:  complianceResult?.score || null,
         aiComplianceResult: complianceResult ? JSON.stringify(complianceResult) : null,
       };
@@ -405,9 +389,10 @@ export default function NewProjectPage() {
         try { await uploadFile(pid, ipFile, 'Fikri Mülkiyet Belgesi', 'ip'); }
         catch { toast.error('IP belgesi yüklenemedi — detay sayfasından elle yükleyin.'); }
       }
-      if (ethicsAnalysis?.required) await api.post('/ethics/analyze/' + pid).catch(() => {});
+      // Tüm projeler etik kurul incelemesine gönderilir
+      await api.post('/ethics/analyze/' + pid).catch(() => {});
 
-      toast.success(ethicsAnalysis?.required ? 'Proje oluşturuldu — Etik kurul incelemesine gönderildi!' : 'Proje başarıyla oluşturuldu!');
+      toast.success('Proje oluşturuldu — Etik kurul incelemesine gönderildi!');
       router.push('/projects/' + pid);
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Bir hata oluştu');
@@ -736,49 +721,23 @@ export default function NewProjectPage() {
             </div>
           </div>
 
-          {/* Etik Ön Analizi — metin yazıldıktan sonra çalıştır */}
+          {/* Etik Kurul Zorunlu — tüm projeler için */}
           {complianceDone && (
             <div className="card p-5">
               <h3 className="font-display text-sm font-semibold text-navy mb-3 inline-flex items-center gap-2">
-                <NPIcon name="beaker" className="w-4 h-4 text-navy" />
-                Etik Ön Analizi
+                <NPIcon name="shield" className="w-4 h-4 text-red-600" />
+                Etik Kurul Onayı
               </h3>
-              {ethicsLoading && (
-                <div className="flex items-center gap-2 text-xs text-muted">
-                  <span className="spinner w-4 h-4" /> YZ etik riski analiz ediliyor...
-                </div>
-              )}
-              {!ethicsLoading && !ethicsAnalysis && (
-                <button type="button" onClick={runEthicsAnalysis}
-                  className="text-xs font-semibold px-3 py-2 rounded-lg inline-flex items-center gap-1.5"
-                  style={{ background: '#f5f3ff', color: '#7c3aed', border: '1px solid #ddd6fe' }}>
-                  <NPIcon name="beaker" className="w-3.5 h-3.5" />
-                  Etik Risk Analizi Yap
-                </button>
-              )}
-              {ethicsAnalysis && !ethicsLoading && (
-                <div className="p-3 rounded-xl" style={{
-                  border: '1px solid', borderColor: ethicsAnalysis.required ? '#fca5a5' : '#86efac',
-                  background: ethicsAnalysis.required ? '#fef2f2' : '#f0fdf4',
-                }}>
-                  <p className="text-sm font-bold inline-flex items-center gap-1.5" style={{ color: ethicsAnalysis.required ? '#dc2626' : '#059669' }}>
-                    <NPIcon name={ethicsAnalysis.required ? 'alert' : 'check'} className="w-4 h-4" strokeWidth={2} />
-                    {ethicsAnalysis.required ? 'Etik Kurul Onayı Gerekiyor' : 'Etik Kurul Gerekmiyor'}
-                  </p>
-                  <p className="text-xs mt-1" style={{ color: ethicsAnalysis.required ? '#dc2626' : '#059669' }}>
-                    Risk Skoru: {ethicsAnalysis.riskScore}/100 — {ethicsAnalysis.recommendation}
-                  </p>
-                  {(ethicsAnalysis.reasons || []).map((r: string, i: number) => (
-                    <p key={i} className="text-xs text-muted">• {r}</p>
-                  ))}
-                  {ethicsAnalysis.required && (
-                    <p className="text-xs mt-2 font-semibold text-amber-700 inline-flex items-center gap-1.5">
-                      <NPIcon name="bolt" className="w-3.5 h-3.5" />
-                      Kaydedilince otomatik etik kurul incelemesine gönderilecektir.
-                    </p>
-                  )}
-                </div>
-              )}
+              <div className="p-3 rounded-xl" style={{ border: '1px solid #fca5a5', background: '#fef2f2' }}>
+                <p className="text-sm font-bold inline-flex items-center gap-1.5 text-red-700">
+                  <NPIcon name="alert" className="w-4 h-4" strokeWidth={2} />
+                  Etik Kurul Onayı Zorunludur
+                </p>
+                <p className="text-xs mt-1 text-red-700">
+                  MKÜ araştırma etiği politikası gereği tüm yeni projeler etik kurul incelemesinden geçer.
+                  Proje kaydedilince otomatik olarak Etik Kurul panelinde listelenecektir.
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -888,7 +847,7 @@ export default function NewProjectPage() {
                     <label className="label">Tescil / Başvuru No</label>
                     <div className="flex gap-2">
                       <input className="input flex-1" value={form.ipRegistrationNo} onChange={e => { set('ipRegistrationNo', e.target.value); setIpVerifyResult(null); }} placeholder="TR2024/001234 veya EP3456789" />
-                      {form.ipType === 'patent' && form.ipRegistrationNo && (
+                      {form.ipRegistrationNo && form.ipRegistrationNo.trim().length >= 4 && (
                         <button type="button" onClick={async () => {
                           setIpVerifying(true);
                           setIpVerifyResult(null);
@@ -1061,7 +1020,7 @@ export default function NewProjectPage() {
               sdgSelected.length ? ['SKH', sdgSelected.length + ' hedef'] : null,
               members.length     ? ['Ekip', members.length + ' üye eklendi'] : null,
               complianceResult   ? ['YZ Uygunluk', complianceResult.score + '/100'] : null,
-              ethicsAnalysis     ? ['Etik Risk', ethicsAnalysis.riskScore + '/100 — ' + (ethicsAnalysis.required ? 'Kurul gerekli' : 'Gerekmiyor')] : null,
+              ['Etik Kurul', 'Zorunlu — kaydedilince otomatik gönderilecek'],
             ].filter(Boolean).map(([k, v]: any, i) => (
               <div key={i} className="flex justify-between text-sm border-b pb-1.5 last:border-0" style={{ borderColor: '#e8e4dc' }}>
                 <span className="text-muted">{k}</span>
