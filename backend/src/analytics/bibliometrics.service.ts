@@ -200,13 +200,82 @@ export class BibliometricsService {
 
   /**
    * Kurumsal bibliometri — OpenAlex institution ID üzerinden.
+   *
+   * İki-aşamalı hesap:
+   *  1. Kurumsal TOPLAMLAR (works_count, cited_by_count, h_index, i10_index)
+   *     → OpenAlex institution summary endpoint'inden DIREKT. Tüm kurumu kapsar.
+   *  2. Sample bazlı detaylar (Q1-Q4, byYear, top papers, country collab, FWCI örnekleri)
+   *     → En çok atıf alan ilk N yayından. Sample olduğu AÇIKÇA işaretlenir.
+   *
+   * Eskiden her şey sample üzerinden hesaplanıyordu → FWCI 22.67, Top 1% = %40 gibi
+   * absürt sayılar çıkıyordu. Artık kurumsal gerçek sayılar + örneklem bazlı
+   * göstergeler ayrı ayrı sunuluyor.
    */
   async getInstitutional(institutionId: string, year?: number): Promise<any> {
+    // 1. Kurumsal TOPLAMLAR — OpenAlex institution endpoint'inden direkt
+    const instSummary = await this.openalex.getInstitutionSummary(institutionId).catch(() => null);
+
+    // 2. SAMPLE — detay tablolar için en çok atıf alan yayınlar
     const pubs = await this.publications.getInstitutionPublications(institutionId, year, 500);
-    const summary = this.publications.summarize(pubs);
+    const sampleSummary = this.publications.summarize(pubs);
+
+    // Kurumsal gerçek byYear — tüm yıllar için works + citations
+    let byYearReal: Array<{ year: number; count: number; citations: number }> = [];
+    if (instSummary?.countsByYear) {
+      const currentYear = new Date().getFullYear();
+      const byYearMap = new Map<number, { count: number; citations: number }>();
+      for (const c of instSummary.countsByYear) {
+        byYearMap.set(c.year, { count: c.worksCount, citations: c.citedByCount });
+      }
+      const years = Array.from(byYearMap.keys());
+      if (years.length > 0) {
+        const minYear = Math.min(...years);
+        for (let y = minYear; y <= currentYear; y++) {
+          const v = byYearMap.get(y) || { count: 0, citations: 0 };
+          byYearReal.push({ year: y, count: v.count, citations: v.citations });
+        }
+      }
+    }
+
     return {
-      ...summary,
       institutionId,
+
+      // KURUMSAL GERÇEK TOPLAMLAR — OpenAlex institution endpoint kaynaklı
+      total: instSummary?.worksCount ?? sampleSummary.total,
+      totalCitations: instSummary?.citedByCount ?? sampleSummary.totalCitations,
+      hIndex: instSummary?.hIndex ?? sampleSummary.hIndex,
+      i10Index: instSummary?.i10Index ?? sampleSummary.i10Index,
+      twoYearMeanCitedness: instSummary?.twoYearMeanCitedness,
+      byYear: byYearReal.length > 0 ? byYearReal : sampleSummary.byYear,
+
+      // SAMPLE BAZLI — net olarak 'sample' prefix ile
+      // Kalite dağılımı sample'dan — 500 top-cited içinde Q1-Q4 oranı
+      quartileDistribution: sampleSummary.quartileDistribution,
+      sdgDistribution: sampleSummary.sdgDistribution,
+
+      // Açık erişim — sample'dan hesaplanır (kurumsal API bu oranı vermez)
+      openAccessCount: sampleSummary.openAccessCount,
+      openAccessRatio: sampleSummary.openAccessRatio,
+
+      // FWCI ve Top Percentile — SAMPLE BAZLI — dürüst etiket
+      // Bunlar "en çok atıf alan 500 yayının" istatistiği; tüm kurumun değil
+      sampleSize: pubs.length,
+      sampleNote: `Aşağıdaki FWCI, Top 1%, Top 10%, dergi kalite, uluslararası ortaklık ve ülke dağılımı metrikleri kurumun en çok atıf alan ${pubs.length} yayını üzerinden hesaplanmıştır — tüm kurum değil.`,
+      avgFwci: sampleSummary.avgFwci,
+      medianFwci: sampleSummary.medianFwci,
+      fwciCoverage: sampleSummary.fwciCoverage,
+      top1PctCount: sampleSummary.top1PctCount,
+      top10PctCount: sampleSummary.top10PctCount,
+      top1PctRatio: sampleSummary.top1PctRatio,
+      top10PctRatio: sampleSummary.top10PctRatio,
+      internationalCoauthorCount: sampleSummary.internationalCoauthorCount,
+      internationalCoauthorRatio: sampleSummary.internationalCoauthorRatio,
+      countryCollaboration: sampleSummary.countryCollaboration,
+      avgAuthorsPerPaper: sampleSummary.avgAuthorsPerPaper,
+      avgCountriesPerPaper: sampleSummary.avgCountriesPerPaper,
+      topJournals: sampleSummary.topJournals,
+
+      // Yayın listesi — sample
       publications: pubs.map(p => {
         const countries = Array.from(new Set(
           (p.authors || []).flatMap(a => (a.countries || []).map(c => c.toUpperCase()))
@@ -221,7 +290,7 @@ export class BibliometricsService {
           openAccess: p.openAccess,
           sources: p.sources,
           authors: (p.authors || []).slice(0, 5).map(a => a.name),
-          countries, // yazar kurumlarının ülke kodu birleşimi — ülke drilldown için
+          countries,
         };
       }),
     };

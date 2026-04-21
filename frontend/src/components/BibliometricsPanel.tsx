@@ -256,21 +256,36 @@ export function BibliometricsPanel({
           desc="Açık erişim (OA) yayın oranı — okuyucunun ücret ödemeden erişebildiği makaleler." />
       </div>
 
-      {/* Alan-normalize metrikler — FWCI + Top 1% */}
+      {/* SAMPLE UYARISI — kurumsal modda, örneklem bazlı metrikler öncesi */}
+      {mode === 'institutional' && data.sampleNote && (
+        <div className="p-4 rounded-2xl flex items-start gap-3 text-xs" style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}>
+          <Icon name="alert" className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <div className="leading-relaxed">
+            <strong className="font-semibold">⚠ Aşağıdaki metrikler örneklem bazlıdır.</strong> {data.sampleNote}
+            <br />Kurumsal toplamlar (yayın sayısı, atıf, h-index) yukarıdaki KPI kartlarındadır ve OpenAlex kurumsal endpoint'inden doğrudan gelir — tüm {data.total?.toLocaleString?.('tr-TR') || data.total} yayını kapsar.
+          </div>
+        </div>
+      )}
+
+      {/* Alan-normalize metrikler — FWCI + Top 1% (SAMPLE) */}
       {(summary.avgFwci !== null && summary.avgFwci !== undefined) || summary.top1PctCount > 0 || summary.internationalCoauthorRatio !== undefined ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {summary.avgFwci !== null && summary.avgFwci !== undefined && (
-            <KpiBig label="Ort. FWCI" value={summary.avgFwci} icon="trending" color="#7c3aed"
-              sub={summary.avgFwci >= 1.5 ? 'global ort. çok üstü' : summary.avgFwci >= 1.0 ? 'global ort. ile uyumlu' : 'global ort. altı'}
-              desc="Field-Weighted Citation Impact — atıf, yayının alanı ve yılına göre normalize edilir. 1.00 global ortalamadır; 2.00 beklenenden iki kat etki demektir." />
+            <KpiBig label={mode === 'institutional' ? 'Örneklem Ort. FWCI' : 'Ort. FWCI'} value={summary.avgFwci} icon="trending" color="#7c3aed"
+              sub={mode === 'institutional' ? `top ${data.sampleSize || 500} yayın` : (summary.avgFwci >= 1.5 ? 'global ort. çok üstü' : summary.avgFwci >= 1.0 ? 'global ort. ile uyumlu' : 'global ort. altı')}
+              desc={mode === 'institutional'
+                ? `FWCI en çok atıf alan ${data.sampleSize || 500} yayın üzerinden hesaplanır — sample, en yüksek atıflılarla sınırlı olduğu için değer kurumsal gerçek ortalamanın üstünde olur. Sadece üst-tier'ın etki yoğunluğunu gösterir.`
+                : "Field-Weighted Citation Impact — atıf, yayının alanı ve yılına göre normalize edilir. 1.00 global ortalamadır; 2.00 beklenenden iki kat etki demektir."} />
           )}
           {summary.top1PctCount > 0 && (
-            <KpiBig label="Top 1% Yayın" value={summary.top1PctCount} sub={`%${summary.top1PctRatio}`} icon="award" color="#059669"
-              desc="Alan-yıl normalize atıf sıralamasında üst %1'de yer alan yayınlar — en yüksek etkili çalışmaların göstergesi." />
+            <KpiBig label={mode === 'institutional' ? 'Örnek. Top 1%' : 'Top 1% Yayın'} value={summary.top1PctCount} sub={mode === 'institutional' ? `${data.sampleSize || 500} içinde` : `%${summary.top1PctRatio}`} icon="award" color="#059669"
+              desc={mode === 'institutional'
+                ? `En çok atıf alan ${data.sampleSize || 500} yayının ne kadarı dünya genelinde üst %1'de. Tüm kurumun değil, sample'daki üst-tier'ın göstergesi.`
+                : "Alan-yıl normalize atıf sıralamasında üst %1'de yer alan yayınlar — en yüksek etkili çalışmaların göstergesi."} />
           )}
           {summary.top10PctCount > 0 && (
-            <KpiBig label="Top 10% Yayın" value={summary.top10PctCount} sub={`%${summary.top10PctRatio}`} icon="sparkles" color="#2563eb"
-              desc="Alan-yıl normalize atıf sıralamasında üst %10'da yer alan yayınlar." />
+            <KpiBig label={mode === 'institutional' ? 'Örnek. Top 10%' : 'Top 10% Yayın'} value={summary.top10PctCount} sub={mode === 'institutional' ? `${data.sampleSize || 500} içinde` : `%${summary.top10PctRatio}`} icon="sparkles" color="#2563eb"
+              desc={mode === 'institutional' ? `Sample'daki en çok atıf alan yayınlar doğal olarak üst percentile'da çıkar.` : "Alan-yıl normalize atıf sıralamasında üst %10'da yer alan yayınlar."} />
           )}
           {summary.internationalCoauthorRatio !== undefined && summary.internationalCoauthorRatio > 0 && (
             <KpiBig label="Uluslararası Ortaklık" value={`%${summary.internationalCoauthorRatio}`}

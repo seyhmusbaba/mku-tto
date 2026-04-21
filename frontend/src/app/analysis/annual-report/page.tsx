@@ -309,7 +309,7 @@ export default function AnnualReportPage() {
               <div><p style={s.coverFactNum}>{formatNum(institutional?.total || 0)}</p><p style={s.coverFactLbl}>Yayın</p></div>
               <div><p style={s.coverFactNum}>{formatNum(institutional?.totalCitations || 0)}</p><p style={s.coverFactLbl}>Atıf</p></div>
               <div><p style={s.coverFactNum}>{institutional?.hIndex || 0}</p><p style={s.coverFactLbl}>h-index</p></div>
-              <div><p style={s.coverFactNum}>{institutional?.avgFwci !== null && institutional?.avgFwci !== undefined ? institutional.avgFwci : '—'}</p><p style={s.coverFactLbl}>Ort. FWCI</p></div>
+              <div><p style={s.coverFactNum}>{institutional?.twoYearMeanCitedness !== undefined ? (+institutional.twoYearMeanCitedness).toFixed(2) : '—'}</p><p style={s.coverFactLbl}>2yr Mean Cit.</p></div>
               <div><p style={s.coverFactNum}>{sdgsCovered}/17</p><p style={s.coverFactLbl}>SDG</p></div>
             </div>
           </div>
@@ -377,19 +377,17 @@ export default function AnnualReportPage() {
               <li>
                 Kurumumuz toplam <strong>{formatNum(institutional?.total || 0)}</strong> yayın
                 ve <strong>{formatNum(institutional?.totalCitations || 0)}</strong> atıfa sahiptir.
-                h-index <strong>{institutional?.hIndex || 0}</strong>'dır.
-                {institutional?.avgFwci !== null && institutional?.avgFwci !== undefined && (
-                  <> Alan-normalize atıf etkisi (FWCI) ortalaması <strong>{institutional.avgFwci}</strong> —
-                  global ortalama 1.00'dir, dolayısıyla bu değer kurumun alan-normalize performansını gösterir.</>
+                Kurumsal h-index <strong>{institutional?.hIndex || 0}</strong>, i10-index <strong>{formatNum(institutional?.i10Index || 0)}</strong>'dir.
+                {institutional?.twoYearMeanCitedness !== undefined && (
+                  <> Son 2 yıllık ortalama atıf oranı <strong>{(+institutional.twoYearMeanCitedness).toFixed(2)}</strong>'dir
+                  — bu değer {(+institutional.twoYearMeanCitedness) >= 1.5 ? 'global ortalamanın belirgin üstünde' : (+institutional.twoYearMeanCitedness) >= 1.0 ? 'global ortalamayla uyumlu' : 'global ortalamanın altında'}.</>
                 )}
               </li>
-              {institutional?.top1PctCount > 0 && (
-                <li>
-                  <strong>{institutional.top1PctCount}</strong> yayın alan-yıl normalize atıfta üst %1'e,
-                  <strong> {institutional.top10PctCount}</strong> yayın üst %10'a girmektedir.
-                  Bu, kurumun yüksek etkili araştırma üretim kapasitesinin doğrudan göstergesidir.
-                </li>
-              )}
+              <li style={{ fontSize: 10, color: '#78350f' }}>
+                <em>Not: Raporun FWCI, Top 1%/10%, açık erişim ve dergi kalite göstergeleri
+                kurumun en çok atıf alan {institutional?.sampleSize || 500} yayını üzerinden
+                örneklem bazlı hesaplanmıştır — doğal olarak kurumsal ortalamanın üstündedir.</em>
+              </li>
               {pubGrowthPct !== null && (
                 <li>
                   Yayın üretimi bir önceki yıla göre <strong style={{ color: pubGrowthPct >= 0 ? '#059669' : '#dc2626' }}>
@@ -429,23 +427,34 @@ export default function AnnualReportPage() {
 
           {institutional && institutional.configured !== false && (
             <>
-              <h3 style={s.h3}>Akademik Çıktı Göstergeleri</h3>
+              <h3 style={s.h3}>Kurumsal Akademik Çıktı (OpenAlex kurum endpoint — TÜM yayınlar)</h3>
               <div style={s.kpiGrid}>
                 <Kpi label="Toplam Yayın" value={formatNum(institutional.total || 0)} color="#1a3a6b" />
                 <Kpi label="Toplam Atıf" value={formatNum(institutional.totalCitations || 0)} color="#7c3aed" />
                 <Kpi label="h-index" value={institutional.hIndex || 0} color="#c8a45a" />
-                <Kpi label="i10-index" value={institutional.i10Index || 0} color="#059669" />
-                <Kpi label="Açık Erişim" value={`%${institutional.openAccessRatio || 0}`} sub={`${formatNum(institutional.openAccessCount || 0)} yayın`} color="#0891b2" />
-                <Kpi label="Q1 Yayın" value={formatNum(institutional.quartileDistribution?.Q1 || 0)} color="#059669" sub={`%${quartileKnown > 0 ? Math.round(((institutional.quartileDistribution?.Q1 || 0) / quartileKnown) * 100) : 0} (kaliteli alt)`} />
+                <Kpi label="i10-index" value={formatNum(institutional.i10Index || 0)} color="#059669" />
+                {institutional.twoYearMeanCitedness !== undefined && (
+                  <Kpi label="2 Yıllık Ort. Atıf" value={(+institutional.twoYearMeanCitedness).toFixed(2)} color="#0891b2" sub="OpenAlex kurum metriği" />
+                )}
               </div>
-              <h3 style={s.h3}>Alan-Normalize Etki Göstergeleri</h3>
+
+              <div style={{ marginTop: 14, padding: 10, background: '#fffbeb', borderLeft: '4px solid #f59e0b', borderRadius: 4 }}>
+                <p style={{ ...s.pSmall, color: '#92400e', margin: 0 }}>
+                  <strong>⚠ Aşağıdaki metrikler örneklem bazlıdır.</strong> Kurumumuzun en çok atıf alan
+                  {' '}{institutional.sampleSize || 500} yayını üzerinden hesaplanmıştır. Bu yüzden FWCI,
+                  Top 1%/10%, açık erişim oranı ve kalite dağılımı gerçek kurumsal ortalamanın üstünde
+                  görünür — sample yayınlar doğal olarak üst-tier'dandır.
+                </p>
+              </div>
+
+              <h3 style={s.h3}>Örneklem Bazlı Göstergeler (top {institutional.sampleSize || 500} yayın)</h3>
               <div style={s.kpiGrid}>
-                <Kpi label="Ort. FWCI" value={institutional.avgFwci !== null && institutional.avgFwci !== undefined ? institutional.avgFwci : '—'} color="#7c3aed" sub="global ort. = 1.00" />
-                <Kpi label="Top 1% Yayın" value={formatNum(institutional.top1PctCount || 0)} color="#059669" sub={`%${institutional.top1PctRatio || 0}`} />
-                <Kpi label="Top 10% Yayın" value={formatNum(institutional.top10PctCount || 0)} color="#2563eb" sub={`%${institutional.top10PctRatio || 0}`} />
-                <Kpi label="Uluslararası Ortaklık" value={`%${institutional.internationalCoauthorRatio || 0}`} color="#c8a45a" sub={`${formatNum(institutional.internationalCoauthorCount || 0)} yayın`} />
-                <Kpi label="Ort. Yazar/Makale" value={institutional.avgAuthorsPerPaper || 0} color="#0891b2" />
-                <Kpi label="Ort. Ülke/Makale" value={institutional.avgCountriesPerPaper !== null ? institutional.avgCountriesPerPaper : '—'} color="#1a3a6b" />
+                <Kpi label="Sample Açık Erişim" value={`%${institutional.openAccessRatio || 0}`} sub={`${formatNum(institutional.openAccessCount || 0)} yayın`} color="#0891b2" />
+                <Kpi label="Q1 (sample)" value={formatNum(institutional.quartileDistribution?.Q1 || 0)} color="#059669" sub={`%${quartileKnown > 0 ? Math.round(((institutional.quartileDistribution?.Q1 || 0) / quartileKnown) * 100) : 0}`} />
+                <Kpi label="Örnek. Ort. FWCI" value={institutional.avgFwci !== null && institutional.avgFwci !== undefined ? institutional.avgFwci : '—'} color="#7c3aed" sub="sample üst-tier" />
+                <Kpi label="Örnek. Top 1%" value={formatNum(institutional.top1PctCount || 0)} color="#059669" sub={`sample ${institutional.sampleSize || 500}'de`} />
+                <Kpi label="Örnek. Top 10%" value={formatNum(institutional.top10PctCount || 0)} color="#2563eb" sub={`sample ${institutional.sampleSize || 500}'de`} />
+                <Kpi label="Uluslararası Ortaklık" value={`%${institutional.internationalCoauthorRatio || 0}`} color="#c8a45a" sub={`${formatNum(institutional.internationalCoauthorCount || 0)} sample yayın`} />
               </div>
             </>
           )}
