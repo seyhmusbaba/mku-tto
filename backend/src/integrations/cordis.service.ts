@@ -115,9 +115,15 @@ export class CordisService {
   }
 
   /**
-   * MKÜ gibi belirli bir kurum için — önce TR projelerini çek, sonra
-   * partner listesinde kurum adı geçenleri CLIENT-SIDE filtrele.
-   * OpenAIRE search API'sinde participant-name filter yok.
+   * MKÜ gibi belirli bir kurum için projeleri çek.
+   *
+   * Strateji:
+   *   1. participantAcronyms ile doğrudan API sorgusu (hızlı, kesin)
+   *      - MKÜ için: MKU (8 proje), HMKU, MKULL vb. denemeleri
+   *   2. Sonra client-side fallback — TR havuzundan isim eşleşmesi (kapsam için)
+   *
+   * Önceki implementation sadece 100 TR projesini çekip client-side filter yapıyordu
+   * → 9632 TR projesinin büyük çoğunluğunu kaçırıyordu.
    */
   async searchProjectsByOrganization(orgName: string, limit = 25): Promise<CordisProject[]> {
     if (!this.isConfigured() || !orgName) return [];
@@ -126,20 +132,79 @@ export class CordisService {
     if (cached) return cached;
 
     try {
-      // Önce Türkiye projelerini getir (daha geniş havuz — max 100)
-      const turkeyProjects = await this.searchProjectsByCountry('TR', 100);
-      // Client-side filter — kurum adı partnerlardan birinde substring olarak geçiyor mu
-      const needle = orgName.toLowerCase();
-      const matched = turkeyProjects.filter(p => {
-        if (p.coordinator?.name?.toLowerCase().includes(needle)) return true;
-        return p.partners.some(pt => pt.name.toLowerCase().includes(needle));
-      }).slice(0, limit);
-      this.cache.set(cacheKey, matched, 60 * 60 * 12);
-      return matched;
+      const combined = new Map<string, CordisProject>();
+
+      // 1. Kısaltmalar ile doğrudan API sorgusu
+      // MKÜ resmi kısaltmaları: MKU (en yaygın), HMKU, MKULL
+      const acronyms = this.guessAcronyms(orgName);
+      for (const acronym of acronyms) {
+        await this.limiter.acquire();
+        const params = new URLSearchParams({
+          participantAcronyms: acronym,
+          size: String(Math.min(limit, 100)),
+          format: 'json',
+          sortBy: 'projectstartdate,descending',
+        });
+        const url = `${this.baseUrl}?${params}`;
+        this.lastRawUrl = url;
+        try {
+          const data = await fetchJson(url, { timeoutMs: 20000 });
+          this.lastRawSample = data;
+          const items = this.parseOpenAire(data);
+          for (const p of items) {
+            combined.set(p.id || p.openaireId || (p.acronym + p.title), p);
+          }
+        } catch (e: any) {
+          this.logger.warn(`Acronym search failed (${acronym}): ${e.message}`);
+        }
+      }
+
+      // 2. Client-side fallback — TR havuzunda kurum adı eşleşmesi
+      // (acronym ile bulunamayan ama partner adında geçen projeler için)
+      try {
+        const turkeyProjects = await this.searchProjectsByCountry('TR', 100);
+        const needle = orgName.toLowerCase();
+        for (const p of turkeyProjects) {
+          const matchCoord = p.coordinator?.name?.toLowerCase().includes(needle);
+          const matchPartner = p.partners.some(pt => pt.name.toLowerCase().includes(needle));
+          if (matchCoord || matchPartner) {
+            combined.set(p.id || p.openaireId || (p.acronym + p.title), p);
+          }
+        }
+      } catch {}
+
+      const results = Array.from(combined.values())
+        .sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''))
+        .slice(0, limit);
+      this.cache.set(cacheKey, results, 60 * 60 * 12);
+      return results;
     } catch (e: any) {
       this.logger.warn(`OpenAIRE org search failed: ${e.message}`);
       return [];
     }
+  }
+
+  /**
+   * Kurum adından olası kısaltmaları tahmin et.
+   * "Mustafa Kemal University" → MKU, HMKU, IMU, etc.
+   */
+  private guessAcronyms(orgName: string): string[] {
+    const env = process.env.CORDIS_ACRONYMS;
+    if (env) {
+      return env.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    // Varsayılan MKÜ kısaltmaları
+    const lower = orgName.toLowerCase();
+    if (lower.includes('mustafa kemal')) {
+      return ['MKU', 'HMKU'];
+    }
+    // Genel fallback: büyük harflerden oluştur (Mustafa Kemal University → MKU)
+    const acronym = orgName
+      .split(/\s+/)
+      .filter(w => w.length > 2)
+      .map(w => w[0].toUpperCase())
+      .join('');
+    return acronym.length >= 2 ? [acronym] : [];
   }
 
   /**

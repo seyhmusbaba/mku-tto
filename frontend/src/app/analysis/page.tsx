@@ -452,12 +452,15 @@ export default function AnalysisPage() {
                     {(() => {
                       type BiblioScope = 'me' | 'faculty-compare' | 'dept-compare' | 'institutional';
                       const roleName = user?.role?.name || '';
-                      const canCompare = ['Süper Admin', 'Rektör', 'Dekan', 'Bölüm Başkanı'].includes(roleName);
+                      // 3 üst seviye karşılaştırma/analiz — sadece yetkili roller
+                      const canCompareFaculty = ['Süper Admin', 'Rektör', 'Dekan'].includes(roleName);
+                      const canCompareDept = ['Süper Admin', 'Rektör', 'Dekan', 'Bölüm Başkanı'].includes(roleName);
+                      const canSeeInstitutional = ['Süper Admin', 'Rektör', 'Dekan', 'Bölüm Başkanı'].includes(roleName);
                       const opts: Array<{ v: BiblioScope; l: string }> = [
                         { v: 'me',               l: 'Benim Scorecardım' },
-                        ...(canCompare ? [{ v: 'faculty-compare' as BiblioScope, l: 'Fakülte Karşılaştırma' }] : []),
-                        ...(canCompare ? [{ v: 'dept-compare'    as BiblioScope, l: 'Bölüm Karşılaştırma'   }] : []),
-                        { v: 'institutional',    l: 'Kurumsal Analiz (HMKÜ)' },
+                        ...(canCompareFaculty ? [{ v: 'faculty-compare' as BiblioScope, l: 'Fakülte Karşılaştırma' }] : []),
+                        ...(canCompareDept    ? [{ v: 'dept-compare'    as BiblioScope, l: 'Bölüm Karşılaştırma'   }] : []),
+                        ...(canSeeInstitutional ? [{ v: 'institutional' as BiblioScope, l: 'Kurumsal Analiz (HMKÜ)' }] : []),
                       ];
                       return opts.map(o => (
                       <button key={o.v} onClick={() => setBiblioScope(o.v)}
@@ -474,18 +477,36 @@ export default function AnalysisPage() {
                   </div>
                 </div>
 
-                {biblioScope === 'me' && user?.id && (
-                  <BibliometricsPanel mode="researcher" userId={user.id} />
-                )}
-                {biblioScope === 'faculty-compare' && (
-                  <FacultyComparisonPanel highlightFaculty={user?.faculty} />
-                )}
-                {biblioScope === 'dept-compare' && (
-                  <DepartmentComparisonPanel userFaculty={user?.faculty} userDept={user?.department} roleName={user?.role?.name} />
-                )}
-                {biblioScope === 'institutional' && (
-                  <BibliometricsPanel mode="institutional" />
-                )}
+                {(() => {
+                  const roleName = user?.role?.name || '';
+                  const canCompareFaculty = ['Süper Admin', 'Rektör', 'Dekan'].includes(roleName);
+                  const canCompareDept = ['Süper Admin', 'Rektör', 'Dekan', 'Bölüm Başkanı'].includes(roleName);
+                  const canSeeInstitutional = ['Süper Admin', 'Rektör', 'Dekan', 'Bölüm Başkanı'].includes(roleName);
+                  return <>
+                    {biblioScope === 'me' && user?.id && (
+                      <BibliometricsPanel mode="researcher" userId={user.id} />
+                    )}
+                    {biblioScope === 'faculty-compare' && canCompareFaculty && (
+                      <FacultyComparisonPanel highlightFaculty={user?.faculty} />
+                    )}
+                    {biblioScope === 'dept-compare' && canCompareDept && (
+                      <DepartmentComparisonPanel userFaculty={user?.faculty} userDept={user?.department} roleName={roleName} />
+                    )}
+                    {biblioScope === 'institutional' && canSeeInstitutional && (
+                      <BibliometricsPanel mode="institutional" />
+                    )}
+                    {/* Yetki yoksa uyarı */}
+                    {((biblioScope === 'faculty-compare' && !canCompareFaculty) ||
+                      (biblioScope === 'dept-compare' && !canCompareDept) ||
+                      (biblioScope === 'institutional' && !canSeeInstitutional)) && (
+                      <div className="card py-12 text-center">
+                        <AIcon name="lock" className="w-10 h-10 mx-auto text-amber-500" strokeWidth={1.5} />
+                        <p className="text-sm font-semibold text-navy mt-3">Bu analiz için yetkiniz yok</p>
+                        <p className="text-xs text-muted mt-1">Süper Admin, Rektör, Dekan veya Bölüm Başkanı rolü gereklidir.</p>
+                      </div>
+                    )}
+                  </>;
+                })()}
               </div>
             )}
 
