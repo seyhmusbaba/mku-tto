@@ -140,32 +140,37 @@ export default function AnalysisPage() {
           </div>
           <div className="flex gap-2 no-print">
             {(() => {
-              const roleName = user?.role?.name || '';
-              const canSeeAnnualReport = ['Süper Admin', 'Rektör', 'Dekan', 'Bölüm Başkanı'].includes(roleName);
-              return canSeeAnnualReport ? (
+              const perms = user?.role?.permissions?.map((p: any) => p.name) || [];
+              const canSeeAnnualReport = perms.includes('analytics:annual-report');
+              const canSeePeriodReport = perms.includes('analytics:period-report');
+              return (canSeeAnnualReport || canSeePeriodReport) ? (
                 <>
-                  <button
-                    onClick={() => {
-                      if (typeof window !== 'undefined') {
-                        const token = localStorage.getItem('tto_token');
-                        if (token) sessionStorage.setItem('tto_print_token', token);
-                      }
-                      window.open('/analysis/annual-report', '_blank');
-                    }}
-                    className="btn-primary text-sm inline-flex items-center gap-1.5"
-                    title="Tüm kurumsal metrikleri içeren yıllık PDF raporu"
-                  >
-                    <AIcon name="document" className="w-3.5 h-3.5" />
-                    Yıllık Kurumsal Rapor
-                  </button>
-                  <button
-                    onClick={() => setPeriodModalOpen(true)}
-                    className="btn-secondary text-sm inline-flex items-center gap-1.5"
-                    title="Belirli bir tarih aralığı için özel rapor (haftalık, aylık, dönemsel)"
-                  >
-                    <AIcon name="chart" className="w-3.5 h-3.5" />
-                    Dönemsel Rapor
-                  </button>
+                  {canSeeAnnualReport && (
+                    <button
+                      onClick={() => {
+                        if (typeof window !== 'undefined') {
+                          const token = localStorage.getItem('tto_token');
+                          if (token) sessionStorage.setItem('tto_print_token', token);
+                        }
+                        window.open('/analysis/annual-report', '_blank');
+                      }}
+                      className="btn-primary text-sm inline-flex items-center gap-1.5"
+                      title="Tüm kurumsal metrikleri içeren yıllık PDF raporu"
+                    >
+                      <AIcon name="document" className="w-3.5 h-3.5" />
+                      Yıllık Kurumsal Rapor
+                    </button>
+                  )}
+                  {canSeePeriodReport && (
+                    <button
+                      onClick={() => setPeriodModalOpen(true)}
+                      className="btn-secondary text-sm inline-flex items-center gap-1.5"
+                      title="Belirli bir tarih aralığı için özel rapor (haftalık, aylık, dönemsel)"
+                    >
+                      <AIcon name="chart" className="w-3.5 h-3.5" />
+                      Dönemsel Rapor
+                    </button>
+                  )}
                 </>
               ) : null;
             })()}
@@ -451,11 +456,12 @@ export default function AnalysisPage() {
                   <div className="flex gap-1 p-1 rounded-xl" style={{ background: '#f0ede8' }}>
                     {(() => {
                       type BiblioScope = 'me' | 'faculty-compare' | 'dept-compare' | 'institutional';
-                      const roleName = user?.role?.name || '';
-                      // 3 üst seviye karşılaştırma/analiz — sadece yetkili roller
-                      const canCompareFaculty = ['Süper Admin', 'Rektör', 'Dekan'].includes(roleName);
-                      const canCompareDept = ['Süper Admin', 'Rektör', 'Dekan', 'Bölüm Başkanı'].includes(roleName);
-                      const canSeeInstitutional = ['Süper Admin', 'Rektör', 'Dekan', 'Bölüm Başkanı'].includes(roleName);
+                      // Permission bazlı yetki kontrolü — Roller & Yetkiler modülünden yönetilir
+                      const perms = user?.role?.permissions?.map((p: any) => p.name) || [];
+                      const has = (p: string) => perms.includes(p);
+                      const canCompareFaculty = has('analytics:faculty-compare');
+                      const canCompareDept = has('analytics:dept-compare');
+                      const canSeeInstitutional = has('analytics:institutional');
                       const opts: Array<{ v: BiblioScope; l: string }> = [
                         { v: 'me',               l: 'Benim Scorecardım' },
                         ...(canCompareFaculty ? [{ v: 'faculty-compare' as BiblioScope, l: 'Fakülte Karşılaştırma' }] : []),
@@ -478,10 +484,11 @@ export default function AnalysisPage() {
                 </div>
 
                 {(() => {
-                  const roleName = user?.role?.name || '';
-                  const canCompareFaculty = ['Süper Admin', 'Rektör', 'Dekan'].includes(roleName);
-                  const canCompareDept = ['Süper Admin', 'Rektör', 'Dekan', 'Bölüm Başkanı'].includes(roleName);
-                  const canSeeInstitutional = ['Süper Admin', 'Rektör', 'Dekan', 'Bölüm Başkanı'].includes(roleName);
+                  const perms = user?.role?.permissions?.map((p: any) => p.name) || [];
+                  const has = (p: string) => perms.includes(p);
+                  const canCompareFaculty = has('analytics:faculty-compare');
+                  const canCompareDept = has('analytics:dept-compare');
+                  const canSeeInstitutional = has('analytics:institutional');
                   return <>
                     {biblioScope === 'me' && user?.id && (
                       <BibliometricsPanel mode="researcher" userId={user.id} />
@@ -490,7 +497,7 @@ export default function AnalysisPage() {
                       <FacultyComparisonPanel highlightFaculty={user?.faculty} />
                     )}
                     {biblioScope === 'dept-compare' && canCompareDept && (
-                      <DepartmentComparisonPanel userFaculty={user?.faculty} userDept={user?.department} roleName={roleName} />
+                      <DepartmentComparisonPanel userFaculty={user?.faculty} userDept={user?.department} roleName={user?.role?.name} />
                     )}
                     {biblioScope === 'institutional' && canSeeInstitutional && (
                       <BibliometricsPanel mode="institutional" />
@@ -502,7 +509,7 @@ export default function AnalysisPage() {
                       <div className="card py-12 text-center">
                         <AIcon name="lock" className="w-10 h-10 mx-auto text-amber-500" strokeWidth={1.5} />
                         <p className="text-sm font-semibold text-navy mt-3">Bu analiz için yetkiniz yok</p>
-                        <p className="text-xs text-muted mt-1">Süper Admin, Rektör, Dekan veya Bölüm Başkanı rolü gereklidir.</p>
+                        <p className="text-xs text-muted mt-1">Sistem yöneticisinden Roller & Yetkiler modülü üzerinden ilgili analiz yetkisini tanımlamasını isteyin.</p>
                       </div>
                     )}
                   </>;

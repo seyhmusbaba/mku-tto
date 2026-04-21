@@ -245,6 +245,8 @@ export default function NewProjectPage() {
   const [complianceDone,   setComplianceDone]   = useState(false);
   const [ethicsAnalysis,   setEthicsAnalysis]   = useState<any>(null);
   const [ethicsLoading,    setEthicsLoading]    = useState(false);
+  const [ipVerifying,      setIpVerifying]      = useState(false);
+  const [ipVerifyResult,   setIpVerifyResult]   = useState<{ok: boolean; data?: any; message?: string} | null>(null);
   const [extracting,       setExtracting]       = useState(false);
   const [sdgSuggestions,   setSdgSuggestions]   = useState<string[]>([]);
   const [sdgReasons,       setSdgReasons]       = useState<Record<string,string>>({});
@@ -312,6 +314,7 @@ export default function NewProjectPage() {
       const r = await api.post('/ethics/preview-analyze', {
         title: form.title, description: form.description,
         projectText: form.projectText, type: selectedType,
+        faculty: form.faculty, department: form.department,
       });
       setEthicsAnalysis(r.data);
     } catch {} finally { setEthicsLoading(false); }
@@ -883,7 +886,48 @@ export default function NewProjectPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="label">Tescil / Başvuru No</label>
-                    <input className="input" value={form.ipRegistrationNo} onChange={e => set('ipRegistrationNo', e.target.value)} placeholder="TR2024/001234" />
+                    <div className="flex gap-2">
+                      <input className="input flex-1" value={form.ipRegistrationNo} onChange={e => { set('ipRegistrationNo', e.target.value); setIpVerifyResult(null); }} placeholder="TR2024/001234 veya EP3456789" />
+                      {form.ipType === 'patent' && form.ipRegistrationNo && (
+                        <button type="button" onClick={async () => {
+                          setIpVerifying(true);
+                          setIpVerifyResult(null);
+                          try {
+                            const num = form.ipRegistrationNo.trim().replace(/[\s\/]/g, '');
+                            const r = await api.get('/integrations/patent/publication', { params: { number: num } });
+                            setIpVerifyResult({ ok: true, data: r.data });
+                          } catch (e: any) {
+                            setIpVerifyResult({ ok: false, message: e?.response?.data?.message || 'Patent bulunamadı' });
+                          } finally {
+                            setIpVerifying(false);
+                          }
+                        }} className="btn-secondary text-xs" disabled={ipVerifying}
+                          title="EPO veritabanında patent numarasını doğrula">
+                          {ipVerifying ? '...' : 'EPO Doğrula'}
+                        </button>
+                      )}
+                    </div>
+                    {ipVerifyResult && (
+                      <div className="mt-1.5 p-2 rounded-lg text-xs"
+                        style={{
+                          background: ipVerifyResult.ok ? '#f0fdf4' : '#fef2f2',
+                          border: `1px solid ${ipVerifyResult.ok ? '#bbf7d0' : '#fecaca'}`,
+                          color: ipVerifyResult.ok ? '#166534' : '#991b1b',
+                        }}>
+                        {ipVerifyResult.ok ? (
+                          <>
+                            <strong>✓ Doğrulandı:</strong> {ipVerifyResult.data.title}
+                            <br />
+                            <span className="text-[11px]">
+                              Başvuran: {ipVerifyResult.data.applicants?.join(', ') || '—'} ·
+                              {ipVerifyResult.data.publicationDate ? ` Yayım: ${ipVerifyResult.data.publicationDate}` : ''}
+                            </span>
+                          </>
+                        ) : (
+                          <><strong>✕</strong> {ipVerifyResult.message}</>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="label">Tarih</label>

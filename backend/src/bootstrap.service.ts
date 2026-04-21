@@ -11,11 +11,37 @@ import { DEMO_PROJECTS } from './database/demo-projects';
 const REQUIRED_PERMISSIONS = [
   { name: 'ethics:read',   module: 'ethics', action: 'read',   description: 'Etik kurul başvurularını görüntüle' },
   { name: 'ethics:manage', module: 'ethics', action: 'manage', description: 'Etik kurul kararı ver (onayla/reddet)' },
+  // Bibliyometri analiz yetkileri — admin Roller & Yetkiler'den istediği role tanımlar
+  { name: 'analytics:institutional',   module: 'analytics', action: 'view', description: 'Kurumsal Analiz (HMKÜ) bibliyometri görüntüleme' },
+  { name: 'analytics:faculty-compare', module: 'analytics', action: 'view', description: 'Fakülte Karşılaştırma bibliyometri görüntüleme' },
+  { name: 'analytics:dept-compare',    module: 'analytics', action: 'view', description: 'Bölüm Karşılaştırma bibliyometri görüntüleme' },
+  { name: 'analytics:annual-report',   module: 'analytics', action: 'view', description: 'Yıllık Kurumsal Rapor üretme + indirme' },
+  { name: 'analytics:period-report',   module: 'analytics', action: 'view', description: 'Dönemsel Rapor üretme + indirme' },
 ];
 
-const RECTOR_PERMS = [
-  'projects:read', 'analytics:read', 'ethics:read', 'ethics:manage',
-];
+// Varsayılan rol → yetki eşleşmeleri (bootstrap'ta sadece eksikler eklenir)
+const DEFAULT_ROLE_PERMS: Record<string, string[]> = {
+  'Süper Admin': [
+    'ethics:read', 'ethics:manage',
+    'analytics:institutional', 'analytics:faculty-compare', 'analytics:dept-compare',
+    'analytics:annual-report', 'analytics:period-report',
+  ],
+  'Rektör': [
+    'projects:read', 'analytics:read', 'ethics:read', 'ethics:manage',
+    'analytics:institutional', 'analytics:faculty-compare', 'analytics:dept-compare',
+    'analytics:annual-report', 'analytics:period-report',
+  ],
+  'Dekan': [
+    'ethics:read',
+    'analytics:faculty-compare', 'analytics:dept-compare', 'analytics:institutional',
+    'analytics:annual-report', 'analytics:period-report',
+  ],
+  'Bölüm Başkanı': [
+    'analytics:dept-compare', 'analytics:institutional',
+  ],
+};
+
+const RECTOR_PERMS = DEFAULT_ROLE_PERMS['Rektör'];
 
 @Injectable()
 export class BootstrapService implements OnApplicationBootstrap {
@@ -39,31 +65,21 @@ export class BootstrapService implements OnApplicationBootstrap {
         savedPerms.push(perm);
       }
 
-      // 2. Süper Admin'e yeni yetkileri ekle
-      const superAdmin = await this.roleRepo.findOne({
-        where: { name: 'Süper Admin' },
-        relations: ['permissions'],
-      });
-      if (superAdmin) {
-        const existing = superAdmin.permissions.map(p => p.name);
-        const toAdd = savedPerms.filter(p => !existing.includes(p.name));
-        if (toAdd.length > 0) {
-          superAdmin.permissions = [...superAdmin.permissions, ...toAdd];
-          await this.roleRepo.save(superAdmin);
-        }
-      }
-
-      // 3. Dekan rolüne ethics:read ekle
-      const dekan = await this.roleRepo.findOne({
-        where: { name: 'Dekan' },
-        relations: ['permissions'],
-      });
-      if (dekan) {
-        const existing = dekan.permissions.map(p => p.name);
-        const ethicsRead = savedPerms.find(p => p.name === 'ethics:read');
-        if (ethicsRead && !existing.includes('ethics:read')) {
-          dekan.permissions = [...dekan.permissions, ethicsRead];
-          await this.roleRepo.save(dekan);
+      // 2. Her rol için varsayılan yetkileri ekle — idempotent, sadece eksikleri ekler
+      for (const [roleName, permNames] of Object.entries(DEFAULT_ROLE_PERMS)) {
+        const role = await this.roleRepo.findOne({
+          where: { name: roleName },
+          relations: ['permissions'],
+        });
+        if (!role) continue;
+        const existingPermNames = role.permissions.map(p => p.name);
+        const missingPerms = await this.permRepo.find({
+          where: { name: In(permNames.filter(p => !existingPermNames.includes(p))) },
+        });
+        if (missingPerms.length > 0) {
+          role.permissions = [...role.permissions, ...missingPerms];
+          await this.roleRepo.save(role);
+          this.logger.log(`[Bootstrap] ${roleName} rolüne eklenen yetkiler: ${missingPerms.map(p => p.name).join(', ')}`);
         }
       }
 

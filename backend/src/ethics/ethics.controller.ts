@@ -71,7 +71,14 @@ export class EthicsController {
 
   // On analiz - herkes
   @Post('preview-analyze')
-  previewAnalyze(@Body() body: { title: string; description: string; projectText: string; type: string }) {
+  previewAnalyze(@Body() body: {
+    title: string;
+    description: string;
+    projectText: string;
+    type: string;
+    faculty?: string;
+    department?: string;
+  }) {
     return this.svc.analyzeWithAi(body);
   }
 }
