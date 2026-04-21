@@ -338,6 +338,36 @@ export function BibliometricsPanel({
         </div>
       )}
 
+      {/* Yayın Türüne Göre Dağılım */}
+      {summary.typeDistribution && summary.typeDistribution.length > 0 && (
+        <div className="card p-5">
+          <h4 className="font-display text-sm font-semibold text-navy mb-1 inline-flex items-center gap-2">
+            <Icon name="layers" className="w-4 h-4" />
+            Yayın Türüne Göre Dağılım
+            <InfoTip text="OpenAlex'in tespit ettiği her yayın türü — makale, kitap, kitap bölümü, tez, ön baskı, bildiri, rapor, inceleme vs. Kurumsal modda: en çok atıf alan 500 yayın içindeki dağılımdır." />
+          </h4>
+          <p className="text-xs text-muted mb-4">Türe göre adet ve toplam atıf</p>
+          <div className="space-y-1.5">
+            {summary.typeDistribution.map((t: any) => {
+              const max = summary.typeDistribution[0]?.count || 1;
+              const pct = (t.count / max) * 100;
+              return (
+                <div key={t.type} className="flex items-center gap-3 p-1.5 rounded-lg">
+                  <span className="text-sm font-medium text-navy w-40 flex-shrink-0">{t.label}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="h-1.5 rounded-full" style={{ background: '#f0ede8' }}>
+                      <div className="h-1.5 rounded-full" style={{ width: `${pct}%`, background: '#1a3a6b' }} />
+                    </div>
+                  </div>
+                  <span className="text-sm font-bold text-navy w-10 text-right flex-shrink-0">{t.count}</span>
+                  <span className="text-xs text-muted w-16 text-right flex-shrink-0">{t.citations} atıf</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Q1-Q4 dağılımı + Yıllık trend */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div className="card p-5">

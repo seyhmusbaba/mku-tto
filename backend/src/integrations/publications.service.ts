@@ -532,6 +532,8 @@ export class PublicationsService {
     avgCountriesPerPaper: number | null;
     // Dergi konsantrasyonu
     topJournals: Array<{ name: string; count: number }>;
+    // Yayın türüne göre dağılım — article, book, book-chapter, dissertation, preprint vb.
+    typeDistribution: Array<{ type: string; label: string; count: number; citations: number }>;
   } {
     const total = pubs.length;
     const totalCitations = pubs.reduce((s, p) => s + (p.citedBy.best || 0), 0);
@@ -640,6 +642,55 @@ export class PublicationsService {
       .sort((a, b) => b.count - a.count)
       .slice(0, 15);
 
+    // ── Yayın türüne göre dağılım ──
+    // OpenAlex work types: article, book, book-chapter, dataset, dissertation,
+    //   editorial, erratum, letter, monograph, paratext, peer-review, preprint,
+    //   reference-entry, report, review, standard, supplementary-materials
+    // TR Dizin docTypes: PAPER, BOOK, CONFERENCE, CHAPTER, THESIS
+    const typeLabels: Record<string, string> = {
+      'article':               'Makale',
+      'journal-article':       'Makale',
+      'paper':                 'Makale',
+      'book':                  'Kitap',
+      'book-chapter':          'Kitap Bölümü',
+      'chapter':               'Kitap Bölümü',
+      'dataset':               'Veri Kümesi',
+      'dissertation':          'Tez',
+      'thesis':                'Tez',
+      'editorial':             'Editöryel',
+      'erratum':               'Düzeltme',
+      'letter':                'Mektup',
+      'monograph':             'Monografi',
+      'paratext':              'Paratext',
+      'peer-review':           'Akran Değerlendirmesi',
+      'preprint':              'Ön Baskı',
+      'reference-entry':       'Referans Girişi',
+      'report':                'Rapor',
+      'review':                'İnceleme',
+      'proceedings-article':   'Bildiri',
+      'conference-paper':      'Bildiri',
+      'conference':            'Bildiri',
+      'standard':              'Standart',
+      'supplementary-materials': 'Ek Materyaller',
+      'other':                 'Diğer',
+    };
+    const typeMap = new Map<string, { count: number; citations: number }>();
+    for (const p of pubs) {
+      const t = (p.type || 'other').toLowerCase();
+      const cur = typeMap.get(t) || { count: 0, citations: 0 };
+      cur.count++;
+      cur.citations += p.citedBy.best || 0;
+      typeMap.set(t, cur);
+    }
+    const typeDistribution = Array.from(typeMap.entries())
+      .map(([type, v]) => ({
+        type,
+        label: typeLabels[type] || type.charAt(0).toUpperCase() + type.slice(1),
+        count: v.count,
+        citations: v.citations,
+      }))
+      .sort((a, b) => b.count - a.count);
+
     return {
       total,
       totalCitations,
@@ -663,6 +714,7 @@ export class PublicationsService {
       avgAuthorsPerPaper: total > 0 ? +((totalAuthors / total)).toFixed(1) : 0,
       avgCountriesPerPaper: countriesPapers > 0 ? +((countriesSum / countriesPapers)).toFixed(1) : null,
       topJournals,
+      typeDistribution,
     };
   }
 }

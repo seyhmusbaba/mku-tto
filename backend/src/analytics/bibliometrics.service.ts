@@ -274,6 +274,7 @@ export class BibliometricsService {
       avgAuthorsPerPaper: sampleSummary.avgAuthorsPerPaper,
       avgCountriesPerPaper: sampleSummary.avgCountriesPerPaper,
       topJournals: sampleSummary.topJournals,
+      typeDistribution: sampleSummary.typeDistribution,
 
       // Yayın listesi — sample
       publications: pubs.map(p => {

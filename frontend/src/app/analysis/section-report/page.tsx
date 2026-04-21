@@ -635,6 +635,40 @@ function BibliometricsSection({ data }: { data: any }) {
           </table>
         </div>
       )}
+
+      {inst.typeDistribution && inst.typeDistribution.length > 0 && (
+        <div style={s.section}>
+          <h2 style={s.h2}>YAYIN TÜRÜNE GÖRE DAĞILIM</h2>
+          <p style={s.p}>OpenAlex'in tespit ettiği türlere göre — makale, kitap, kitap bölümü, tez, ön baskı, bildiri, inceleme vs.</p>
+          <table style={s.table}>
+            <thead>
+              <tr>
+                <th style={s.th}>Tür</th>
+                <th style={s.thR}>Adet</th>
+                <th style={s.thR}>Toplam Atıf</th>
+                <th style={s.thR}>Ort. Atıf/Yayın</th>
+                <th style={s.thR}>Pay</th>
+              </tr>
+            </thead>
+            <tbody>
+              {inst.typeDistribution.map((t: any) => {
+                const totalSample = inst.typeDistribution.reduce((x: number, y: any) => x + y.count, 0);
+                const pct = totalSample > 0 ? (t.count / totalSample) * 100 : 0;
+                const avgCit = t.count > 0 ? (t.citations / t.count).toFixed(1) : '—';
+                return (
+                  <tr key={t.type}>
+                    <td style={s.td}>{t.label}</td>
+                    <td style={{ ...s.tdR, fontWeight: 700 }}>{t.count}</td>
+                    <td style={s.tdR}>{formatNum(t.citations)}</td>
+                    <td style={s.tdR}>{avgCit}</td>
+                    <td style={s.tdR}>%{pct.toFixed(1)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </>
   );
 }
