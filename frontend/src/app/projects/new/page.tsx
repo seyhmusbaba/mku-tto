@@ -725,7 +725,7 @@ export default function NewProjectPage() {
           {complianceDone && (
             <div className="card p-5">
               <h3 className="font-display text-sm font-semibold text-navy mb-3 inline-flex items-center gap-2">
-                <NPIcon name="shield" className="w-4 h-4 text-red-600" />
+                <NPIcon name="alert" className="w-4 h-4 text-red-600" />
                 Etik Kurul Onayı
               </h3>
               <div className="p-3 rounded-xl" style={{ border: '1px solid #fca5a5', background: '#fef2f2' }}>
