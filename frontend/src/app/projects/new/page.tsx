@@ -687,7 +687,7 @@ export default function NewProjectPage() {
                           if (r.data?.text) set('projectText', r.data.text);
                           else if (r.data?.error) toast.error(r.data.error);
                         }
-                        setComplianceDone(false); setEthicsAnalysis(null);
+                        setComplianceDone(false);
                       } catch { toast.error('Metin çıkarılamadı'); }
                       finally { setExtracting(false); e.target.value = ''; }
                     }} />
@@ -701,7 +701,7 @@ export default function NewProjectPage() {
             </div>
 
             <textarea className="input" style={{ minHeight: 280, lineHeight: 1.8 }} value={form.projectText}
-              onChange={e => { set('projectText', e.target.value); setComplianceDone(false); setEthicsAnalysis(null); }}
+              onChange={e => { set('projectText', e.target.value); setComplianceDone(false); }}
               placeholder={'Detaylı proje açıklaması...\n\n• Projenin amacı ve önemi\n• Araştırma sorusu / hipotez\n• Yöntem ve yaklaşım\n• Beklenen çıktılar ve hedefler\n• Zaman çizelgesi'} />
 
             {/* YZ Uygunluk */}
