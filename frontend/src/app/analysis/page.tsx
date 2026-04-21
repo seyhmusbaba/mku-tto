@@ -56,7 +56,7 @@ type Tab = 'overview' | 'institutional' | 'bibliometrics' | 'faculty' | 'researc
 export default function AnalysisPage() {
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>('overview');
-  const [biblioScope, setBiblioScope] = useState<'me' | 'faculty' | 'institutional'>('me');
+  const [biblioScope, setBiblioScope] = useState<'me' | 'faculty' | 'institutional' | 'faculty-compare' | 'dept-compare'>('me');
   const [biblioFaculty, setBiblioFaculty] = useState<string>('');
   const [overview, setOverview] = useState<any>(null);
   const [facultyData, setFacultyData] = useState<any[]>([]);
@@ -450,11 +450,17 @@ export default function AnalysisPage() {
                 <div className="card p-4 flex flex-wrap items-center gap-3">
                   <span className="text-sm font-semibold text-navy">Kapsam:</span>
                   <div className="flex gap-1 p-1 rounded-xl" style={{ background: '#f0ede8' }}>
-                    {([
-                      { v: 'me',            l: 'Benim Scorecardım' },
-                      { v: 'faculty',       l: 'Fakülte' },
-                      { v: 'institutional', l: 'Kurumsal (MKÜ)' },
-                    ] as const).map(o => (
+                    {(() => {
+                      const roleName = user?.role?.name || '';
+                      const canCompare = ['Süper Admin', 'Rektör', 'Dekan', 'Bölüm Başkanı'].includes(roleName);
+                      const opts = [
+                        { v: 'me',            l: 'Benim Scorecardım' },
+                        { v: 'faculty',       l: 'Fakülte' },
+                        { v: 'institutional', l: 'Kurumsal (MKÜ)' },
+                        ...(canCompare ? [{ v: 'faculty-compare', l: 'Fakülte Karşılaştırma' }] : []),
+                        ...(canCompare ? [{ v: 'dept-compare',    l: 'Bölüm Karşılaştırma' }] : []),
+                      ] as const;
+                      return opts.map(o => (
                       <button key={o.v} onClick={() => setBiblioScope(o.v)}
                         className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                         style={{
@@ -464,7 +470,8 @@ export default function AnalysisPage() {
                         }}>
                         {o.l}
                       </button>
-                    ))}
+                      ));
+                    })()}
                   </div>
                   {biblioScope === 'faculty' && (
                     <select className="input text-sm py-1.5 w-56" value={biblioFaculty} onChange={e => setBiblioFaculty(e.target.value)}>
@@ -491,6 +498,12 @@ export default function AnalysisPage() {
                 )}
                 {biblioScope === 'institutional' && (
                   <BibliometricsPanel mode="institutional" />
+                )}
+                {biblioScope === 'faculty-compare' && (
+                  <FacultyComparisonPanel highlightFaculty={user?.faculty} />
+                )}
+                {biblioScope === 'dept-compare' && (
+                  <DepartmentComparisonPanel userFaculty={user?.faculty} userDept={user?.department} roleName={user?.role?.name} />
                 )}
               </div>
             )}
@@ -825,6 +838,194 @@ function PeriodReportModal({ onClose }: { onClose: () => void }) {
           <button onClick={onClose} className="btn-secondary">İptal</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ─── Fakülte Bibliyometri Karşılaştırma Panel ─── */
+function FacultyComparisonPanel({ highlightFaculty }: { highlightFaculty?: string }) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    setLoading(true);
+    api.get('/analytics/bibliometrics/faculty-comparison')
+      .then(r => setData(r.data))
+      .catch(e => setErr(e?.response?.data?.message || 'Karşılaştırma yüklenemedi'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="card flex justify-center py-20"><div className="spinner" /></div>;
+  if (err) return <div className="card py-12 text-center text-sm text-red-500">{err}</div>;
+  if (!data?.faculties?.length) return <div className="card py-12 text-center text-sm text-muted">Fakülte verisi bulunamadı.</div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="p-4 rounded-2xl flex items-start gap-3 text-xs" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af' }}>
+        <AIcon name="info" className="w-4 h-4 mt-0.5 flex-shrink-0" />
+        <div className="leading-relaxed">
+          <strong>Fakülteler arası bibliyometri karşılaştırması.</strong> Her fakülteden en çok 5 araştırmacı örneklenmiştir — fakülte başına sayılar bu örneklemi yansıtır, tüm akademik kadroyu değil. Örneklem boyutu sağda gösterilir. Sarı satır sizin fakültenizdir.
+        </div>
+      </div>
+
+      <div className="card overflow-x-auto p-0">
+        <table className="w-full text-xs">
+          <thead>
+            <tr style={{ background: '#faf8f4', borderBottom: '1px solid #e8e4dc' }}>
+              <th className="text-left px-3 py-2 font-semibold text-muted">#</th>
+              <th className="text-left px-3 py-2 font-semibold text-muted">Fakülte</th>
+              <th className="text-right px-3 py-2 font-semibold text-muted">Örneklem</th>
+              <th className="text-right px-3 py-2 font-semibold text-muted">Yayın</th>
+              <th className="text-right px-3 py-2 font-semibold text-muted">Atıf</th>
+              <th className="text-right px-3 py-2 font-semibold text-muted">h-index</th>
+              <th className="text-right px-3 py-2 font-semibold text-muted">i10</th>
+              <th className="text-right px-3 py-2 font-semibold text-muted">FWCI</th>
+              <th className="text-right px-3 py-2 font-semibold text-muted">Top 1%</th>
+              <th className="text-right px-3 py-2 font-semibold text-muted">Q1</th>
+              <th className="text-right px-3 py-2 font-semibold text-muted">OA %</th>
+              <th className="text-right px-3 py-2 font-semibold text-muted">Uluslararası %</th>
+              <th className="text-left px-3 py-2 font-semibold text-muted">Top Araştırmacı</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.faculties.map((f: any, i: number) => {
+              const isOwn = highlightFaculty && f.faculty === highlightFaculty;
+              return (
+                <tr key={f.faculty} className="border-b" style={{ borderColor: '#f5f2ee', background: isOwn ? '#fef3c7' : undefined, fontWeight: isOwn ? 700 : undefined }}>
+                  <td className="px-3 py-2 text-muted">{i + 1}</td>
+                  <td className="px-3 py-2 font-semibold text-navy">
+                    {f.faculty}
+                    {isOwn && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded text-white font-bold" style={{ background: '#c8a45a' }}>SİZİN</span>}
+                  </td>
+                  <td className="px-3 py-2 text-right text-muted">{f.sampleSize}/{f.withIdentifiersCount}</td>
+                  <td className="px-3 py-2 text-right text-navy">{f.totalPubs}</td>
+                  <td className="px-3 py-2 text-right text-navy">{f.totalCitations}</td>
+                  <td className="px-3 py-2 text-right font-bold">{f.hIndex}</td>
+                  <td className="px-3 py-2 text-right">{f.i10Index}</td>
+                  <td className="px-3 py-2 text-right">{f.avgFwci !== null ? (+f.avgFwci).toFixed(2) : '—'}</td>
+                  <td className="px-3 py-2 text-right text-emerald-600">{f.top1PctCount}</td>
+                  <td className="px-3 py-2 text-right text-emerald-600">{f.q1Count}</td>
+                  <td className="px-3 py-2 text-right">%{f.openAccessRatio}</td>
+                  <td className="px-3 py-2 text-right">%{f.internationalRatio}</td>
+                  <td className="px-3 py-2 text-xs">{f.topResearcher?.name || '—'}{f.topResearcher ? ` · h=${f.topResearcher.hIndex}` : ''}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {data.note && <p className="text-xs text-muted px-1">{data.note}</p>}
+    </div>
+  );
+}
+
+/* ─── Bölüm Bibliyometri Karşılaştırma Panel ─── */
+function DepartmentComparisonPanel({ userFaculty, userDept, roleName }: { userFaculty?: string; userDept?: string; roleName?: string }) {
+  const [selectedFaculty, setSelectedFaculty] = useState(userFaculty || '');
+  const [facultyList, setFacultyList] = useState<string[]>([]);
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    // Süper Admin/Rektör için tüm fakülteler seçilebilir
+    if (roleName === 'Süper Admin' || roleName === 'Rektör') {
+      api.get('/analytics/institutional/faculty-radar').then(r => {
+        setFacultyList((r.data || []).map((f: any) => f.faculty));
+      }).catch(() => {});
+    }
+  }, [roleName]);
+
+  useEffect(() => {
+    if (!selectedFaculty) return;
+    setLoading(true); setErr('');
+    api.get('/analytics/bibliometrics/department-comparison', { params: { faculty: selectedFaculty } })
+      .then(r => setData(r.data))
+      .catch(e => setErr(e?.response?.data?.message || 'Karşılaştırma yüklenemedi'))
+      .finally(() => setLoading(false));
+  }, [selectedFaculty]);
+
+  const canSelectFaculty = roleName === 'Süper Admin' || roleName === 'Rektör';
+
+  return (
+    <div className="space-y-4">
+      <div className="p-4 rounded-2xl flex items-start gap-3 text-xs" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af' }}>
+        <AIcon name="info" className="w-4 h-4 mt-0.5 flex-shrink-0" />
+        <div className="leading-relaxed flex-1">
+          <strong>Bölümler arası bibliyometri karşılaştırması.</strong> Seçili fakülte içindeki bölümler — her bölümden en çok 3 araştırmacı örneklenmiştir.
+          {canSelectFaculty && (
+            <div className="mt-2">
+              <select className="input text-sm py-1 w-72" value={selectedFaculty} onChange={e => setSelectedFaculty(e.target.value)}>
+                <option value="">Fakülte seçin...</option>
+                {facultyList.map(f => <option key={f} value={f}>{f}</option>)}
+              </select>
+            </div>
+          )}
+          {!canSelectFaculty && selectedFaculty && (
+            <div className="mt-1"><strong>Fakülte:</strong> {selectedFaculty}</div>
+          )}
+        </div>
+      </div>
+
+      {!selectedFaculty && !canSelectFaculty && (
+        <div className="card py-12 text-center text-sm text-muted">Profilinizde fakülte bilgisi bulunamadı.</div>
+      )}
+      {!selectedFaculty && canSelectFaculty && (
+        <div className="card py-12 text-center text-sm text-muted">Karşılaştırmak istediğiniz fakülteyi seçin.</div>
+      )}
+      {loading && <div className="card flex justify-center py-20"><div className="spinner" /></div>}
+      {err && <div className="card py-12 text-center text-sm text-red-500">{err}</div>}
+
+      {!loading && !err && data?.departments?.length > 0 && (
+        <>
+          <div className="card overflow-x-auto p-0">
+            <table className="w-full text-xs">
+              <thead>
+                <tr style={{ background: '#faf8f4', borderBottom: '1px solid #e8e4dc' }}>
+                  <th className="text-left px-3 py-2 font-semibold text-muted">#</th>
+                  <th className="text-left px-3 py-2 font-semibold text-muted">Bölüm</th>
+                  <th className="text-right px-3 py-2 font-semibold text-muted">Örneklem</th>
+                  <th className="text-right px-3 py-2 font-semibold text-muted">Yayın</th>
+                  <th className="text-right px-3 py-2 font-semibold text-muted">Atıf</th>
+                  <th className="text-right px-3 py-2 font-semibold text-muted">h-index</th>
+                  <th className="text-right px-3 py-2 font-semibold text-muted">FWCI</th>
+                  <th className="text-right px-3 py-2 font-semibold text-muted">Q1</th>
+                  <th className="text-right px-3 py-2 font-semibold text-muted">OA %</th>
+                  <th className="text-left px-3 py-2 font-semibold text-muted">Top Araştırmacı</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.departments.map((d: any, i: number) => {
+                  const isOwn = userDept && d.department === userDept;
+                  return (
+                    <tr key={d.department} className="border-b" style={{ borderColor: '#f5f2ee', background: isOwn ? '#fef3c7' : undefined, fontWeight: isOwn ? 700 : undefined }}>
+                      <td className="px-3 py-2 text-muted">{i + 1}</td>
+                      <td className="px-3 py-2 font-semibold text-navy">
+                        {d.department}
+                        {isOwn && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded text-white font-bold" style={{ background: '#c8a45a' }}>SİZİN</span>}
+                      </td>
+                      <td className="px-3 py-2 text-right text-muted">{d.sampleSize}/{d.withIdentifiersCount}</td>
+                      <td className="px-3 py-2 text-right text-navy">{d.totalPubs}</td>
+                      <td className="px-3 py-2 text-right text-navy">{d.totalCitations}</td>
+                      <td className="px-3 py-2 text-right font-bold">{d.hIndex}</td>
+                      <td className="px-3 py-2 text-right">{d.avgFwci !== null ? (+d.avgFwci).toFixed(2) : '—'}</td>
+                      <td className="px-3 py-2 text-right text-emerald-600">{d.q1Count}</td>
+                      <td className="px-3 py-2 text-right">%{d.openAccessRatio}</td>
+                      <td className="px-3 py-2 text-xs">{d.topResearcher?.name || '—'}{d.topResearcher ? ` · h=${d.topResearcher.hIndex}` : ''}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {data.note && <p className="text-xs text-muted px-1">{data.note}</p>}
+        </>
+      )}
+      {!loading && data?.departments?.length === 0 && (
+        <div className="card py-12 text-center text-sm text-muted">Bu fakültede kimliği tanımlı araştırmacı yok.</div>
+      )}
     </div>
   );
 }

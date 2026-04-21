@@ -215,9 +215,28 @@ export class PublicationsService {
    * Kurumsal bazlı yayın toplama — MKÜ'nün tüm yayınları için.
    * OpenAlex institution ID'si üzerinden en hızlı yol.
    */
-  async getInstitutionPublications(institutionId: string, year?: number, limit = 200): Promise<UnifiedPublication[]> {
+  async getInstitutionPublications(
+    institutionId: string,
+    yearOrRange?: number | { from?: number; to?: number },
+    limit = 200,
+  ): Promise<UnifiedPublication[]> {
     if (!institutionId) return [];
-    const cacheKey = `inst:${institutionId}:${year || 'all'}:${limit}`;
+    // Range'i normalize et
+    let fromYear: number | undefined;
+    let toYear: number | undefined;
+    let cacheKeyYear: string;
+    if (typeof yearOrRange === 'number') {
+      fromYear = toYear = yearOrRange;
+      cacheKeyYear = String(yearOrRange);
+    } else if (yearOrRange && (yearOrRange.from || yearOrRange.to)) {
+      fromYear = yearOrRange.from;
+      toYear = yearOrRange.to;
+      cacheKeyYear = `${fromYear || ''}-${toYear || ''}`;
+    } else {
+      cacheKeyYear = 'all';
+    }
+
+    const cacheKey = `inst:${institutionId}:${cacheKeyYear}:${limit}`;
     const cached = this.cache.get<UnifiedPublication[]>(cacheKey);
     if (cached) return cached;
 
@@ -225,7 +244,7 @@ export class PublicationsService {
 
     // 1. OpenAlex — uluslararası kapsama (DOI'li yayınlar ağırlıklı)
     try {
-      const works = await this.openalex.getInstitutionWorks(institutionId, year, limit);
+      const works = await this.openalex.getInstitutionWorks(institutionId, yearOrRange, limit);
       for (const w of works) this.mergeOpenAlex(map, w);
     } catch (e: any) {
       this.logger.warn(`OpenAlex institution works failed: ${e.message}`);
@@ -234,10 +253,10 @@ export class PublicationsService {
     // 2. TR Dizin — OpenAlex'in kaçırdığı Türkçe yayınları ekler
     try {
       const thisYear = new Date().getFullYear();
-      const fromYear = year || (thisYear - 5);
-      const toYear = year || thisYear;
+      const trFromYear = fromYear || (thisYear - 5);
+      const trToYear = toYear || thisYear;
       const trPubs = await this.trdizin.getInstitutionPublications(undefined, {
-        fromYear, toYear, limit: Math.min(limit, 150),
+        fromYear: trFromYear, toYear: trToYear, limit: Math.min(limit, 150),
       });
       for (const p of trPubs) this.mergeTrDizin(map, p);
     } catch (e: any) {

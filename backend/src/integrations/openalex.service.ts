@@ -174,17 +174,33 @@ export class OpenAlexService {
     }
   }
 
-  async getInstitutionWorks(institutionId: string, year?: number, limit = 25): Promise<OpenAlexWork[]> {
+  async getInstitutionWorks(institutionId: string, yearOrRange?: number | { from?: number; to?: number }, limit = 25): Promise<OpenAlexWork[]> {
     if (!institutionId) return [];
     const cleanId = institutionId.replace(/^https?:\/\/openalex\.org\//, '');
-    const cacheKey = `inst-works:${cleanId}:${year || 'all'}:${limit}`;
+
+    // Year param'ı normalize et — tek yıl mı, aralık mı?
+    let yearFilter: string | undefined;
+    let cacheKeyYear: string;
+    if (typeof yearOrRange === 'number') {
+      yearFilter = String(yearOrRange);
+      cacheKeyYear = String(yearOrRange);
+    } else if (yearOrRange && (yearOrRange.from || yearOrRange.to)) {
+      const from = yearOrRange.from || 1900;
+      const to = yearOrRange.to || new Date().getFullYear();
+      yearFilter = `${from}-${to}`;
+      cacheKeyYear = `${from}-${to}`;
+    } else {
+      cacheKeyYear = 'all';
+    }
+
+    const cacheKey = `inst-works:${cleanId}:${cacheKeyYear}:${limit}`;
     const cached = this.cache.get<OpenAlexWork[]>(cacheKey);
     if (cached) return cached;
 
     try {
       await this.limiter.acquire();
       const filterParts = [`institutions.id:${cleanId}`];
-      if (year) filterParts.push(`publication_year:${year}`);
+      if (yearFilter) filterParts.push(`publication_year:${yearFilter}`);
       const params = new URLSearchParams({
         filter: filterParts.join(','),
         'per-page': String(Math.min(limit, 100)),

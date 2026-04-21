@@ -211,13 +211,29 @@ export class BibliometricsService {
    * absürt sayılar çıkıyordu. Artık kurumsal gerçek sayılar + örneklem bazlı
    * göstergeler ayrı ayrı sunuluyor.
    */
-  async getInstitutional(institutionId: string, year?: number): Promise<any> {
+  async getInstitutional(
+    institutionId: string,
+    yearOrRange?: number | { from?: number; to?: number },
+  ): Promise<any> {
     // 1. Kurumsal TOPLAMLAR — OpenAlex institution endpoint'inden direkt
     const instSummary = await this.openalex.getInstitutionSummary(institutionId).catch(() => null);
 
-    // 2. SAMPLE — detay tablolar için en çok atıf alan yayınlar
-    const pubs = await this.publications.getInstitutionPublications(institutionId, year, 500);
+    // 2. SAMPLE — detay tablolar için en çok atıf alan yayınlar (dönem filtreli olabilir)
+    const pubs = await this.publications.getInstitutionPublications(institutionId, yearOrRange, 500);
     const sampleSummary = this.publications.summarize(pubs);
+
+    // Dönem filtrelendiyse etiket için tut
+    let periodLabel: string | undefined;
+    let filterFromYear: number | undefined;
+    let filterToYear: number | undefined;
+    if (typeof yearOrRange === 'number') {
+      periodLabel = `${yearOrRange} yılı`;
+      filterFromYear = filterToYear = yearOrRange;
+    } else if (yearOrRange && (yearOrRange.from || yearOrRange.to)) {
+      filterFromYear = yearOrRange.from;
+      filterToYear = yearOrRange.to;
+      periodLabel = `${filterFromYear || '—'} — ${filterToYear || '—'}`;
+    }
 
     // Kurumsal gerçek byYear — tüm yıllar için works + citations + OA
     let byYearReal: Array<{ year: number; count: number; citations: number; oaCount: number }> = [];
@@ -246,14 +262,41 @@ export class BibliometricsService {
       ? Math.round((realTotalOaCount / realTotalWorksForOa) * 100)
       : null;
 
+    // Dönem filtresi uygulanmışsa kurumsal toplamları o dönemden hesapla
+    let periodTotal: number | undefined;
+    let periodCitations: number | undefined;
+    let periodOaCount: number | undefined;
+    if ((filterFromYear || filterToYear) && byYearReal.length > 0) {
+      const from = filterFromYear || 1900;
+      const to = filterToYear || new Date().getFullYear();
+      let pt = 0, pc = 0, poa = 0;
+      for (const y of byYearReal) {
+        if (y.year >= from && y.year <= to) {
+          pt += y.count;
+          pc += y.citations;
+          poa += y.oaCount || 0;
+        }
+      }
+      periodTotal = pt;
+      periodCitations = pc;
+      periodOaCount = poa;
+    }
+
     return {
       institutionId,
+      periodLabel,
+      filterFromYear,
+      filterToYear,
+      isPeriodFiltered: !!(filterFromYear || filterToYear),
 
-      // KURUMSAL GERÇEK TOPLAMLAR — OpenAlex institution endpoint kaynaklı
-      total: instSummary?.worksCount ?? sampleSummary.total,
-      totalCitations: instSummary?.citedByCount ?? sampleSummary.totalCitations,
-      hIndex: instSummary?.hIndex ?? sampleSummary.hIndex,
-      i10Index: instSummary?.i10Index ?? sampleSummary.i10Index,
+      // KURUMSAL GERÇEK TOPLAMLAR
+      // Dönem filtresi varsa — byYear verisinden o dönemin toplamı
+      // Yoksa — OpenAlex institution endpoint'inden tüm zamanlar
+      total: periodTotal !== undefined ? periodTotal : (instSummary?.worksCount ?? sampleSummary.total),
+      totalCitations: periodCitations !== undefined ? periodCitations : (instSummary?.citedByCount ?? sampleSummary.totalCitations),
+      // h-index dönem hesabı zor — kurumsal veri global, sample'dan dönemsel h-index hesaplanır
+      hIndex: periodTotal !== undefined ? sampleSummary.hIndex : (instSummary?.hIndex ?? sampleSummary.hIndex),
+      i10Index: periodTotal !== undefined ? sampleSummary.i10Index : (instSummary?.i10Index ?? sampleSummary.i10Index),
       twoYearMeanCitedness: instSummary?.twoYearMeanCitedness,
       byYear: byYearReal.length > 0 ? byYearReal : sampleSummary.byYear,
 
@@ -262,11 +305,21 @@ export class BibliometricsService {
       quartileDistribution: sampleSummary.quartileDistribution,
       sdgDistribution: sampleSummary.sdgDistribution,
 
-      // Açık erişim — kurumsal gerçek (OpenAlex counts_by_year'dan) varsa onu kullan
-      // yoksa sample'dan
-      openAccessCount: realOaRatio !== null ? realTotalOaCount : sampleSummary.openAccessCount,
-      openAccessRatio: realOaRatio !== null ? realOaRatio : sampleSummary.openAccessRatio,
-      openAccessSource: realOaRatio !== null ? 'institutional' : 'sample',
+      // Açık erişim:
+      // - Dönem filtresi varsa → byYearReal'dan dönemsel OA toplamı
+      // - Yoksa → tüm kurum için counts_by_year toplamı
+      // - Hiçbiri yoksa → sample'dan
+      openAccessCount:
+        periodOaCount !== undefined ? periodOaCount :
+        realOaRatio !== null ? realTotalOaCount :
+        sampleSummary.openAccessCount,
+      openAccessRatio:
+        periodTotal && periodTotal > 0 && periodOaCount !== undefined
+          ? Math.round((periodOaCount / periodTotal) * 100)
+          : realOaRatio !== null ? realOaRatio : sampleSummary.openAccessRatio,
+      openAccessSource:
+        periodOaCount !== undefined ? 'period-institutional' :
+        realOaRatio !== null ? 'institutional' : 'sample',
       sampleOpenAccessCount: sampleSummary.openAccessCount,
       sampleOpenAccessRatio: sampleSummary.openAccessRatio,
 
@@ -307,6 +360,252 @@ export class BibliometricsService {
           countries,
         };
       }),
+    };
+  }
+
+  /**
+   * Fakülteler arası bibliyometri karşılaştırması.
+   * Her fakültenin lightweight bibliyometri özetini paralel çeker.
+   * Dekan/Rektör bu endpoint ile tüm fakülteleri kıyaslayabilir.
+   *
+   * Hız için: her fakülteden en fazla 5 araştırmacı örneklenir, her biri 50 yayın.
+   */
+  async getFacultyComparison(): Promise<{
+    faculties: Array<{
+      faculty: string;
+      researcherCount: number;
+      withIdentifiersCount: number;
+      sampleSize: number;         // kaç araştırmacı gerçekten çekildi
+      totalPubs: number;
+      totalCitations: number;
+      hIndex: number;
+      i10Index: number;
+      avgFwci: number | null;
+      top1PctCount: number;
+      top10PctCount: number;
+      openAccessCount: number;
+      openAccessRatio: number;
+      q1Count: number;
+      internationalRatio: number;
+      topResearcher?: { name: string; hIndex: number; citations: number; docs: number };
+    }>;
+    note: string;
+  }> {
+    // Tüm fakülteleri projeler tablosundan al (istatistik için uygun)
+    const facultyRows = await this.userRepo
+      .createQueryBuilder('u')
+      .select('u.faculty', 'faculty')
+      .addSelect('COUNT(*)', 'count')
+      .where('u.faculty IS NOT NULL AND u.faculty != \'\'')
+      .andWhere('u."isActive" = true')
+      .groupBy('u.faculty')
+      .getRawMany();
+
+    const faculties = facultyRows.map(r => r.faculty).filter(Boolean);
+    if (faculties.length === 0) return { faculties: [], note: 'Fakülte verisi bulunamadı.' };
+
+    // Her fakülte için paralel özet
+    const results = await Promise.all(faculties.map(async (faculty) => {
+      const researchers = await this.userRepo.find({ where: { faculty, isActive: true as any } });
+      const withIdentifiers = researchers.filter(r => r.orcidId || (r as any).scopusAuthorId || (r as any).wosResearcherId);
+      if (withIdentifiers.length === 0) {
+        return {
+          faculty,
+          researcherCount: researchers.length,
+          withIdentifiersCount: 0,
+          sampleSize: 0,
+          totalPubs: 0, totalCitations: 0, hIndex: 0, i10Index: 0,
+          avgFwci: null as number | null, top1PctCount: 0, top10PctCount: 0,
+          openAccessCount: 0, openAccessRatio: 0, q1Count: 0, internationalRatio: 0,
+        };
+      }
+
+      // Her fakülteden max 5 araştırmacı sample
+      const sample = withIdentifiers.slice(0, 5);
+      const perResearcher: Array<{ user: User; pubs: UnifiedPublication[] }> = [];
+
+      // 5'li paralel batch
+      for (let i = 0; i < sample.length; i += 5) {
+        const batch = sample.slice(i, i + 5);
+        const batchResults = await Promise.all(
+          batch.map(async (u) => {
+            try {
+              if (u.orcidId) {
+                const pubs = await this.publications.getAuthorPublicationsByOrcid(u.orcidId, 50);
+                return { user: u, pubs };
+              }
+            } catch {}
+            return { user: u, pubs: [] as UnifiedPublication[] };
+          }),
+        );
+        perResearcher.push(...batchResults);
+      }
+
+      // Fakülte düzeyinde dedupe
+      const allMap = new Map<string, UnifiedPublication>();
+      for (const { pubs } of perResearcher) {
+        for (const p of pubs) {
+          const key = p.doi ? `doi:${p.doi.toLowerCase()}` : `t:${p.title.toLowerCase().slice(0, 80)}`;
+          const existing = allMap.get(key);
+          if (existing) {
+            existing.citedBy.best = Math.max(existing.citedBy.best || 0, p.citedBy.best || 0);
+          } else {
+            allMap.set(key, p);
+          }
+        }
+      }
+      const allPubs = Array.from(allMap.values());
+      const summary = this.publications.summarize(allPubs);
+
+      // Top araştırmacı (h-index bazlı)
+      const topR = perResearcher
+        .map(({ user, pubs }) => {
+          const s = this.publications.summarize(pubs);
+          return {
+            name: `${user.title || ''} ${user.firstName} ${user.lastName}`.trim(),
+            hIndex: s.hIndex,
+            citations: s.totalCitations,
+            docs: s.total,
+          };
+        })
+        .sort((a, b) => b.hIndex - a.hIndex)[0];
+
+      return {
+        faculty,
+        researcherCount: researchers.length,
+        withIdentifiersCount: withIdentifiers.length,
+        sampleSize: sample.length,
+        totalPubs: summary.total,
+        totalCitations: summary.totalCitations,
+        hIndex: summary.hIndex,
+        i10Index: summary.i10Index,
+        avgFwci: summary.avgFwci,
+        top1PctCount: summary.top1PctCount,
+        top10PctCount: summary.top10PctCount,
+        openAccessCount: summary.openAccessCount,
+        openAccessRatio: summary.openAccessRatio,
+        q1Count: summary.quartileDistribution.Q1 || 0,
+        internationalRatio: summary.internationalCoauthorRatio,
+        topResearcher: topR,
+      };
+    }));
+
+    // h-index DESC'e göre sırala
+    results.sort((a, b) => b.hIndex - a.hIndex);
+
+    return {
+      faculties: results,
+      note: `${results.length} fakülte karşılaştırıldı. Her fakülteden en çok 5 araştırmacı örneklenmiştir — fakülte başına yayın sayıları bu örneklemi yansıtır, tam kapsam değildir.`,
+    };
+  }
+
+  /**
+   * Bir fakülte içindeki bölümler arası bibliyometri karşılaştırması.
+   * Bölüm Başkanı kendi fakültesindeki diğer bölümleri kıyaslayabilir.
+   */
+  async getDepartmentComparison(faculty: string): Promise<{
+    faculty: string;
+    departments: Array<{
+      department: string;
+      researcherCount: number;
+      withIdentifiersCount: number;
+      sampleSize: number;
+      totalPubs: number;
+      totalCitations: number;
+      hIndex: number;
+      avgFwci: number | null;
+      openAccessRatio: number;
+      q1Count: number;
+      topResearcher?: { name: string; hIndex: number; citations: number; docs: number };
+    }>;
+    note: string;
+  }> {
+    const deptRows = await this.userRepo
+      .createQueryBuilder('u')
+      .select('u.department', 'department')
+      .addSelect('COUNT(*)', 'count')
+      .where('u.faculty = :faculty', { faculty })
+      .andWhere('u.department IS NOT NULL AND u.department != \'\'')
+      .andWhere('u."isActive" = true')
+      .groupBy('u.department')
+      .getRawMany();
+
+    const departments = deptRows.map(r => r.department).filter(Boolean);
+    if (departments.length === 0) {
+      return { faculty, departments: [], note: 'Bu fakültede bölüm verisi yok.' };
+    }
+
+    const results = await Promise.all(departments.map(async (department) => {
+      const researchers = await this.userRepo.find({
+        where: { faculty, department, isActive: true as any },
+      });
+      const withIdentifiers = researchers.filter(r => r.orcidId || (r as any).scopusAuthorId);
+
+      if (withIdentifiers.length === 0) {
+        return {
+          department,
+          researcherCount: researchers.length,
+          withIdentifiersCount: 0,
+          sampleSize: 0,
+          totalPubs: 0, totalCitations: 0, hIndex: 0,
+          avgFwci: null as number | null,
+          openAccessRatio: 0, q1Count: 0,
+        };
+      }
+
+      // Her bölümden max 3 araştırmacı sample (bölümler küçük olabilir)
+      const sample = withIdentifiers.slice(0, 3);
+      const perR = await Promise.all(sample.map(async (u) => {
+        try {
+          if (u.orcidId) {
+            const pubs = await this.publications.getAuthorPublicationsByOrcid(u.orcidId, 50);
+            return { user: u, pubs };
+          }
+        } catch {}
+        return { user: u, pubs: [] as UnifiedPublication[] };
+      }));
+
+      // Dedupe
+      const allMap = new Map<string, UnifiedPublication>();
+      for (const { pubs } of perR) {
+        for (const p of pubs) {
+          const key = p.doi ? `doi:${p.doi.toLowerCase()}` : `t:${p.title.toLowerCase().slice(0, 80)}`;
+          if (!allMap.has(key)) allMap.set(key, p);
+        }
+      }
+      const summary = this.publications.summarize(Array.from(allMap.values()));
+
+      const topR = perR
+        .map(({ user, pubs }) => {
+          const s = this.publications.summarize(pubs);
+          return {
+            name: `${user.title || ''} ${user.firstName} ${user.lastName}`.trim(),
+            hIndex: s.hIndex, citations: s.totalCitations, docs: s.total,
+          };
+        })
+        .sort((a, b) => b.hIndex - a.hIndex)[0];
+
+      return {
+        department,
+        researcherCount: researchers.length,
+        withIdentifiersCount: withIdentifiers.length,
+        sampleSize: sample.length,
+        totalPubs: summary.total,
+        totalCitations: summary.totalCitations,
+        hIndex: summary.hIndex,
+        avgFwci: summary.avgFwci,
+        openAccessRatio: summary.openAccessRatio,
+        q1Count: summary.quartileDistribution.Q1 || 0,
+        topResearcher: topR,
+      };
+    }));
+
+    results.sort((a, b) => b.hIndex - a.hIndex);
+
+    return {
+      faculty,
+      departments: results,
+      note: `${results.length} bölüm karşılaştırıldı. Her bölümden en çok 3 araştırmacı örneklenmiştir.`,
     };
   }
 
@@ -404,6 +703,14 @@ export class BibliometricsService {
         ? 'Peer kurum bulunamadı — PEER_OPENALEX_IDS env ile manuel tanımlayabilirsiniz.'
         : `${peers.length} kurum karşılaştırıldı. OpenAlex institution summary kaynaklı.`,
     };
+  }
+
+  /**
+   * Kullanıcının fakültesini DB'den çek — department-comparison için Dekan fallback.
+   */
+  async getUserFaculty(userId: string): Promise<string | null> {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    return user?.faculty || null;
   }
 
   /**

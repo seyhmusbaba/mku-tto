@@ -70,7 +70,11 @@ export class AnalyticsController {
   }
 
   @Get('bibliometrics/institutional')
-  async institutionalBibliometrics(@Query('year') year?: string) {
+  async institutionalBibliometrics(
+    @Query('year') year?: string,
+    @Query('fromYear') fromYear?: string,
+    @Query('toYear') toYear?: string,
+  ) {
     const institutionId = await this.bibliometrics.findMkuInstitutionId();
     if (!institutionId) {
       return {
@@ -78,12 +82,36 @@ export class AnalyticsController {
         message: 'MKÜ için OpenAlex kurum kimliği bulunamadı. MKU_OPENALEX_ID env ile elle ayarlayabilirsiniz.',
       };
     }
-    return this.bibliometrics.getInstitutional(institutionId, year ? +year : undefined);
+    // Tek yıl mı, aralık mı?
+    if (year) {
+      return this.bibliometrics.getInstitutional(institutionId, +year);
+    } else if (fromYear || toYear) {
+      return this.bibliometrics.getInstitutional(institutionId, {
+        from: fromYear ? +fromYear : undefined,
+        to: toYear ? +toYear : undefined,
+      });
+    }
+    return this.bibliometrics.getInstitutional(institutionId);
   }
 
   @Get('bibliometrics/peer-benchmark')
   async peerBenchmark() {
     return this.bibliometrics.getPeerBenchmark();
+  }
+
+  @Get('bibliometrics/faculty-comparison')
+  async facultyComparison() {
+    return this.bibliometrics.getFacultyComparison();
+  }
+
+  @Get('bibliometrics/department-comparison')
+  async departmentComparison(@Query('faculty') faculty: string, @Request() req: any) {
+    // Dekan: parametre gönderilmezse kendi fakültesini DB'den al
+    if (!faculty) {
+      faculty = await this.bibliometrics.getUserFaculty(req.user.userId);
+    }
+    if (!faculty) throw new BadRequestException('faculty parametresi zorunlu (profilinizde fakülte tanımlı değilse elle gönderin)');
+    return this.bibliometrics.getDepartmentComparison(faculty);
   }
 
   // ── INSTITUTIONAL COMPARISON ──────────────────────────────────────────

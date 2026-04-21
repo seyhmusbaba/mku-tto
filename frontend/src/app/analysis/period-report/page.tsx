@@ -75,7 +75,14 @@ function PeriodReportContent() {
       axios.get(`${base}/analytics/institutional/faculty-radar`, { headers }).then(r => r.data).catch(() => []),
       axios.get(`${base}/analytics/timeline`, { headers }).then(r => r.data).catch(() => []),
       axios.get(`${base}/analytics/researcher-productivity`, { headers, params: { limit: 20 } }).then(r => r.data).catch(() => []),
-      axios.get(`${base}/analytics/bibliometrics/institutional`, { headers }).then(r => r.data).catch(() => null),
+      // Bibliyometri de dönem filtresi uygulasın — startDate değil, publicationYear bazında
+      axios.get(`${base}/analytics/bibliometrics/institutional`, {
+        headers,
+        params: {
+          fromYear: from ? new Date(from).getFullYear() : undefined,
+          toYear: to ? new Date(to).getFullYear() : undefined,
+        },
+      }).then(r => r.data).catch(() => null),
       axios.get(`${base}/integrations/cordis/organization`, { headers, params: { name: 'Mustafa Kemal University', limit: 15 } }).then(r => r.data).catch(() => []),
       axios.get(`${base}/analytics/funding-success`, { headers }).then(r => r.data).catch(() => null),
       axios.get(`${base}/settings`, { headers }).then(r => {
@@ -312,13 +319,17 @@ function PeriodReportContent() {
           </div>
         )}
 
-        {/* BİBLİYOMETRİK GÖSTERGELER (kurum genel — dönem filtresi yok) */}
+        {/* BİBLİYOMETRİK GÖSTERGELER (DÖNEM FİLTRELİ) */}
         {institutional && institutional.configured !== false && (
           <div style={s.section}>
-            <h2 style={s.h2}>BİBLİYOMETRİK GÖSTERGELER (KURUM GENEL)</h2>
+            <h2 style={s.h2}>BİBLİYOMETRİK GÖSTERGELER {institutional.isPeriodFiltered ? `(${institutional.periodLabel})` : '(KURUM GENEL)'}</h2>
             <p style={s.p}>
-              <em>Bibliyometri göstergeleri kurum genelidir — dönem filtresi uygulanmaz.
-              Kurumun toplam yayın ve atıf birikimi burada özetlenmiştir.</em>
+              {institutional.isPeriodFiltered ? (
+                <em>Bibliyometri göstergeleri <strong>{institutional.periodLabel}</strong> yayın yılına göre filtrelenmiştir.
+                Yayın yılı dönem içinde olanlar sayılır — atıflar bugüne kadar alınan toplamdır.</em>
+              ) : (
+                <em>Bibliyometri göstergeleri kurum genelidir. Dönem için yıl filtresi uygulanmak üzere period-report parametresi geçirilmelidir.</em>
+              )}
             </p>
             <div style={s.kpiGrid}>
               <Kpi label="Toplam Yayın" value={formatNum(institutional.total || 0)} color="#1a3a6b" />
