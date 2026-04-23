@@ -207,6 +207,19 @@ export const lifecycleApi = {
   deleteRisk:     (pid: string, id: string) => api.delete(`/projects/${pid}/lifecycle/risks/${id}`),
 };
 
+// ── Vitrin portalı (public — auth yok)
+export const publicApi = {
+  institution:        ()                => api.get('/public/institution'),
+  stats:              ()                => api.get('/public/stats'),
+  faculties:          ()                => api.get('/public/faculties'),
+  recent:             ()                => api.get('/public/recent'),
+  researchers:        (params?: any)    => api.get('/public/researchers', { params }),
+  profile:            (slug: string)    => api.get(`/public/researchers/${slug}`),
+  profilePubs:        (slug: string)    => api.get(`/public/researchers/${slug}/publications`),
+  profileProjects:    (slug: string)    => api.get(`/public/researchers/${slug}/projects`),
+  profileCollaborations: (slug: string) => api.get(`/public/researchers/${slug}/collaborations`),
+};
+
 // ── Asistan + Search
 export const assistantApi = {
   chat: (messages: Array<{ role: 'user' | 'assistant'; content: string }>, context?: string) =>

@@ -105,6 +105,7 @@ export default function UserProfilePage() {
         researchGateUrl: editForm.researchGateUrl,
         expertiseArea: editForm.expertiseArea, bio: editForm.bio,
         scopusAuthorId: editForm.scopusAuthorId,
+        isPublic: editForm.isPublic,
       };
       if (isAdmin) { payload.firstName = editForm.firstName; payload.lastName = editForm.lastName; payload.email = editForm.email; }
       await usersApi.update(id, payload);
@@ -295,6 +296,25 @@ export default function UserProfilePage() {
                 <label className="label">Kısa Biyografi</label>
                 <textarea className="input" rows={8} placeholder="Araştırma ilgi alanlarınız, akademik geçmişiniz, projeleriniz..." value={editForm.bio||''} onChange={e => set('bio', e.target.value)} />
               </div>
+
+              {/* Vitrin portalı gizlilik toggle'ı */}
+              <div className="rounded-xl border p-3.5 flex items-center gap-3" style={{ borderColor: '#e8e4dc', background: '#faf8f4' }}>
+                <input
+                  type="checkbox"
+                  id="isPublicToggle"
+                  checked={editForm.isPublic !== false}
+                  onChange={e => set('isPublic', e.target.checked)}
+                  className="w-4 h-4 flex-shrink-0"
+                />
+                <label htmlFor="isPublicToggle" className="flex-1 min-w-0 cursor-pointer">
+                  <p className="text-sm font-semibold text-[#0f2444]">Vitrin Portalında Görün</p>
+                  <p className="text-[11px] text-muted mt-0.5 leading-tight">
+                    Profilin <span className="font-mono">/p/{editForm.publicSlug || 'isim.soyisim'}</span> adresinden anonim ziyaretçilere açılır.
+                    Sadece ad, fakülte, bio, yayın ve kamuya açık projeler görünür. E-posta/telefon gizli kalır.
+                  </p>
+                </label>
+              </div>
+
               <div className="flex gap-3 pt-2">
                 <button onClick={handleSave} disabled={saving} className="btn-primary flex-1 inline-flex items-center justify-center gap-2">
                   {saving ? <><span className="spinner w-4 h-4" />Kaydediliyor...</> : <><Icon name="check" className="w-4 h-4" />Kaydet</>}

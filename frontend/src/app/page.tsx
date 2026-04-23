@@ -7,7 +7,8 @@ export default function Home() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
   useEffect(() => {
-    if (!isLoading) router.replace(user ? '/dashboard' : '/auth/login');
+    // Giriş yapılmışsa dashboard, yoksa ziyaretçi portalı
+    if (!isLoading) router.replace(user ? '/dashboard' : '/p');
   }, [user, isLoading, router]);
 
   return (

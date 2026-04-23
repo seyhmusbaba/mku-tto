@@ -99,6 +99,15 @@ export class User {
   @Column({ default: 'approved' })
   approvalStatus: string;
 
+  // ── Vitrin portalı (public) ───────────────────────────────
+  /** Kullanıcı profili vitrin portalında görünüyor mu? */
+  @Column({ default: true })
+  isPublic: boolean;
+
+  /** Vitrin URL'si için benzersiz, ASCII-safe slug (örn: ebru.polat) */
+  @Column({ nullable: true, unique: true })
+  publicSlug: string;
+
   @ManyToOne(() => Role, { eager: true })
   @JoinColumn({ name: 'roleId' })
   role: Role;

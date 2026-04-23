@@ -50,6 +50,7 @@ import { Publication } from './database/entities/publication.entity';
 import { ProjectMilestone, ProjectDeliverable, ProjectRisk } from './database/entities/project-lifecycle.entities';
 import { UserPublicationsModule } from './publications/publications.module';
 import { LifecycleModule } from './lifecycle/lifecycle.module';
+import { PublicModule } from './public/public.module';
 import { ScopusModule } from './scopus/scopus.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { IntelligenceModule } from './intelligence/intelligence.module';
@@ -88,7 +89,7 @@ import { BootstrapService } from './bootstrap.service';
     AuthModule, UsersModule, RolesModule, ProjectsModule,
     DocumentsModule, ReportsModule, DashboardModule, SettingsModule,
     DynamicFieldsModule, NotificationsModule, ProjectTypesModule, FacultiesModule, ReportTypesModule, PartnersModule, AiModule, AnalyticsModule, ExportModule, AuditModule, CompetitionsModule, EthicsModule, ScopusModule, IntegrationsModule, IntelligenceModule, AdminModule, SearchModule, HealthModule,
-    UserPublicationsModule, LifecycleModule,
+    UserPublicationsModule, LifecycleModule, PublicModule,
   ],
 })
 export class AppModule {}

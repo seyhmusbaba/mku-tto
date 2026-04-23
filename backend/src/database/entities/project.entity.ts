@@ -91,6 +91,11 @@ export class Project {
   @Column({ nullable: true })
   ethicsApprovalDate: string;
 
+  // ── VİTRİN (public) GÖRÜNÜRLÜK ────────────────────────────────
+  /** Proje kamuya açık vitrin portalında görünsün mü (opt-in) */
+  @Column({ default: false })
+  isPublic: boolean;
+
   // ── YZ UYGUNLUK SKORU ─────────────────────────────────────────
   @Column({ nullable: true, type: 'float' })
   aiComplianceScore: number;
