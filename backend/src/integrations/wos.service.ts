@@ -75,11 +75,28 @@ export class WosService {
 
     try {
       await this.limiter.acquire();
-      const q = this.buildAuthorQuery(researcherId);
-      const url = `${this.baseUrl}/documents?q=${encodeURIComponent(q)}&limit=1&page=1`;
-      const data = await fetchJson(url, { headers: this.authHeaders(), timeoutMs: 20000 });
+      // Birden çok query formatını dene — WoS Starter API ORCID için farklı syntaxlar
+      const isOrcid = /^\d{4}-\d{4}-\d{4}-\d{3}[0-9Xx]$/.test(researcherId);
+      const queryFormats = isOrcid
+        ? [`AO=(${researcherId})`, `AO="${researcherId}"`, `AU_ORCID="${researcherId}"`]
+        : [`AI=(${researcherId})`, `AI="${researcherId}"`, `AU_ID="${researcherId}"`];
 
-      const hitCount: number = data?.metadata?.total ?? 0;
+      let hitCount = 0;
+      for (const q of queryFormats) {
+        const url = `${this.baseUrl}/documents?db=WOS&q=${encodeURIComponent(q)}&limit=1&page=1`;
+        try {
+          const data = await fetchJson(url, { headers: this.authHeaders(), timeoutMs: 20000 });
+          const total = data?.metadata?.total ?? 0;
+          if (total > 0) {
+            hitCount = total;
+            this.logger.log(`[WoS] ${researcherId}: "${q}" ile ${total} kayıt bulundu`);
+            break;
+          }
+        } catch (e: any) {
+          this.logger.log(`[WoS] "${q}" formatı fail: ${e.message}`);
+        }
+      }
+
       if (hitCount === 0) {
         this.cache.set(cacheKey, null, 60 * 60 * 12);
         return null;
@@ -120,9 +137,34 @@ export class WosService {
 
     try {
       await this.limiter.acquire();
-      const q = this.buildAuthorQuery(researcherId);
-      const url = `${this.baseUrl}/documents?q=${encodeURIComponent(q)}&limit=${Math.min(limit, 50)}&page=1&sortField=TC`;
-      const data = await fetchJson(url, { headers: this.authHeaders(), timeoutMs: 25000 });
+      // Birden çok query formatını sırayla dene — 400 alırsan sonrakine geç
+      const isOrcid = /^\d{4}-\d{4}-\d{4}-\d{3}[0-9Xx]$/.test(researcherId);
+      const queryFormats = isOrcid
+        ? [`AO=(${researcherId})`, `AO="${researcherId}"`, `AU_ORCID="${researcherId}"`]
+        : [`AI=(${researcherId})`, `AI="${researcherId}"`, `AU_ID="${researcherId}"`];
+
+      let data: any = null;
+      let successQuery = '';
+      for (const q of queryFormats) {
+        const url = `${this.baseUrl}/documents?db=WOS&q=${encodeURIComponent(q)}&limit=${Math.min(limit, 50)}&page=1`;
+        try {
+          const attempt = await fetchJson(url, { headers: this.authHeaders(), timeoutMs: 25000 });
+          if (attempt && (attempt.hits?.length > 0 || attempt.metadata?.total > 0)) {
+            data = attempt;
+            successQuery = q;
+            this.logger.log(`[WoS] ${researcherId}: "${q}" formatı çalıştı`);
+            break;
+          }
+        } catch (e: any) {
+          // Bir sonraki formata geç
+          this.logger.log(`[WoS] "${q}" denendi, sonuçsuz: ${e.message}`);
+        }
+      }
+
+      if (!data) {
+        this.logger.warn(`[WoS] ${researcherId}: hiçbir query formatı çalışmadı`);
+        return [];
+      }
 
       const hits = data?.hits || [];
       const items: WosPublication[] = hits.map((h: any) => this.mapWosHit(h)).filter(Boolean);
@@ -173,41 +215,62 @@ export class WosService {
   }
 
   /**
-   * Debug — ham API response'unu döner. Mapping hataları için kullanılır.
+   * Debug — 3 farklı query formatını dener, hepsinin response'unu döner.
+   * WoS Starter API quirk'lerini çözmek için.
    */
-  async debugRawResponse(identifier: string): Promise<{
-    url: string;
-    configured: boolean;
-    statusCode?: number;
-    metadata?: any;
-    firstHit?: any;  // tam ham ilk sonuç
-    firstHitKeys?: string[];
-    totalHits?: number;
-    error?: string;
-  }> {
+  async debugRawResponse(identifier: string): Promise<any> {
     if (!this.isConfigured()) {
-      return { url: '', configured: false, error: 'WOS_API_KEY tanımlı değil' };
+      return { configured: false, error: 'WOS_API_KEY tanımlı değil' };
     }
 
-    const q = this.buildAuthorQuery(identifier);
-    const url = `${this.baseUrl}/documents?q=${encodeURIComponent(q)}&limit=3&page=1&sortField=TC`;
+    const isOrcid = /^\d{4}-\d{4}-\d{4}-\d{3}[0-9Xx]$/.test(identifier);
 
-    try {
-      const res = await fetch(url, { headers: this.authHeaders() as any });
-      const data = await res.json();
-      const hits = data?.hits || [];
-      return {
-        url,
-        configured: true,
-        statusCode: res.status,
-        metadata: data?.metadata,
-        totalHits: hits.length,
-        firstHit: hits[0] || null,
-        firstHitKeys: hits[0] ? Object.keys(hits[0]) : [],
-      };
-    } catch (e: any) {
-      return { url, configured: true, error: e.message };
+    // 3 farklı query varyasyonu dene — hangisi çalışıyor görelim
+    const attempts = isOrcid ? [
+      { label: 'AO with parens',  q: `AO=(${identifier})` },
+      { label: 'AO with quotes',  q: `AO="${identifier}"` },
+      { label: 'AU_ORCID quoted', q: `AU_ORCID="${identifier}"` },
+    ] : [
+      { label: 'AI with parens',  q: `AI=(${identifier})` },
+      { label: 'AI with quotes',  q: `AI="${identifier}"` },
+      { label: 'AU_ID quoted',    q: `AU_ID="${identifier}"` },
+    ];
+
+    const results: any[] = [];
+    for (const att of attempts) {
+      const url = `${this.baseUrl}/documents?db=WOS&q=${encodeURIComponent(att.q)}&limit=3&page=1`;
+      try {
+        const res = await fetch(url, { headers: this.authHeaders() as any, signal: AbortSignal.timeout(15000) });
+        const text = await res.text();
+        let data: any;
+        try { data = JSON.parse(text); } catch { data = { rawText: text.slice(0, 500) }; }
+
+        results.push({
+          label: att.label,
+          query: att.q,
+          url,
+          statusCode: res.status,
+          ok: res.ok,
+          metadata: data?.metadata,
+          totalHits: data?.hits?.length || 0,
+          firstHitKeys: data?.hits?.[0] ? Object.keys(data.hits[0]) : [],
+          firstHit: data?.hits?.[0] || null,
+          errorMessage: !res.ok ? (data?.message || data?.error || data?.rawText || 'Bilinmeyen hata') : null,
+        });
+
+        // İlk başarılı olanı gördükten sonra dur
+        if (res.ok && data?.hits?.length > 0) break;
+      } catch (e: any) {
+        results.push({ label: att.label, query: att.q, url, error: e.message });
+      }
     }
+
+    return {
+      identifier,
+      isOrcid,
+      configured: true,
+      attempts: results,
+    };
   }
 
   /** Kurumsal arama — MKÜ için agrega metrikler */
