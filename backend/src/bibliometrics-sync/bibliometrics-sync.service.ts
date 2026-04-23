@@ -254,7 +254,7 @@ export class BibliometricsSyncService {
       throw new Error(`TR Dizin'de "${fullName}" adına yayın bulunamadı`);
     }
 
-    const citations = pubs.reduce((sum, p) => sum + ((p as any).citedBy || (p as any).citationCount || 0), 0);
+    const citations = pubs.reduce<number>((sum, p) => sum + ((p as any).citedBy || (p as any).citationCount || 0), 0);
     const hIndex = this.computeHIndex(pubs.map(p => (p as any).citedBy || (p as any).citationCount || 0));
 
     return {
