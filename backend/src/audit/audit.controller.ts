@@ -16,4 +16,9 @@ export class AuditController {
   getRecent(@Query('limit') limit?: string) {
     return this.svc.getRecent(limit ? +limit : 100);
   }
+
+  @Get('search')
+  search(@Query() q: any) {
+    return this.svc.search(q);
+  }
 }

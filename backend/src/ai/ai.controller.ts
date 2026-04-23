@@ -5,6 +5,7 @@ import { SkipThrottle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { YoksisService } from './yoksis.service';
 import { AiComplianceService } from './ai-compliance.service';
+import { AiAssistantService, AssistantRequest } from './ai-assistant.service';
 
 @SkipThrottle()
 @Controller('ai')
@@ -13,7 +14,14 @@ export class AiController {
   constructor(
     private readonly yoksisService: YoksisService,
     private readonly complianceService: AiComplianceService,
+    private readonly assistantService: AiAssistantService,
   ) {}
+
+  // ── ASİSTAN SOHBETİ (konsolide) ──────────────────────────────
+  @Post('assistant')
+  async assistant(@Body() body: AssistantRequest, @Request() req: any) {
+    return this.assistantService.chat(req.user?.userId, body);
+  }
 
   // ── ORCID ────────────────────────────────────────────────────
   @Get('orcid/:id')

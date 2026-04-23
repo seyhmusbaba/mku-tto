@@ -167,6 +167,70 @@ export const scopusApi = {
 export const auditApi = {
   getByProject: (projectId: string) => api.get(`/audit/project/${projectId}`),
   getRecent: (limit?: number) => api.get('/audit/recent', { params: limit ? { limit } : {} }),
+  search: (params: any) => api.get('/audit/search', { params }),
+};
+
+// ── Manuel yayınlar (profilde kendi yayınını ekleme)
+export const userPublicationsApi = {
+  listForUser: (userId: string) => api.get(`/user-publications/user/${userId}`),
+  listMine:    ()              => api.get('/user-publications/my'),
+  create:      (data: any)     => api.post('/user-publications', data),
+  update:      (id: string, data: any) => api.put(`/user-publications/${id}`, data),
+  remove:      (id: string)    => api.delete(`/user-publications/${id}`),
+  toggleFeatured: (id: string) => api.post(`/user-publications/${id}/toggle-featured`, {}),
+};
+
+// ── Partners portfolio (tüm projeler arası agregat)
+export const partnersPortfolioApi = {
+  list:           (params?: any) => api.get('/partners', { params }),
+  byOrganization: ()             => api.get('/partners/by-organization'),
+  contractsExpiring: ()          => api.get('/partners/contracts-expiring'),
+};
+
+// ── Proje lifecycle
+export const lifecycleApi = {
+  summary:        (pid: string) => api.get(`/projects/${pid}/lifecycle/summary`),
+  // Milestones
+  listMilestones: (pid: string) => api.get(`/projects/${pid}/lifecycle/milestones`),
+  createMs:       (pid: string, data: any) => api.post(`/projects/${pid}/lifecycle/milestones`, data),
+  updateMs:       (pid: string, id: string, data: any) => api.put(`/projects/${pid}/lifecycle/milestones/${id}`, data),
+  deleteMs:       (pid: string, id: string) => api.delete(`/projects/${pid}/lifecycle/milestones/${id}`),
+  // Deliverables
+  listDel:        (pid: string) => api.get(`/projects/${pid}/lifecycle/deliverables`),
+  createDel:      (pid: string, data: any) => api.post(`/projects/${pid}/lifecycle/deliverables`, data),
+  updateDel:      (pid: string, id: string, data: any) => api.put(`/projects/${pid}/lifecycle/deliverables/${id}`, data),
+  deleteDel:      (pid: string, id: string) => api.delete(`/projects/${pid}/lifecycle/deliverables/${id}`),
+  // Risks
+  listRisks:      (pid: string) => api.get(`/projects/${pid}/lifecycle/risks`),
+  createRisk:     (pid: string, data: any) => api.post(`/projects/${pid}/lifecycle/risks`, data),
+  updateRisk:     (pid: string, id: string, data: any) => api.put(`/projects/${pid}/lifecycle/risks/${id}`, data),
+  deleteRisk:     (pid: string, id: string) => api.delete(`/projects/${pid}/lifecycle/risks/${id}`),
+};
+
+// ── Eğitim programları
+export const trainingApi = {
+  listPrograms:    (params?: any) => api.get('/training/programs', { params }),
+  getProgram:      (id: string)   => api.get(`/training/programs/${id}`),
+  createProgram:   (data: any)    => api.post('/training/programs', data),
+  updateProgram:   (id: string, data: any) => api.put(`/training/programs/${id}`, data),
+  deleteProgram:   (id: string)   => api.delete(`/training/programs/${id}`),
+  listRegs:        (id: string)   => api.get(`/training/programs/${id}/registrations`),
+  myRegs:          ()             => api.get('/training/my-registrations'),
+  register:        (id: string)   => api.post(`/training/programs/${id}/register`, {}),
+  unregister:      (id: string)   => api.delete(`/training/programs/${id}/register`),
+  attendance:      (regId: string, attended: boolean) => api.post(`/training/registrations/${regId}/attendance`, { attended }),
+  feedback:        (id: string, rating: number, feedback?: string) => api.post(`/training/programs/${id}/feedback`, { rating, feedback }),
+  certificate:     (regId: string) => api.post(`/training/registrations/${regId}/certificate`, {}),
+};
+
+// ── Asistan + Search
+export const assistantApi = {
+  chat: (messages: Array<{ role: 'user' | 'assistant'; content: string }>, context?: string) =>
+    api.post('/ai/assistant', { messages, context }),
+};
+export const searchApi = {
+  search:  (q: string, params?: any) => api.get('/search', { params: { q, ...(params || {}) } }),
+  suggest: (q: string)               => api.get('/search/suggest', { params: { q } }),
 };
 
 export const analyticsApi = {

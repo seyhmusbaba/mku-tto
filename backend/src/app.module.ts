@@ -46,6 +46,12 @@ import { ProjectType } from './database/entities/project-type.entity';
 import { Faculty } from './database/entities/faculty.entity';
 import { ReportType } from './database/entities/report-type.entity';
 import { ProjectPartner } from './database/entities/project-partner.entity';
+import { Publication } from './database/entities/publication.entity';
+import { ProjectMilestone, ProjectDeliverable, ProjectRisk } from './database/entities/project-lifecycle.entities';
+import { TrainingProgram, TrainingRegistration } from './database/entities/training.entities';
+import { UserPublicationsModule } from './publications/publications.module';
+import { LifecycleModule } from './lifecycle/lifecycle.module';
+import { TrainingModule } from './training/training.module';
 import { ScopusModule } from './scopus/scopus.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { IntelligenceModule } from './intelligence/intelligence.module';
@@ -75,6 +81,7 @@ import { BootstrapService } from './bootstrap.service';
       entities: [
         User, Role, Permission, Project, ProjectMember, ProjectDocument, ProjectReport, ProjectPartner,
         SystemSetting, DynamicProjectField, Notification, ProjectType, Faculty, ReportType, AuditLog, ProfileVisit, Competition, CompetitionSource, CompetitionFavorite, EthicsReview,
+        Publication, ProjectMilestone, ProjectDeliverable, ProjectRisk, TrainingProgram, TrainingRegistration,
       ],
       synchronize: true,
       logging: false,
@@ -83,6 +90,7 @@ import { BootstrapService } from './bootstrap.service';
     AuthModule, UsersModule, RolesModule, ProjectsModule,
     DocumentsModule, ReportsModule, DashboardModule, SettingsModule,
     DynamicFieldsModule, NotificationsModule, ProjectTypesModule, FacultiesModule, ReportTypesModule, PartnersModule, AiModule, AnalyticsModule, ExportModule, AuditModule, CompetitionsModule, EthicsModule, ScopusModule, IntegrationsModule, IntelligenceModule, AdminModule, SearchModule, HealthModule,
+    UserPublicationsModule, LifecycleModule, TrainingModule,
   ],
 })
 export class AppModule {}

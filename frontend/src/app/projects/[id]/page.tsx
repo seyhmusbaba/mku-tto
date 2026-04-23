@@ -19,8 +19,9 @@ import { AiSummaryPanel } from '@/components/AiSummaryPanel';
 import { ScopusPublications } from '@/components/ScopusPublications';
 import { FundingMatchPanel } from '@/components/FundingMatchPanel';
 import { SimilarResearchPanel } from '@/components/SimilarResearchPanel';
+import { ProjectLifecyclePanel } from '@/components/ProjectLifecyclePanel';
 
-type Tab = 'overview' | 'members' | 'documents' | 'reports' | 'partners' | 'publications' | 'history';
+type Tab = 'overview' | 'members' | 'documents' | 'reports' | 'partners' | 'publications' | 'lifecycle' | 'history';
 
 type IconName =
   | 'clock' | 'alert' | 'check' | 'x' | 'plus' | 'trash' | 'edit' | 'refresh'
@@ -245,6 +246,7 @@ export default function ProjectDetailPage() {
     ['reports',      'Raporlar'],
     ['partners',     'Ortaklar'],
     ['publications', 'Yayinlar'],
+    ['lifecycle',    'Yaşam Döngüsü'],
     ['history',      'Geçmiş'],
   ];
 
@@ -1384,6 +1386,17 @@ export default function ProjectDetailPage() {
 
       {tab === 'partners' && (
         <PartnersPanel projectId={id} canEdit={canEdit} />
+      )}
+
+      {/* ── YAŞAM DÖNGÜSÜ ── */}
+      {tab === 'lifecycle' && (
+        <div className="space-y-3">
+          <div>
+            <h3 className="font-display text-base font-semibold text-navy">Yaşam Döngüsü Yönetimi</h3>
+            <p className="text-xs text-muted mt-0.5">Kilometre taşları, teslimatlar ve risklerin takibi</p>
+          </div>
+          <ProjectLifecyclePanel projectId={id} readonly={!canEdit} />
+        </div>
       )}
 
       {/* ── GEÇMİŞ / AUDIT LOG ── */}

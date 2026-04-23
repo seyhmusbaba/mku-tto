@@ -52,6 +52,31 @@ export class AuditService {
     });
   }
 
+  /**
+   * Admin audit log paneli için gelişmiş filtreleme.
+   */
+  async search(q: {
+    userId?: string;
+    entityType?: string;
+    action?: string;
+    from?: string;
+    to?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const qb = this.repo.createQueryBuilder('a').leftJoinAndSelect('a.user', 'user');
+    if (q.userId)     qb.andWhere('a.userId = :u',   { u: q.userId });
+    if (q.entityType) qb.andWhere('a.entityType = :e', { e: q.entityType });
+    if (q.action)     qb.andWhere('a.action = :ac',  { ac: q.action });
+    if (q.from)       qb.andWhere('a.createdAt >= :f', { f: q.from });
+    if (q.to)         qb.andWhere('a.createdAt <= :t', { t: q.to });
+    const limit = Math.min(+(q.limit || 50), 200);
+    const page = Math.max(1, +(q.page || 1));
+    qb.orderBy('a.createdAt', 'DESC').skip((page - 1) * limit).take(limit);
+    const [data, total] = await qb.getManyAndCount();
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
   // FIX #14: Belirli bir entity'nin tum audit kayitlarini sil
   async deleteByEntity(entityType: string, entityId: string) {
     await this.repo.delete({ entityType, entityId });
