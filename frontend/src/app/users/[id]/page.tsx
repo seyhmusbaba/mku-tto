@@ -60,14 +60,24 @@ export default function UserProfilePage() {
   const [saving, setSaving]     = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [syncErrors, setSyncErrors] = useState<Record<string, string>>({});
 
-  // Otomatik bibliyometrik senkronizasyon — OpenAlex + Scopus + TR Dizin
+  // Otomatik bibliyometrik senkronizasyon — OpenAlex + Scopus + TR Dizin + WoS
   const handleSync = async () => {
     setSyncing(true);
-    const t = toast.loading('Kaynaklar taranıyor — OpenAlex, Scopus, TR Dizin…');
+    setSyncErrors({});
+    const t = toast.loading('Kaynaklar taranıyor — OpenAlex, Scopus, WoS, TR Dizin…');
     try {
       const res = await bibliometricsSyncApi.syncUser(id);
       const r = res.data;
+
+      // Her kaynağın hatasını state'te tut → kartlarda göster
+      const errors: Record<string, string> = {};
+      if (r.sources?.openalex?.error) errors.openalex = r.sources.openalex.error;
+      if (r.sources?.scopus?.error)   errors.scopus   = r.sources.scopus.error;
+      if (r.sources?.wos?.error)      errors.wos      = r.sources.wos.error;
+      if (r.sources?.trDizin?.error)  errors.trDizin  = r.sources.trDizin.error;
+      setSyncErrors(errors);
       const succeeded = [
         r.sources?.openalex?.synced && `OpenAlex (${r.sources.openalex.docs})`,
         r.sources?.scopus?.synced && `Scopus (${r.sources.scopus.docs})`,
@@ -140,6 +150,8 @@ export default function UserProfilePage() {
         researchGateUrl: editForm.researchGateUrl,
         expertiseArea: editForm.expertiseArea, bio: editForm.bio,
         scopusAuthorId: editForm.scopusAuthorId,
+        openAlexAuthorId: editForm.openAlexAuthorId,
+        wosResearcherId: editForm.wosResearcherId,
         isPublic: editForm.isPublic,
         // AVESİS tarzı per-source bibliyometrik metrikler
         googleScholarDocCount: editForm.googleScholarDocCount,
@@ -333,6 +345,22 @@ export default function UserProfilePage() {
                 </label>
                 <input className="input font-mono text-sm" placeholder="57XXXXXXXXX" value={editForm.scopusAuthorId||''} onChange={e => set('scopusAuthorId', e.target.value)} />
                 <p className="text-xs text-muted mt-1">scopus.com/authid/… URL'sindeki sayı</p>
+              </div>
+              <div>
+                <label className="label flex items-center gap-1">
+                  <span className="w-4 h-4 rounded text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0" style={{ background: '#0077c8' }}>OA</span>
+                  OpenAlex Author ID
+                </label>
+                <input className="input font-mono text-sm" placeholder="A5012345678 (opsiyonel)" value={editForm.openAlexAuthorId||''} onChange={e => set('openAlexAuthorId', e.target.value)} />
+                <p className="text-xs text-muted mt-1">Boş bırakırsanız ORCID kullanılır. openalex.org/A... URL'sindeki kod.</p>
+              </div>
+              <div>
+                <label className="label flex items-center gap-1">
+                  <span className="w-4 h-4 rounded text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0" style={{ background: '#5e33bf' }}>WoS</span>
+                  WoS ResearcherID
+                </label>
+                <input className="input font-mono text-sm" placeholder="AAA-1234-2020 (opsiyonel)" value={editForm.wosResearcherId||''} onChange={e => set('wosResearcherId', e.target.value)} />
+                <p className="text-xs text-muted mt-1">Boş bırakırsanız ORCID kullanılır.</p>
               </div>
               <div>
                 <label className="label">ResearchGate URL</label>
@@ -756,9 +784,10 @@ export default function UserProfilePage() {
                         docs: (user as any).openAlexDocCount,
                         citations: (user as any).openAlexCitedBy,
                         hIndex: (user as any).openAlexHIndex,
-                        note: 'ORCID ile otomatik',
-                        configured: !!(user as any).orcidId,
+                        note: (user as any).openAlexAuthorId ? 'OpenAlex ID ile' : 'ORCID ile otomatik',
+                        configured: !!((user as any).orcidId || (user as any).openAlexAuthorId),
                         lastSync: (user as any).openAlexLastSync,
+                        syncError: syncErrors.openalex,
                       },
                       {
                         name: 'Scopus',
@@ -770,6 +799,7 @@ export default function UserProfilePage() {
                         note: 'Elsevier — SCI',
                         configured: !!(user as any).scopusAuthorId,
                         lastSync: (user as any).scopusLastSync,
+                        syncError: syncErrors.scopus,
                       },
                       {
                         name: 'Web of Science',
@@ -781,6 +811,7 @@ export default function UserProfilePage() {
                         note: 'Clarivate',
                         configured: !!((user as any).wosResearcherId || (user as any).orcidId),
                         lastSync: (user as any).wosLastSync,
+                        syncError: syncErrors.wos,
                       },
                       {
                         name: 'TR Dizin',
@@ -790,7 +821,8 @@ export default function UserProfilePage() {
                         citations: (user as any).trDizinCitedBy,
                         hIndex: (user as any).trDizinHIndex,
                         note: 'TÜBİTAK ULAKBİM',
-                        configured: !!(user.firstName && user.lastName), // İsim varsa aranabilir
+                        configured: !!(user.firstName && user.lastName),
+                        syncError: syncErrors.trDizin,
                       },
                       {
                         name: 'Google Scholar',

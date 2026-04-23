@@ -11,6 +11,8 @@ interface MetricSource {
   /** Kullanıcı bu kaynak için ID/bilgi tanımlamış mı? (tanımlıysa veri 0 olsa bile kart göster) */
   configured?: boolean;
   lastSync?: string | null;
+  /** En son sync denemesindeki hata (varsa) */
+  syncError?: string | null;
 }
 
 interface Props {
@@ -114,9 +116,14 @@ function SourceCard({ source: s, fmt }: { source: MetricSource; fmt: (n?: number
         <MetricCell label="Atıf" value={fmt(s.citations)} />
         <MetricCell label="h-index" value={fmt(s.hIndex)} />
       </div>
-      {noData && s.configured && (
+      {s.syncError && (
+        <p className="text-[10px] mt-2 pt-2 border-t leading-relaxed" style={{ borderColor: '#fee2e2', color: '#b91c1c' }}>
+          <span className="font-semibold">Sync hatası:</span> {s.syncError}
+        </p>
+      )}
+      {!s.syncError && noData && s.configured && (
         <p className="text-[10px] text-muted italic mt-2 pt-2 border-t" style={{ borderColor: '#f0ede8' }}>
-          Bu kaynak tanımlı ancak henüz senkronizasyon yapılmadı veya sonuç bulunamadı.
+          Bu kaynak tanımlı ancak henüz senkronizasyon yapılmadı.
         </p>
       )}
       {s.lastSync && (

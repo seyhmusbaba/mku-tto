@@ -94,6 +94,10 @@ export class User {
 
   // ═════════ AVESİS tarzı kaynak-bazlı metrikler ═════════
   // OpenAlex — ORCID üzerinden otomatik sync, bedava, Scholar'a en yakın kapsam
+  // Author ID manuel olarak da set edilebilir (örn. A5012345678)
+  @Column({ nullable: true })
+  openAlexAuthorId: string;
+
   @Column({ nullable: true, type: 'int' })
   openAlexHIndex: number;
 

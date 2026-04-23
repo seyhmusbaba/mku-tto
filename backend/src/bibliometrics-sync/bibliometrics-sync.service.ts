@@ -134,28 +134,59 @@ export class BibliometricsSyncService {
 
   // ═════════ OpenAlex ═════════
   private async syncOpenAlex(user: User): Promise<{ docs: number; citations: number; hIndex: number }> {
-    if (!user.orcidId) {
-      throw new Error('ORCID ID tanımlı değil');
+    let author: any = null;
+
+    // 1. Önce openAlexAuthorId varsa onu kullan (manuel override — en güvenilir)
+    if ((user as any).openAlexAuthorId) {
+      const id = (user as any).openAlexAuthorId.trim();
+      if (!/^A\d{4,}$/i.test(id)) {
+        throw new Error('Geçersiz OpenAlex Author ID — A5012345678 formatında olmalı');
+      }
+      // Works endpoint'inden works çekip author meta'yı ilk work'ten alırız (veya direkt author API)
+      const authorsApi = `https://api.openalex.org/authors/${id}`;
+      try {
+        const res = await fetch(authorsApi, { headers: { 'User-Agent': 'mku-tto/1.0' }, signal: AbortSignal.timeout(15000) });
+        if (res.ok) {
+          const data = await res.json();
+          author = {
+            id: data.id,
+            hIndex: data.summary_stats?.h_index,
+            worksCount: data.works_count,
+            citedByCount: data.cited_by_count,
+          };
+        } else {
+          throw new Error(`OpenAlex author ID bulunamadı: ${id}`);
+        }
+      } catch (e: any) {
+        throw new Error(`OpenAlex ID ile erişilemedi: ${e.message}`);
+      }
     }
 
-    // 1. Yazar meta (h-index dahil)
-    const author = await this.openAlex.getAuthorByOrcid(user.orcidId);
-    if (!author) throw new Error('OpenAlex\'te ORCID ile yazar bulunamadı');
+    // 2. ORCID ile dene
+    if (!author && user.orcidId) {
+      author = await this.openAlex.getAuthorByOrcid(user.orcidId);
+      if (!author) {
+        throw new Error(`OpenAlex'te ORCID "${user.orcidId}" ile yazar bulunamadı`);
+      }
+    }
 
-    // 2. Tüm yayınları çek ve atıf toplamını + h-index'i hesapla
-    const works = await this.openAlex.getAuthorWorks(author.id, 200);
-    const citations = works.reduce((sum, w) => sum + (w.citedBy || 0), 0);
-    const hIndex = this.computeHIndex(works.map(w => w.citedBy || 0));
-    const openAccessCount = works.filter(w => w.openAccess?.isOa).length;
+    if (!author) {
+      throw new Error('OpenAlex için ne ORCID ne de OpenAlex ID tanımlı değil');
+    }
 
-    // Yazar nesnesinden gelen h-index varsa onu tercih et (100+ yayın için güvenilir)
-    const finalHIndex = (author as any).hIndex || hIndex;
+    // 3. Yazar meta zaten author nesnesinde; atıf yoksa works'ten hesapla
+    let docs = author.worksCount || 0;
+    let citations = author.citedByCount || 0;
+    let hIndex = author.hIndex || 0;
 
-    return {
-      docs: (author as any).worksCount || works.length,
-      citations: (author as any).citedByCount || citations,
-      hIndex: finalHIndex,
-    };
+    if (!citations || !hIndex) {
+      const works = await this.openAlex.getAuthorWorks(author.id, 200);
+      if (!citations) citations = works.reduce((sum: number, w: any) => sum + (w.citedBy || 0), 0);
+      if (!hIndex) hIndex = this.computeHIndex(works.map((w: any) => w.citedBy || 0));
+      if (!docs) docs = works.length;
+    }
+
+    return { docs, citations, hIndex };
   }
 
   // ═════════ Scopus ═════════
@@ -176,19 +207,23 @@ export class BibliometricsSyncService {
   // ═════════ Web of Science ═════════
   private async syncWos(user: User): Promise<{ docs: number; citations: number; hIndex: number }> {
     if (!this.wos.isConfigured()) {
-      throw new Error('WOS_API_KEY env tanımlı değil');
+      throw new Error('WOS_API_KEY env tanımlı değil (Railway Variables → WOS_API_KEY ekleyin)');
     }
 
-    // Önce WoS Researcher ID, yoksa ORCID ile dene — WoS Starter ikisini de destekler
+    // Önce WoS Researcher ID, yoksa ORCID ile dene
     const identifier = user.wosResearcherId || user.orcidId;
     if (!identifier) {
       throw new Error('WoS ResearcherID veya ORCID tanımlı değil');
     }
 
+    this.logger.log(`[WoS] Yazar aranıyor: ${identifier} (${user.wosResearcherId ? 'ResearcherID' : 'ORCID'})`);
     const profile = await this.wos.getAuthorProfile(identifier);
+
     if (!profile) {
-      throw new Error('WoS\'ta yazar bulunamadı');
+      throw new Error(`WoS'ta "${identifier}" ile yazar bulunamadı — API key veya ID'yi kontrol edin`);
     }
+
+    this.logger.log(`[WoS] ${identifier}: ${profile.documentCount} yayın, ${profile.citedByCount} atıf, h=${profile.hIndex}`);
 
     return {
       docs: profile.documentCount || 0,
@@ -201,17 +236,22 @@ export class BibliometricsSyncService {
   private async syncTrDizin(user: User): Promise<{ docs: number; citations: number; hIndex: number }> {
     const fullName = `${user.firstName} ${user.lastName}`.trim();
     if (fullName.length < 5) {
-      throw new Error('İsim/soyisim eksik');
+      throw new Error('İsim/soyisim çok kısa (en az 5 karakter)');
     }
 
-    const pubs = await this.trDizin.searchByAuthorName(
-      fullName,
-      user.faculty ? undefined : 'Mustafa Kemal', // fakülte varsa daha spesifik değil, kurum hint'i kalsın
-      100,
-    );
+    // Önce kurum hint'siz ara — isim yeterince özgünse doğru sonuçlar
+    let pubs = await this.trDizin.searchByAuthorName(fullName, undefined, 100).catch(() => []);
+    this.logger.log(`[TR Dizin] "${fullName}" için ${pubs.length} yayın bulundu (hint'siz)`);
+
+    // Çok fazla sonuç varsa "Mustafa Kemal" hint'i ile daralt
+    if (pubs.length > 200) {
+      const filtered = await this.trDizin.searchByAuthorName(fullName, 'Mustafa Kemal', 100).catch(() => []);
+      if (filtered.length > 0) pubs = filtered;
+      this.logger.log(`[TR Dizin] "Mustafa Kemal" hint'i ile ${filtered.length} yayına daraltıldı`);
+    }
 
     if (pubs.length === 0) {
-      return { docs: 0, citations: 0, hIndex: 0 };
+      throw new Error(`TR Dizin'de "${fullName}" adına yayın bulunamadı`);
     }
 
     const citations = pubs.reduce((sum, p) => sum + ((p as any).citedBy || (p as any).citationCount || 0), 0);
