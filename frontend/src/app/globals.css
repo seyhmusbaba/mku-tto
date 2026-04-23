@@ -1,4 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+/* Ana sistemde tek kurumsal sans-serif: Inter.
+   Vitrin portalı (/p) sayfaları hâlâ Playfair Display serif'i inline style
+   ile kullanıyor — bu yüzden her ikisi de import ediliyor. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -23,13 +26,26 @@
   html { scroll-behavior: smooth; font-size: 16px; }
   body {
     @apply antialiased;
-    font-family: 'DM Sans', system-ui, sans-serif;
-    font-size: 15px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    font-size: 14.5px;
     background: var(--cream);
     color: var(--text);
-    line-height: 1.6;
+    line-height: 1.55;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';  /* Inter stylistic set — daha karakterli rakamlar */
+    letter-spacing: -0.005em;
   }
-  h1, h2, h3, h4 { font-family: 'Playfair Display', Georgia, serif; }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: inherit;  /* Tüm ana sistem: Inter */
+    font-weight: 700;
+    letter-spacing: -0.018em;
+    color: var(--navy);
+  }
+  h1 { font-size: 1.875rem; line-height: 1.2; }
+  h2 { font-size: 1.5rem; line-height: 1.25; }
+  h3 { font-size: 1.15rem; line-height: 1.3; }
+  h4 { font-size: 1rem; line-height: 1.35; }
+  /* Tabular nums — finansal/istatistiksel sayılar için hizalanmış */
+  .tabular-nums { font-variant-numeric: tabular-nums; }
 }
 
 @layer components {
@@ -152,9 +168,9 @@
   /* Form section */
   .form-section { @apply card space-y-5; }
   .form-section-title {
-    @apply font-semibold pb-4 mb-1 border-b;
-    font-size: 16px;
-    font-family: 'Playfair Display', serif;
+    @apply font-bold pb-4 mb-1 border-b;
+    font-size: 15px;
+    letter-spacing: -0.01em;
     border-color: var(--border);
     color: var(--navy);
   }
@@ -207,8 +223,14 @@
 }
 
 @layer utilities {
-  .font-display { font-family: 'Playfair Display', Georgia, serif; }
-  .font-mono-dm { font-family: 'DM Mono', monospace; }
+  /* Ana sistemde font-display artık Inter (tek kurumsal font).
+     Vitrin portalı (/p) sayfaları inline font-family ile Playfair Display kullanıyor. */
+  .font-display {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.018em;
+  }
+  .font-mono-dm { font-family: 'JetBrains Mono', 'ui-monospace', monospace; }
   .text-navy { color: var(--navy); }
   .text-navy-mid { color: var(--navy-mid); }
   .text-gold { color: var(--gold); }

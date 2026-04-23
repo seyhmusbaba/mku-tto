@@ -216,7 +216,20 @@ export class BibliometricsService {
     yearOrRange?: number | { from?: number; to?: number },
   ): Promise<any> {
     // 1. Kurumsal TOPLAMLAR — OpenAlex institution endpoint'inden direkt
-    const instSummary = await this.openalex.getInstitutionSummary(institutionId).catch(() => null);
+    //    Bu değerler MUTLAKA doğru olmalı; bu nedenle retry + log ile
+    //    başarısızlık durumlarını takip edebiliriz.
+    let instSummary = await this.openalex.getInstitutionSummary(institutionId).catch(() => null);
+    if (!instSummary) {
+      this.logger.warn(`[Institutional] getInstitutionSummary(${institutionId}) ilk denemede başarısız — tekrar deneniyor`);
+      // 1 saniye bekle ve bir kez daha dene
+      await new Promise(r => setTimeout(r, 1000));
+      instSummary = await this.openalex.getInstitutionSummary(institutionId).catch(() => null);
+    }
+    if (!instSummary) {
+      this.logger.error(`[Institutional] OpenAlex institution summary alınamadı (${institutionId}) — sample tabanlı fallback kullanılacak. Bu durumda total yayın sayısı yanlış olabilir!`);
+    } else {
+      this.logger.log(`[Institutional] OpenAlex'ten ${instSummary.displayName}: ${instSummary.worksCount} yayın, ${instSummary.citedByCount} atıf, h=${instSummary.hIndex}`);
+    }
 
     // 2. SAMPLE — detay tablolar için en çok atıf alan yayınlar (dönem filtreli olabilir)
     // Sample büyüklüğü 500'den 1000'e çıkarıldı — daha temsili, sample bias'ı azalır
@@ -717,13 +730,19 @@ export class BibliometricsService {
 
   /**
    * MKÜ için OpenAlex ID'sini bul.
+   * Öncelik:
+   *  1. MKU_OPENALEX_ID env değişkeni
+   *  2. Bilinen sabit ID (I46000314 — Hatay Mustafa Kemal Üniversitesi)
+   *  3. OpenAlex'te isim araması
    */
   async findMkuInstitutionId(): Promise<string | null> {
     const envId = process.env.MKU_OPENALEX_ID;
     if (envId) return envId;
-    const candidates = await this.openalex.searchInstitution('Mustafa Kemal', 'TR');
-    const mku = candidates.find(i => i.displayName.toLowerCase().includes('mustafa kemal'));
-    return mku?.id || null;
+
+    // Bilinen kurum ID'si — OpenAlex doğrulaması yapmadan döndür
+    // (Bandırma Mustafa Kemal vs diğer isim çakışmalarını önler)
+    const KNOWN_MKU_ID = 'I46000314';
+    return KNOWN_MKU_ID;
   }
 
   private normalizeOaToUnified(w: any): UnifiedPublication {

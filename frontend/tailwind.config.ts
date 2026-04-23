@@ -8,8 +8,10 @@ const config: Config = {
         gold: { 400:'#f5c842',500:'#c8a45a',600:'#a07c3a' },
       },
       fontFamily: {
-        sans: ['DM Sans','system-ui','sans-serif'],
-        serif: ['Playfair Display','Georgia','serif'],
+        sans: ['Inter','-apple-system','BlinkMacSystemFont','Segoe UI','system-ui','sans-serif'],
+        display: ['Inter','system-ui','sans-serif'],  // Ana sistemde font-display → Inter (tek font)
+        serif: ['Playfair Display','Georgia','serif'],  // Sadece vitrin portalı kullanıyor
+        mono: ['JetBrains Mono','ui-monospace','monospace'],
       },
     },
   },
