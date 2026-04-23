@@ -10,8 +10,16 @@ interface Stats {
   publications: number;
   citations: number;
   projects: number;
+  publicProjects: number;
   maxHIndex: number;
   hasData: boolean;
+  sources?: {
+    scopusPublications: number;
+    scopusCitations: number;
+    wosPublications: number;
+    wosCitations: number;
+    manualPublications: number;
+  };
 }
 interface Faculty { faculty: string; count: number }
 interface RecentResearcher {
@@ -42,101 +50,128 @@ export default function PublicHomePage() {
   }, []);
 
   const fmt = (n: number | undefined) =>
-    typeof n === 'number' ? new Intl.NumberFormat('tr-TR').format(n) : '—';
+    typeof n === 'number' && n > 0 ? new Intl.NumberFormat('tr-TR').format(n) : '—';
 
   return (
     <PublicLayout>
       {/* ═════ Hero ═════ */}
-      <section className="relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f2444 0%, #1a3a6b 55%, #264d82 100%)' }}>
-        <div className="absolute inset-0 opacity-20 pointer-events-none"
-          style={{ background: 'radial-gradient(circle at 75% 30%, rgba(200,164,90,0.6), transparent 55%)' }} />
-        <div className="max-w-7xl mx-auto px-4 py-16 relative">
-          <div className="max-w-3xl">
-            <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight">
-              Akademik Araştırma Portalı
-            </h1>
-            <p className="text-white/70 mt-3 text-sm md:text-base leading-relaxed">
-              Hatay Mustafa Kemal Üniversitesi'ndeki araştırmacıları, yayınları, projeleri ve kurumsal
-              işbirliklerini tek bir yerde keşfedin.
+      <section className="border-b" style={{ borderColor: '#e5e7eb', background: '#fafaf9' }}>
+        <div className="max-w-7xl mx-auto px-6 py-16">
+          <div className="max-w-2xl">
+            <p className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: '#9ca3af' }}>
+              Araştırma Portalı
             </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link href="/p/arastirmacilar" className="px-5 py-2.5 rounded-full bg-white text-[#0f2444] text-sm font-semibold hover:bg-white/90 transition-all">
-                Araştırmacıları Keşfet →
+            <h1 className="text-3xl md:text-5xl font-bold tracking-tight leading-[1.1]" style={{ color: '#0f2444' }}>
+              Bilim üretimimizi<br />
+              <span style={{ color: '#c8a45a' }}>tek bir yerde</span> keşfedin
+            </h1>
+            <p className="mt-5 text-base leading-relaxed max-w-lg" style={{ color: '#4b5563' }}>
+              Hatay Mustafa Kemal Üniversitesi'ndeki araştırmacılar, yayınlar, projeler ve
+              kurumsal işbirliklerine açık erişim.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-2">
+              <Link
+                href="/p/arastirmacilar"
+                className="px-5 py-2.5 rounded text-sm font-semibold text-white transition-all"
+                style={{ background: '#0f2444' }}
+              >
+                Araştırmacıları keşfet →
               </Link>
-              <Link href="/auth/login" className="px-5 py-2.5 rounded-full border border-white/30 text-white text-sm font-semibold hover:bg-white/10 transition-all">
-                Araştırmacı Girişi
+              <Link
+                href="/auth/login"
+                className="px-5 py-2.5 rounded text-sm font-semibold border transition-all hover:bg-gray-50"
+                style={{ borderColor: '#d1d5db', color: '#374151' }}
+              >
+                Akademisyen girişi
               </Link>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ═════ Stats ═════ */}
-      <section className="max-w-7xl mx-auto px-4 -mt-10 relative z-10">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
-          <StatCard label="Araştırmacı" value={fmt(stats?.researchers)} icon="users" />
-          <StatCard label="Yayın" value={fmt(stats?.publications)} icon="book" />
-          <StatCard label="Atıf" value={fmt(stats?.citations)} icon="quote" />
-          <StatCard label="Proje" value={fmt(stats?.projects)} icon="clipboard" />
-          <StatCard label="Max h-index" value={fmt(stats?.maxHIndex)} icon="chart" />
+      {/* ═════ Stats — akademik kompakt ═════ */}
+      <section className="max-w-7xl mx-auto px-6 py-12">
+        <h2 className="text-xs font-bold uppercase tracking-widest mb-5" style={{ color: '#6b7280' }}>
+          Kurumsal Göstergeler
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-px rounded-lg overflow-hidden border" style={{ borderColor: '#e5e7eb', background: '#e5e7eb' }}>
+          <StatCell label="Araştırmacı" value={fmt(stats?.researchers)} />
+          <StatCell label="Yayın" value={fmt(stats?.publications)} sub="Scopus & WoS" />
+          <StatCell label="Atıf" value={fmt(stats?.citations)} sub="Toplam" />
+          <StatCell label="Aktif Proje" value={fmt(stats?.projects)} />
         </div>
+        {stats?.sources && (
+          <p className="mt-3 text-[11px]" style={{ color: '#9ca3af' }}>
+            Kaynaklar: Scopus ({new Intl.NumberFormat('tr-TR').format(stats.sources.scopusPublications)} yayın, {new Intl.NumberFormat('tr-TR').format(stats.sources.scopusCitations)} atıf)
+            {stats.sources.wosPublications > 0 && ` · Web of Science (${new Intl.NumberFormat('tr-TR').format(stats.sources.wosPublications)} yayın)`}
+            {stats.sources.manualPublications > 0 && ` · Manuel kayıt (${new Intl.NumberFormat('tr-TR').format(stats.sources.manualPublications)})`}
+          </p>
+        )}
       </section>
 
       {/* ═════ Faculties ═════ */}
       {faculties.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 mt-10">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-[#0f2444]/70 mb-4">Fakülteler</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+        <section className="max-w-7xl mx-auto px-6 pb-12">
+          <div className="flex items-baseline justify-between mb-5">
+            <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: '#6b7280' }}>
+              Fakülteler
+            </h2>
+            <span className="text-xs" style={{ color: '#9ca3af' }}>{faculties.length} fakülte</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px rounded-lg overflow-hidden border" style={{ borderColor: '#e5e7eb', background: '#e5e7eb' }}>
             {faculties.map(f => (
               <Link
                 key={f.faculty}
                 href={`/p/arastirmacilar?faculty=${encodeURIComponent(f.faculty)}`}
-                className="group flex items-center justify-between p-3.5 rounded-xl bg-white border hover:border-[#c8a45a] hover:shadow-md transition-all"
-                style={{ borderColor: '#e8e4dc' }}
+                className="flex items-center justify-between px-4 py-3 bg-white hover:bg-[#fafaf9] transition-colors group"
               >
-                <span className="text-sm font-medium text-[#0f2444] truncate pr-2">{f.faculty}</span>
-                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[#f0ede8] text-[#0f2444] flex-shrink-0 group-hover:bg-[#c8a45a] group-hover:text-white transition-colors">
-                  {f.count}
-                </span>
+                <span className="text-sm font-medium truncate pr-3" style={{ color: '#0f2444' }}>{f.faculty}</span>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-xs font-semibold tabular-nums" style={{ color: '#6b7280' }}>{f.count}</span>
+                  <svg className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="#0f2444" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
               </Link>
             ))}
           </div>
         </section>
       )}
 
-      {/* ═════ Recent researchers ═════ */}
+      {/* ═════ Recent Researchers ═════ */}
       {recent && recent.recentResearchers.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 mt-10">
-          <div className="flex items-baseline justify-between mb-4">
-            <h2 className="text-sm font-bold uppercase tracking-widest text-[#0f2444]/70">Son Güncellenen Profiller</h2>
-            <Link href="/p/arastirmacilar" className="text-xs font-semibold text-[#1a3a6b] hover:text-[#c8a45a]">
+        <section className="max-w-7xl mx-auto px-6 pb-12">
+          <div className="flex items-baseline justify-between mb-5">
+            <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: '#6b7280' }}>
+              Son Güncellenen Profiller
+            </h2>
+            <Link href="/p/arastirmacilar" className="text-xs font-semibold hover:underline" style={{ color: '#0f2444' }}>
               Tümünü gör →
             </Link>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {recent.recentResearchers.slice(0, 8).map(r => (
               <Link
                 key={r.id}
                 href={`/p/${r.slug || r.id}`}
-                className="bg-white rounded-xl border p-4 hover:border-[#c8a45a] hover:shadow-md transition-all flex items-center gap-3"
-                style={{ borderColor: '#e8e4dc' }}
+                className="flex items-center gap-3 p-3 bg-white rounded-lg border hover:border-[#0f2444] transition-all group"
+                style={{ borderColor: '#e5e7eb' }}
               >
                 {r.avatar ? (
-                  <img src={r.avatar} alt="" className="w-12 h-12 rounded-full object-cover flex-shrink-0" />
+                  <img src={r.avatar} alt="" className="w-11 h-11 rounded-full object-cover flex-shrink-0" />
                 ) : (
-                  <div
-                    className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
-                    style={{ background: 'linear-gradient(135deg, #0f2444, #1a3a6b)' }}
-                  >
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center text-white font-semibold text-xs flex-shrink-0"
+                    style={{ background: '#0f2444' }}>
                     {getInitials(r.firstName, r.lastName)}
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-[#0f2444] text-sm leading-tight truncate">
-                    {r.title && <span className="text-[#c8a45a]">{r.title} </span>}
+                  <p className="font-semibold text-sm leading-tight truncate" style={{ color: '#0f2444' }}>
                     {r.firstName} {r.lastName}
                   </p>
-                  <p className="text-[11px] text-muted mt-0.5 truncate">{r.faculty || '—'}</p>
+                  <p className="text-[11px] truncate mt-0.5" style={{ color: '#6b7280' }}>
+                    {r.title ? `${r.title} · ` : ''}{r.faculty || '—'}
+                  </p>
                 </div>
               </Link>
             ))}
@@ -144,26 +179,39 @@ export default function PublicHomePage() {
         </section>
       )}
 
-      {/* ═════ Recent publications ═════ */}
+      {/* ═════ Recent Publications ═════ */}
       {recent && recent.recentPublications.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 mt-10 mb-16">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-[#0f2444]/70 mb-4">Son Eklenen Yayınlar</h2>
-          <div className="bg-white rounded-xl border divide-y" style={{ borderColor: '#e8e4dc' }}>
+        <section className="max-w-7xl mx-auto px-6 pb-16">
+          <h2 className="text-xs font-bold uppercase tracking-widest mb-5" style={{ color: '#6b7280' }}>
+            Son Eklenen Yayınlar
+          </h2>
+          <div className="bg-white rounded-lg border divide-y" style={{ borderColor: '#e5e7eb' }}>
             {recent.recentPublications.slice(0, 8).map(p => (
-              <div key={p.id} className="p-4 hover:bg-[#faf8f4] transition-colors">
-                <div className="flex items-start gap-2 flex-wrap">
-                  <p className="font-medium text-[#0f2444] text-sm leading-snug flex-1 min-w-0">{p.title}</p>
-                  {p.quartile && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">{p.quartile}</span>
-                  )}
-                  {p.year && (
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#f0ede8] text-[#0f2444]">{p.year}</span>
-                  )}
-                </div>
-                <div className="mt-1.5 text-xs text-muted flex flex-wrap gap-x-3 gap-y-0.5">
-                  {p.authors && <span className="truncate max-w-md">👥 {p.authors}</span>}
-                  {p.journal && <span className="italic">📘 {p.journal}</span>}
-                  {p.doi && <a className="text-blue-600 hover:underline" href={`https://doi.org/${p.doi}`} target="_blank" rel="noreferrer">DOI</a>}
+              <div key={p.id} className="p-4 hover:bg-[#fafaf9] transition-colors">
+                <div className="flex items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm leading-snug" style={{ color: '#0f2444' }}>{p.title}</h3>
+                    <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs" style={{ color: '#6b7280' }}>
+                      {p.authors && <span className="truncate max-w-md">{p.authors}</span>}
+                      {p.journal && <span className="italic">{p.journal}</span>}
+                      {p.doi && (
+                        <a className="hover:underline" style={{ color: '#0f2444' }} href={`https://doi.org/${p.doi}`} target="_blank" rel="noreferrer">
+                          DOI
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {p.year && (
+                      <span className="text-xs font-semibold tabular-nums" style={{ color: '#6b7280' }}>{p.year}</span>
+                    )}
+                    {p.quartile && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                        style={{ background: p.quartile === 'Q1' ? '#dcfce7' : '#f3f4f6', color: p.quartile === 'Q1' ? '#15803d' : '#374151' }}>
+                        {p.quartile}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -173,14 +221,14 @@ export default function PublicHomePage() {
 
       {/* ═════ Empty state ═════ */}
       {stats && !stats.hasData && (
-        <section className="max-w-3xl mx-auto px-4 mt-12 mb-16 text-center">
-          <div className="py-16">
-            <svg className="w-16 h-16 mx-auto text-[#0f2444]/20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <h3 className="mt-4 text-base font-semibold text-[#0f2444]">Portal yakında içerikle dolacak</h3>
-            <p className="text-sm text-muted mt-2">Araştırmacı profilleri tamamlandıkça vitrin portalında görünmeye başlayacak.</p>
-          </div>
+        <section className="max-w-2xl mx-auto px-6 py-20 text-center">
+          <svg className="w-14 h-14 mx-auto" fill="none" viewBox="0 0 24 24" stroke="#d1d5db" strokeWidth={1.3}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
+          <h3 className="mt-5 text-base font-semibold" style={{ color: '#0f2444' }}>Portal yakında içerikle dolacak</h3>
+          <p className="mt-2 text-sm" style={{ color: '#6b7280' }}>
+            Araştırmacılar profillerini tamamladıkça burada görünmeye başlayacak.
+          </p>
         </section>
       )}
     </PublicLayout>
@@ -188,23 +236,12 @@ export default function PublicHomePage() {
 }
 
 // ─────────────────────────────────────────────────────────────
-function StatCard({ label, value, icon }: { label: string; value: string; icon: string }) {
-  const ICONS: Record<string, string> = {
-    users: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
-    book: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253',
-    quote: 'M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z',
-    clipboard: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
-    chart: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
-  };
+function StatCell({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="bg-white rounded-xl border p-4 md:p-5 shadow-sm" style={{ borderColor: '#e8e4dc' }}>
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-muted">{label}</span>
-        <svg className="w-4 h-4 text-[#c8a45a]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-          <path strokeLinecap="round" strokeLinejoin="round" d={ICONS[icon]} />
-        </svg>
-      </div>
-      <p className="text-xl md:text-2xl font-bold text-[#0f2444] tabular-nums">{value}</p>
+    <div className="px-6 py-7 bg-white">
+      <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#6b7280' }}>{label}</p>
+      <p className="text-3xl font-bold tabular-nums mt-2 tracking-tight" style={{ color: '#0f2444' }}>{value}</p>
+      {sub && <p className="text-[11px] mt-1" style={{ color: '#9ca3af' }}>{sub}</p>}
     </div>
   );
 }

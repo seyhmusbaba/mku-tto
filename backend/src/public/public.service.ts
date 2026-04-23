@@ -7,10 +7,11 @@ import { Publication } from '../database/entities/publication.entity';
 import { ProjectPartner } from '../database/entities/project-partner.entity';
 import { ProjectMember } from '../database/entities/project-member.entity';
 import { SystemSetting } from '../database/entities/system-setting.entity';
+import { OpenAlexService } from '../integrations/openalex.service';
+import { ScopusService } from '../scopus/scopus.service';
 
 /**
  * Türkçe karakterleri ASCII'ye çeviren ve URL-safe bir slug üretir.
- * "Ebru Polat" → "ebru.polat"
  */
 function toSlug(first: string, last: string): string {
   const tr: Record<string, string> = {
@@ -26,12 +27,8 @@ function toSlug(first: string, last: string): string {
 }
 
 /**
- * Vitrin/kamuya açık portal servisi — authentication gerektirmeyen
- * uç noktalar için. AVESİS benzeri ziyaretçi deneyimi sunar.
- *
- * Güvenlik: Bu servisin döndürdüğü veriler ASLA hassas alan içermez
- * (e-posta, telefon, bütçe, iç notlar vs.). Sadece kurumsal olarak
- * açık paylaşılabilir meta veri döner.
+ * Vitrin (public) portal servisi — anonim ziyaretçilere açık.
+ * Hassas veri asla döndürülmez (e-posta, telefon, bütçe, notlar).
  */
 @Injectable()
 export class PublicService {
@@ -42,6 +39,8 @@ export class PublicService {
     @InjectRepository(ProjectPartner) private partnerRepo: Repository<ProjectPartner>,
     @InjectRepository(ProjectMember)  private memberRepo: Repository<ProjectMember>,
     @InjectRepository(SystemSetting)  private settingRepo: Repository<SystemSetting>,
+    private openAlex: OpenAlexService,
+    private scopus: ScopusService,
   ) {}
 
   // ── Kurumsal meta ─────────────────────────────────────────
@@ -57,41 +56,76 @@ export class PublicService {
   }
 
   // ── Kurumsal istatistikler ────────────────────────────────
+  /**
+   * Doğru/temiz istatistikler. Çift-saymayı önler.
+   * - Araştırmacı = public+active kullanıcı sayısı
+   * - Yayın toplamı = kullanıcıların Scopus docCount + WoS docCount'unun max'ı ile
+   *   manuel yayın sayılarından büyük olan kullanılır (çakışma riski minimize)
+   *   Aslında basitçe Scopus toplamını alıyoruz çünkü en kapsamlı
+   * - Atıf toplamı = Scopus toplam atıf
+   * - Proje = aktif proje sayısı
+   */
   async getStats() {
-    const [researcherCount, activeProjectCount, publicProjectCount, publicationCount] = await Promise.all([
-      this.userRepo.count({ where: { isActive: true as any, isPublic: true } }),
+    // Researcher count
+    const researcherCount = await this.userRepo.count({
+      where: { isActive: true as any, isPublic: true },
+    });
+
+    // Projects
+    const [activeProjectCount, publicProjectCount] = await Promise.all([
       this.projectRepo.count({ where: { status: 'active' } }),
       this.projectRepo.count({ where: { isPublic: true } }),
-      this.pubRepo.count(),
     ]);
 
-    // Toplam atıf — yayınlardaki citations alanının toplamı
-    const citationAgg = await this.pubRepo
-      .createQueryBuilder('p')
-      .select('COALESCE(SUM(p.citations), 0)', 'total')
-      .getRawOne();
-    const totalCitations = +(citationAgg?.total || 0);
-
-    // Scopus'tan beslenen kurumsal h-index toplamı (kullanıcı h-index'lerinin max'ı)
-    const hAgg = await this.userRepo
+    // Kurumsal bibliyometrik toplamlar — SUM yerine en kapsamlı kaynak
+    // (Scopus) toplamını baz alıyoruz. WoS paralel bir sayım, manuel
+    // yayınlar küçük bir ek. Çift sayma olmasın diye max mantığı değil
+    // doğrudan Scopus toplamını gösteriyoruz.
+    const scopusAgg = await this.userRepo
       .createQueryBuilder('u')
-      .select('COALESCE(MAX(u."scopusHIndex"), 0)', 'hi')
-      .addSelect('COALESCE(SUM(u."scopusCitedBy"), 0)', 'scopusCites')
-      .addSelect('COALESCE(SUM(u."scopusDocCount"), 0)', 'scopusDocs')
       .where('u.isPublic = true')
+      .andWhere('u.isActive = true')
+      .select('COALESCE(SUM(u."scopusDocCount"), 0)', 'docs')
+      .addSelect('COALESCE(SUM(u."scopusCitedBy"), 0)', 'cites')
+      .addSelect('COALESCE(MAX(u."scopusHIndex"), 0)', 'hmax')
       .getRawOne();
+
+    const wosAgg = await this.userRepo
+      .createQueryBuilder('u')
+      .where('u.isPublic = true')
+      .andWhere('u.isActive = true')
+      .select('COALESCE(SUM(u."wosDocCount"), 0)', 'docs')
+      .addSelect('COALESCE(SUM(u."wosCitedBy"), 0)', 'cites')
+      .getRawOne();
+
+    const manualPubCount = await this.pubRepo.count();
+
+    const scopusDocs = +(scopusAgg?.docs || 0);
+    const wosDocs = +(wosAgg?.docs || 0);
+    const scopusCites = +(scopusAgg?.cites || 0);
+    const wosCites = +(wosAgg?.cites || 0);
+
+    // Yayın — en kapsamlı sayı (Scopus genelde en geniş kapsayan)
+    const totalPublications = Math.max(scopusDocs, wosDocs, manualPubCount);
+    // Atıf — Scopus öncelikli, WoS fallback
+    const totalCitations = Math.max(scopusCites, wosCites);
 
     return {
       researchers: researcherCount,
-      publications: publicationCount + +(hAgg?.scopusDocs || 0),
-      publicationsManual: publicationCount,
-      publicationsScopus: +(hAgg?.scopusDocs || 0),
-      citations: totalCitations + +(hAgg?.scopusCites || 0),
+      publications: totalPublications,
+      citations: totalCitations,
       projects: activeProjectCount,
       publicProjects: publicProjectCount,
-      maxHIndex: +(hAgg?.hi || 0),
-      // Henüz veri yoksa dashboard'ta 0 göstermek yerine "—" göstersin
-      hasData: researcherCount + publicationCount > 0,
+      maxHIndex: +(scopusAgg?.hmax || 0),
+      // Kaynak detayı — UI isterse gösterir
+      sources: {
+        scopusPublications: scopusDocs,
+        scopusCitations: scopusCites,
+        wosPublications: wosDocs,
+        wosCitations: wosCites,
+        manualPublications: manualPubCount,
+      },
+      hasData: researcherCount > 0,
     };
   }
 
@@ -102,6 +136,7 @@ export class PublicService {
       .select('u.faculty', 'faculty')
       .addSelect('COUNT(*)', 'count')
       .where('u.isPublic = true')
+      .andWhere('u.isActive = true')
       .andWhere('u.faculty IS NOT NULL')
       .andWhere('u.faculty != \'\'')
       .groupBy('u.faculty')
@@ -110,7 +145,7 @@ export class PublicService {
     return rows.map(r => ({ faculty: r.faculty, count: +r.count }));
   }
 
-  // ── Son aktiviteler (landing için) ────────────────────────
+  // ── Son aktiviteler ───────────────────────────────────────
   async getRecent() {
     const [recentUsers, recentPubs, recentProjects] = await Promise.all([
       this.userRepo.find({
@@ -132,29 +167,18 @@ export class PublicService {
     return {
       recentResearchers: recentUsers.map(u => this.stripUser(u)),
       recentPublications: recentPubs.map(p => ({
-        id: p.id,
-        title: p.title,
-        authors: p.authors,
-        journal: p.journal,
-        year: p.year,
-        doi: p.doi,
-        type: p.type,
-        quartile: p.quartile,
+        id: p.id, title: p.title, authors: p.authors, journal: p.journal,
+        year: p.year, doi: p.doi, type: p.type, quartile: p.quartile,
         citations: p.citations,
       })),
       recentProjects: recentProjects.map(p => ({
-        id: p.id,
-        title: p.title,
-        type: p.type,
-        status: p.status,
-        faculty: p.faculty,
-        startDate: p.startDate,
-        endDate: p.endDate,
+        id: p.id, title: p.title, type: p.type, status: p.status,
+        faculty: p.faculty, startDate: p.startDate, endDate: p.endDate,
       })),
     };
   }
 
-  // ── Araştırmacı listesi (sayfalı, aranabilir) ─────────────
+  // ── Araştırmacı listesi ───────────────────────────────────
   async listResearchers(q: {
     search?: string;
     faculty?: string;
@@ -190,62 +214,166 @@ export class PublicService {
 
   // ── Profil detayı ─────────────────────────────────────────
   async getProfile(slugOrId: string) {
-    let user: User | null = null;
-
-    // Önce slug ile ara
-    user = await this.userRepo.findOne({ where: { publicSlug: slugOrId, isPublic: true } });
-    if (!user) {
-      // UUID ise id ile ara
-      if (/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(slugOrId)) {
-        user = await this.userRepo.findOne({ where: { id: slugOrId, isPublic: true } });
-      }
-    }
-    if (!user) throw new NotFoundException('Araştırmacı profili bulunamadı');
-
-    // Slug boşsa otomatik oluştur (geriye dönük uyumluluk)
-    if (!user.publicSlug) {
-      await this.ensureSlug(user);
-    }
-
+    const user = await this.resolveUser(slugOrId);
+    if (!user.publicSlug) await this.ensureSlug(user);
     return this.stripUserDetailed(user);
   }
 
-  // ── Profil — yayınlar ─────────────────────────────────────
+  /**
+   * Profile yayınları — 3 kaynağı birleştir ve deduplicate et:
+   *  1. Manuel yayınlar (user_publications)
+   *  2. OpenAlex (ORCID ile)
+   *  3. Scopus (scopusAuthorId ile)
+   *
+   * Proje görünürlüğünden bağımsız — araştırmacının yayınları profilinde
+   * her zaman görünmeli.
+   */
   async getProfilePublications(slugOrId: string) {
     const user = await this.resolveUser(slugOrId);
-    const items = await this.pubRepo.find({
+
+    // 1) Manuel yayınlar
+    const manual = await this.pubRepo.find({
       where: { userId: user.id },
-      order: { isFeatured: 'DESC', year: 'DESC', createdAt: 'DESC' },
+      order: { year: 'DESC', createdAt: 'DESC' },
     });
-    return items.map(p => ({
-      id: p.id, title: p.title, authors: p.authors, journal: p.journal,
-      year: p.year, doi: p.doi, url: p.url, type: p.type,
-      citations: p.citations, quartile: p.quartile,
-      isOpenAccess: p.isOpenAccess, isFeatured: p.isFeatured,
-    }));
+
+    // 2) OpenAlex (paralelde, hata olursa boş liste)
+    const oaWorks = user.orcidId
+      ? await this.openAlex.getAuthorByOrcid(user.orcidId)
+          .then(a => a?.id ? this.openAlex.getAuthorWorks(a.id, 100) : [])
+          .catch(() => [])
+      : [];
+
+    // 3) Scopus
+    const scopusPubs = user.scopusAuthorId
+      ? await this.scopus.getAuthorPublications(user.scopusAuthorId, 50).catch(() => [])
+      : [];
+
+    // Normalize — hepsini aynı şekle getir
+    type NormPub = {
+      source: 'manual' | 'openalex' | 'scopus';
+      key: string;              // dedup anahtarı (DOI veya title+year)
+      id: string;
+      title: string;
+      authors?: string;
+      journal?: string;
+      year?: number;
+      doi?: string;
+      url?: string;
+      type?: string;
+      citations?: number;
+      quartile?: string;
+      isOpenAccess?: boolean;
+      isFeatured?: boolean;
+    };
+
+    const all: NormPub[] = [];
+    for (const p of manual) {
+      all.push({
+        source: 'manual',
+        key: p.doi ? `doi:${p.doi.toLowerCase()}` : `t:${(p.title || '').toLowerCase().trim()}|${p.year}`,
+        id: p.id,
+        title: p.title,
+        authors: p.authors,
+        journal: p.journal,
+        year: p.year,
+        doi: p.doi,
+        url: p.url,
+        type: p.type,
+        citations: p.citations,
+        quartile: p.quartile,
+        isOpenAccess: p.isOpenAccess,
+        isFeatured: p.isFeatured,
+      });
+    }
+    for (const w of oaWorks) {
+      const authors = (w.authors || []).map(a => a.displayName).filter(Boolean).join(', ');
+      all.push({
+        source: 'openalex',
+        key: w.doi ? `doi:${w.doi.toLowerCase()}` : `t:${(w.title || '').toLowerCase().trim()}|${w.publicationYear}`,
+        id: w.id,
+        title: w.title,
+        authors: authors || undefined,
+        journal: w.venue?.displayName,
+        year: w.publicationYear,
+        doi: w.doi,
+        url: w.openAccess?.oaUrl,
+        type: w.type,
+        citations: w.citedBy,
+        isOpenAccess: w.openAccess?.isOa,
+      });
+    }
+    for (const s of scopusPubs) {
+      const year = s.year ? +s.year : undefined;
+      all.push({
+        source: 'scopus',
+        key: s.doi ? `doi:${String(s.doi).toLowerCase()}` : `t:${(s.title || '').toLowerCase().trim()}|${year}`,
+        id: s.scopusId || `scopus-${s.title}`,
+        title: s.title,
+        journal: s.journal,
+        year,
+        doi: s.doi,
+        citations: s.citedBy,
+      });
+    }
+
+    // Deduplicate — aynı key için en zengin kaydı tut (manuel > openalex > scopus)
+    const priority: Record<string, number> = { manual: 3, openalex: 2, scopus: 1 };
+    const merged = new Map<string, NormPub>();
+    for (const p of all) {
+      const existing = merged.get(p.key);
+      if (!existing || priority[p.source] > priority[existing.source]) {
+        // Yeni kayıt daha iyi — ama eskisinin boş olmayan alanlarını koru
+        if (existing) {
+          merged.set(p.key, {
+            ...existing,
+            ...p,
+            authors: p.authors || existing.authors,
+            journal: p.journal || existing.journal,
+            year: p.year || existing.year,
+            doi: p.doi || existing.doi,
+            url: p.url || existing.url,
+            citations: Math.max(p.citations || 0, existing.citations || 0) || undefined,
+            isOpenAccess: p.isOpenAccess || existing.isOpenAccess,
+            isFeatured: existing.isFeatured || p.isFeatured,
+          });
+        } else {
+          merged.set(p.key, p);
+        }
+      } else if (existing) {
+        // Eski daha iyi ama yeniden eksik alanları tamamla
+        existing.authors = existing.authors || p.authors;
+        existing.journal = existing.journal || p.journal;
+        existing.year = existing.year || p.year;
+        existing.doi = existing.doi || p.doi;
+        existing.citations = Math.max(existing.citations || 0, p.citations || 0) || undefined;
+      }
+    }
+
+    const result = Array.from(merged.values());
+    // Sırala: featured > yıl (yeniden eskiye) > atıf
+    result.sort((a, b) => {
+      if (a.isFeatured !== b.isFeatured) return (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0);
+      if ((b.year || 0) !== (a.year || 0)) return (b.year || 0) - (a.year || 0);
+      return (b.citations || 0) - (a.citations || 0);
+    });
+
+    // Dış dünyaya source alanını çıkarmadan döndür
+    return result.map(({ source, key, ...rest }) => rest);
   }
 
-  // ── Profil — projeler (sadece public) ─────────────────────
+  // ── Profil — kamuya açık projeler ─────────────────────────
   async getProfileProjects(slugOrId: string) {
     const user = await this.resolveUser(slugOrId);
-
-    // Kullanıcının owner olduğu public projeler
     const owned = await this.projectRepo.find({
       where: { ownerId: user.id, isPublic: true },
       order: { startDate: 'DESC' },
     });
-
-    // Kullanıcının member olduğu public projeler
     const memberRecs = await this.memberRepo.find({ where: { userId: user.id }, relations: ['project'] });
-    const memberProjs = memberRecs
-      .map(m => m.project)
-      .filter(p => p && (p as any).isPublic);
+    const memberProjs = memberRecs.map(m => m.project).filter(p => p && (p as any).isPublic);
 
-    // Birleştir ve deduplicate
     const map = new Map<string, Project>();
-    for (const p of [...owned, ...memberProjs]) {
-      if (p && !map.has(p.id)) map.set(p.id, p);
-    }
+    for (const p of [...owned, ...memberProjs]) if (p && !map.has(p.id)) map.set(p.id, p);
 
     return Array.from(map.values()).map(p => ({
       id: p.id,
@@ -261,61 +389,61 @@ export class PublicService {
     }));
   }
 
-  // ── Profil — ortaklıklar / co-author grafik ──────────────
+  // ── Profil — ortaklıklar / co-author grafiği ──────────────
   async getProfileCollaborations(slugOrId: string) {
     const user = await this.resolveUser(slugOrId);
 
-    // Proje ortakları (kurum partnerleri)
-    const ownProjects = await this.projectRepo.find({ where: { ownerId: user.id, isPublic: true } });
-    const projectIds = ownProjects.map(p => p.id);
+    // Co-author (proje takım arkadaşları) — public/private fark etmez
+    // ama ortaklıklar sadece user'ın sahip olduğu projelerden
+    const allProjects = await this.projectRepo.find({ where: { ownerId: user.id } });
+    const projectIds = allProjects.map(p => p.id);
 
-    if (projectIds.length === 0) {
-      return { organizations: [], coResearchers: [] };
+    let organizations: any[] = [];
+    let coResearchers: any[] = [];
+
+    if (projectIds.length > 0) {
+      const partners = await this.partnerRepo
+        .createQueryBuilder('p')
+        .where('p.projectId IN (:...ids)', { ids: projectIds })
+        .getMany();
+      const orgMap = new Map<string, { name: string; count: number; sectors: Set<string> }>();
+      for (const p of partners) {
+        const key = p.name.trim().toLowerCase();
+        const cur = orgMap.get(key) || { name: p.name, count: 0, sectors: new Set<string>() };
+        cur.count++;
+        if ((p as any).sector) cur.sectors.add((p as any).sector);
+        orgMap.set(key, cur);
+      }
+      organizations = Array.from(orgMap.values())
+        .map(o => ({ name: o.name, projectCount: o.count, sectors: Array.from(o.sectors) }))
+        .sort((a, b) => b.projectCount - a.projectCount)
+        .slice(0, 30);
+
+      const members = await this.memberRepo
+        .createQueryBuilder('m')
+        .leftJoin('m.user', 'user')
+        .addSelect(['user.id', 'user.firstName', 'user.lastName', 'user.title', 'user.faculty', 'user.avatar', 'user.publicSlug', 'user.isPublic'])
+        .where('m.projectId IN (:...ids)', { ids: projectIds })
+        .andWhere('m.userId != :uid', { uid: user.id })
+        .getMany();
+
+      const coMap = new Map<string, any>();
+      for (const m of members) {
+        const u = (m as any).user;
+        if (!u || !u.isPublic) continue;
+        const cur = coMap.get(u.id) || {
+          id: u.id, firstName: u.firstName, lastName: u.lastName,
+          title: u.title, faculty: u.faculty, avatar: u.avatar,
+          slug: u.publicSlug || '',
+          count: 0,
+        };
+        cur.count++;
+        coMap.set(u.id, cur);
+      }
+      coResearchers = Array.from(coMap.values())
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 20);
     }
-
-    // Kurumsal ortaklar
-    const partners = await this.partnerRepo
-      .createQueryBuilder('p')
-      .where('p.projectId IN (:...ids)', { ids: projectIds })
-      .getMany();
-    const orgMap = new Map<string, { name: string; count: number; sectors: Set<string> }>();
-    for (const p of partners) {
-      const key = p.name.trim().toLowerCase();
-      const cur = orgMap.get(key) || { name: p.name, count: 0, sectors: new Set<string>() };
-      cur.count++;
-      if ((p as any).sector) cur.sectors.add((p as any).sector);
-      orgMap.set(key, cur);
-    }
-    const organizations = Array.from(orgMap.values())
-      .map(o => ({ name: o.name, projectCount: o.count, sectors: Array.from(o.sectors) }))
-      .sort((a, b) => b.projectCount - a.projectCount)
-      .slice(0, 30);
-
-    // Birlikte çalıştığı araştırmacılar
-    const members = await this.memberRepo
-      .createQueryBuilder('m')
-      .leftJoin('m.user', 'user')
-      .addSelect(['user.id', 'user.firstName', 'user.lastName', 'user.title', 'user.faculty', 'user.avatar', 'user.publicSlug', 'user.isPublic'])
-      .where('m.projectId IN (:...ids)', { ids: projectIds })
-      .andWhere('m.userId != :uid', { uid: user.id })
-      .getMany();
-
-    const coMap = new Map<string, any>();
-    for (const m of members) {
-      const u = (m as any).user;
-      if (!u || !u.isPublic) continue;
-      const cur = coMap.get(u.id) || {
-        id: u.id, firstName: u.firstName, lastName: u.lastName,
-        title: u.title, faculty: u.faculty, avatar: u.avatar,
-        slug: u.publicSlug || '',
-        count: 0,
-      };
-      cur.count++;
-      coMap.set(u.id, cur);
-    }
-    const coResearchers = Array.from(coMap.values())
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 20);
 
     return { organizations, coResearchers };
   }
@@ -333,7 +461,6 @@ export class PublicService {
     return user;
   }
 
-  /** Özet card verisi — listeler için az alan. */
   private stripUser(u: User) {
     return {
       id: u.id,
@@ -351,7 +478,6 @@ export class PublicService {
     };
   }
 
-  /** Profil sayfası için — bio, harici linkler dahil, e-posta dahil DEĞİL. */
   private stripUserDetailed(u: User) {
     return {
       id: u.id,
@@ -365,14 +491,12 @@ export class PublicService {
       avatar: u.avatar,
       bio: u.bio,
       expertiseArea: u.expertiseArea,
-      // Akademik profil linkleri
       orcidId: u.orcidId,
       googleScholarId: u.googleScholarId,
       researchGateUrl: u.researchGateUrl,
       academiaUrl: u.academiaUrl,
       scopusAuthorId: u.scopusAuthorId,
       wosResearcherId: u.wosResearcherId,
-      // Metrikler
       scopusHIndex: u.scopusHIndex,
       scopusCitedBy: u.scopusCitedBy,
       scopusDocCount: u.scopusDocCount,
@@ -384,14 +508,11 @@ export class PublicService {
     };
   }
 
-  // Slug yoksa otomatik ata (benzersizlik kontrolü ile)
   private async ensureSlug(user: User) {
     let base = toSlug(user.firstName, user.lastName);
     if (!base || base === '.') base = user.id.slice(0, 8);
     let candidate = base;
     let i = 1;
-    // Başkasınınki ile çakışıyorsa sayı ekle
-    // eslint-disable-next-line no-constant-condition
     while (true) {
       const existing = await this.userRepo.findOne({ where: { publicSlug: candidate } });
       if (!existing || existing.id === user.id) break;
@@ -402,7 +523,6 @@ export class PublicService {
     await this.userRepo.save(user);
   }
 
-  // Admin kullanımı için — tüm slug'ları bir seferde doldur
   async backfillSlugs() {
     const users = await this.userRepo.find();
     let count = 0;

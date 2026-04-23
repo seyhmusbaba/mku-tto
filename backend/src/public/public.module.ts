@@ -8,9 +8,15 @@ import { ProjectMember } from '../database/entities/project-member.entity';
 import { SystemSetting } from '../database/entities/system-setting.entity';
 import { PublicController } from './public.controller';
 import { PublicService } from './public.service';
+import { IntegrationsModule } from '../integrations/integrations.module';
+import { ScopusModule } from '../scopus/scopus.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Project, Publication, ProjectPartner, ProjectMember, SystemSetting])],
+  imports: [
+    TypeOrmModule.forFeature([User, Project, Publication, ProjectPartner, ProjectMember, SystemSetting]),
+    IntegrationsModule,
+    ScopusModule,
+  ],
   controllers: [PublicController],
   providers: [PublicService],
   exports: [PublicService],
