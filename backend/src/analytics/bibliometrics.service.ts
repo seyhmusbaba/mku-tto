@@ -729,6 +729,98 @@ export class BibliometricsService {
   }
 
   /**
+   * Kullanıcıların per-source metriklerinden kurumsal agrega üret.
+   *
+   * Her araştırmacı kendi profilini sync ettikten sonra (OpenAlex, Scopus,
+   * WoS, TR Dizin, Scholar) bu veriler user tablosunda birikir. Bu metod
+   * hepsini toplayıp AVESİS tarzı kurumsal kaynak-bazlı görünüm üretir.
+   *
+   * Not: OpenAlex kurum endpoint'inden gelen "resmi" toplamlar AYRI tutulur
+   * (getInstitutional'daki). Bu metod user-aggregation sağlar.
+   */
+  async getUserSourcesBreakdown(): Promise<{
+    sources: Array<{
+      key: 'openalex' | 'scopus' | 'wos' | 'trdizin' | 'scholar' | 'sobiad';
+      name: string;
+      totalDocs: number;
+      totalCitations: number;
+      maxHIndex: number;
+      avgHIndex: number;
+      coverageCount: number;     // Kaç araştırmacıda bu kaynak var
+      coveragePercent: number;   // Toplam araştırmacı sayısına oranı
+      top5: Array<{ userId: string; name: string; docs: number; citations: number; hIndex: number }>;
+    }>;
+    totalResearchers: number;
+    note: string;
+  }> {
+    const users = await this.userRepo.find({
+      where: { isActive: true as any },
+    });
+    const totalResearchers = users.length;
+
+    const sourceConfig = [
+      { key: 'openalex' as const, name: 'OpenAlex',       d: 'openAlexDocCount',      c: 'openAlexCitedBy',      h: 'openAlexHIndex' },
+      { key: 'scopus' as const,   name: 'Scopus',         d: 'scopusDocCount',        c: 'scopusCitedBy',        h: 'scopusHIndex' },
+      { key: 'wos' as const,      name: 'Web of Science', d: 'wosDocCount',           c: 'wosCitedBy',           h: 'wosHIndex' },
+      { key: 'trdizin' as const,  name: 'TR Dizin',       d: 'trDizinDocCount',       c: 'trDizinCitedBy',       h: 'trDizinHIndex' },
+      { key: 'scholar' as const,  name: 'Google Scholar', d: 'googleScholarDocCount', c: 'googleScholarCitedBy', h: 'googleScholarHIndex' },
+      { key: 'sobiad' as const,   name: 'Sobiad',         d: 'sobiadDocCount',        c: 'sobiadCitedBy',        h: 'sobiadHIndex' },
+    ];
+
+    const sources = sourceConfig.map(src => {
+      let totalDocs = 0;
+      let totalCitations = 0;
+      let maxHIndex = 0;
+      let hIndexSum = 0;
+      let coverageCount = 0;
+      const userData: Array<{ userId: string; name: string; docs: number; citations: number; hIndex: number }> = [];
+
+      for (const u of users) {
+        const d = +((u as any)[src.d]) || 0;
+        const c = +((u as any)[src.c]) || 0;
+        const h = +((u as any)[src.h]) || 0;
+        if (d > 0 || c > 0 || h > 0) {
+          totalDocs += d;
+          totalCitations += c;
+          maxHIndex = Math.max(maxHIndex, h);
+          hIndexSum += h;
+          coverageCount++;
+          userData.push({
+            userId: u.id,
+            name: `${u.title || ''} ${u.firstName} ${u.lastName}`.trim(),
+            docs: d,
+            citations: c,
+            hIndex: h,
+          });
+        }
+      }
+
+      // Top 5: atıfa göre sırala
+      const top5 = userData
+        .sort((a, b) => b.citations - a.citations || b.hIndex - a.hIndex)
+        .slice(0, 5);
+
+      return {
+        key: src.key,
+        name: src.name,
+        totalDocs,
+        totalCitations,
+        maxHIndex,
+        avgHIndex: coverageCount > 0 ? Math.round((hIndexSum / coverageCount) * 10) / 10 : 0,
+        coverageCount,
+        coveragePercent: totalResearchers > 0 ? Math.round((coverageCount / totalResearchers) * 100) : 0,
+        top5,
+      };
+    });
+
+    return {
+      sources,
+      totalResearchers,
+      note: `${totalResearchers} araştırmacının kendi senkronize ettiği metriklerden kurumsal agrega. OpenAlex kurum toplamı (yukarıdaki) araştırmacı-bağımsız, resmi bir sayıdır; bu bölüm ise portalımıza kayıtlı kullanıcıların kendi profillerindeki rakamların toplamıdır.`,
+    };
+  }
+
+  /**
    * MKÜ için OpenAlex ID'sini bul.
    * Öncelik:
    *  1. MKU_OPENALEX_ID env değişkeni

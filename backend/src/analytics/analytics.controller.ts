@@ -99,6 +99,15 @@ export class AnalyticsController {
     return this.bibliometrics.getPeerBenchmark();
   }
 
+  /**
+   * Kullanıcıların tekil sync ettiği metriklerden kurumsal kaynak-bazlı
+   * agrega (OpenAlex/Scopus/WoS/TR Dizin/Scholar/Sobiad ayrı ayrı toplam).
+   */
+  @Get('bibliometrics/user-sources')
+  async userSourcesBreakdown() {
+    return this.bibliometrics.getUserSourcesBreakdown();
+  }
+
   @Get('bibliometrics/faculty-comparison')
   async facultyComparison() {
     return this.bibliometrics.getFacultyComparison();

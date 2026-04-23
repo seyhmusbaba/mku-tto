@@ -106,6 +106,8 @@ export function BibliometricsPanel({
   const [selectedQuartile, setSelectedQuartile] = useState<string | null>(null);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  // Kullanıcı agregasyonu — institutional modda gösterilir
+  const [userSources, setUserSources] = useState<any>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -122,6 +124,13 @@ export function BibliometricsPanel({
       .then(r => setData(r.data))
       .catch(e => setError(e?.response?.data?.message || 'Bibliyometri verisi yüklenemedi'))
       .finally(() => setLoading(false));
+
+    // Institutional modda ek olarak kullanıcı-agrega verisini de çek
+    if (mode === 'institutional') {
+      api.get('/analytics/bibliometrics/user-sources')
+        .then(r => setUserSources(r.data))
+        .catch(() => setUserSources(null));
+    }
   }, [mode, userId, faculty]);
 
   if (loading) return <div className="card flex justify-center py-20"><div className="spinner" /></div>;
@@ -245,6 +254,11 @@ export function BibliometricsPanel({
           icon="open" color="#059669"
           desc="Açık erişim (OA) yayın oranı — okuyucunun ücret ödemeden erişebildiği makaleler." />
       </div>
+
+      {/* KULLANICI AGREGASYONU — kurumsal modda, kullanıcıların kendi sync ettikleri */}
+      {mode === 'institutional' && userSources && userSources.sources && (
+        <UserSourcesSection data={userSources} />
+      )}
 
       {/* SAMPLE UYARISI — kurumsal modda, örneklem bazlı metrikler öncesi */}
       {mode === 'institutional' && data.sampleNote && (
@@ -903,3 +917,143 @@ function KpiBig({ label, value, sub, icon, color, desc }: {
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────────────────
+// Kullanıcı-agrega kaynak-bazlı kurumsal görünüm
+// Araştırmacıların kendi sync ettiği per-source metrikleri toplanır
+// ─────────────────────────────────────────────────────────────
+function UserSourcesSection({ data }: { data: any }) {
+  const sources = data.sources || [];
+  // Veri olanları ön plana, olmayanları sona koy
+  const sorted = [...sources].sort((a: any, b: any) =>
+    (b.totalCitations + b.totalDocs * 10) - (a.totalCitations + a.totalDocs * 10)
+  );
+  const hasAnyData = sources.some((s: any) => s.totalDocs > 0 || s.totalCitations > 0);
+
+  return (
+    <div className="card p-6 space-y-5">
+      <div className="flex items-start justify-between flex-wrap gap-2">
+        <div>
+          <h3 className="font-display text-base font-semibold text-navy flex items-center gap-2">
+            <span className="w-1.5 h-5 rounded-full inline-block" style={{ background: '#c8a45a' }} />
+            Kayıtlı Araştırmacı Agregasyonu
+          </h3>
+          <p className="text-xs text-muted mt-1 max-w-2xl leading-relaxed">
+            Portalımıza kayıtlı <strong className="text-navy">{data.totalResearchers}</strong> araştırmacının
+            kendi sync ettiği metriklerinin toplamıdır. Yukarıdaki kurumsal toplam OpenAlex'in
+            kurum endpoint'inden araştırmacıdan bağımsız gelir; burası ise portaldaki
+            profillerin birleşimidir.
+          </p>
+        </div>
+      </div>
+
+      {!hasAnyData ? (
+        <div className="py-10 text-center text-sm text-muted italic border rounded-xl" style={{ borderColor: '#e8e4dc' }}>
+          Hiçbir araştırmacı henüz bibliyometrik sync yapmamış.
+          <br />
+          Araştırmacılar profillerinde "Otomatik Senkronize Et" butonuna basınca bu tablo dolmaya başlar.
+        </div>
+      ) : (
+        <>
+          {/* Kaynak bazlı kartlar */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {sorted.map((s: any) => (
+              <div key={s.key} className="border rounded-lg p-4 bg-white" style={{ borderColor: '#e8e4dc' }}>
+                <div className="flex items-center justify-between mb-3 pb-3 border-b" style={{ borderColor: '#f0ede8' }}>
+                  <p className="text-sm font-semibold text-navy">{s.name}</p>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                    style={{ background: s.coveragePercent >= 50 ? '#dcfce7' : s.coveragePercent >= 20 ? '#fef3c7' : '#fee2e2',
+                             color: s.coveragePercent >= 50 ? '#15803d' : s.coveragePercent >= 20 ? '#92400e' : '#b91c1c' }}>
+                    %{s.coveragePercent} kapsama
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted mb-0.5">Yayın</p>
+                    <p className="text-xl font-bold tabular-nums text-navy">
+                      {s.totalDocs > 0 ? s.totalDocs.toLocaleString('tr-TR') : '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted mb-0.5">Atıf</p>
+                    <p className="text-xl font-bold tabular-nums text-navy">
+                      {s.totalCitations > 0 ? s.totalCitations.toLocaleString('tr-TR') : '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted mb-0.5">Max h</p>
+                    <p className="text-xl font-bold tabular-nums text-navy">
+                      {s.maxHIndex > 0 ? s.maxHIndex : '—'}
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-[10px] text-muted leading-snug">
+                  {s.coverageCount} / {data.totalResearchers} araştırmacı
+                  {s.avgHIndex > 0 && <> · Ort. h-index: <strong>{s.avgHIndex}</strong></>}
+                </p>
+
+                {s.top5.length > 0 && (
+                  <details className="mt-3 pt-3 border-t" style={{ borderColor: '#f0ede8' }}>
+                    <summary className="text-[11px] font-semibold text-muted cursor-pointer hover:text-navy">
+                      Top 5 araştırmacı
+                    </summary>
+                    <div className="mt-2 space-y-1">
+                      {s.top5.map((u: any, idx: number) => (
+                        <div key={u.userId} className="flex items-center justify-between text-[11px]">
+                          <span className="truncate text-navy">
+                            <span className="font-mono text-muted mr-1.5">{idx + 1}.</span>
+                            {u.name}
+                          </span>
+                          <span className="tabular-nums text-muted flex-shrink-0 ml-2">
+                            <b className="text-navy">{u.citations}</b> atıf · h={u.hIndex}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Altta karşılaştırma bar */}
+          <div className="border rounded-lg p-4" style={{ borderColor: '#e8e4dc', background: '#faf8f4' }}>
+            <p className="text-xs font-semibold text-navy mb-3">Kaynaklar Arası Atıf Karşılaştırması</p>
+            <div className="space-y-1.5">
+              {sorted.filter((s: any) => s.totalCitations > 0).map((s: any) => {
+                const maxCit = Math.max(...sorted.map((x: any) => x.totalCitations));
+                const pct = maxCit > 0 ? (s.totalCitations / maxCit) * 100 : 0;
+                return (
+                  <div key={s.key} className="flex items-center gap-3">
+                    <div className="w-28 text-xs font-medium text-navy flex-shrink-0">{s.name}</div>
+                    <div className="flex-1 h-5 rounded-full overflow-hidden" style={{ background: '#f0ede8' }}>
+                      <div className="h-full rounded-full"
+                        style={{ width: `${pct}%`, background: SOURCE_COLORS[s.key] || '#0f2444' }} />
+                    </div>
+                    <div className="w-24 text-right text-xs font-semibold tabular-nums text-navy">
+                      {s.totalCitations.toLocaleString('tr-TR')}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-muted italic mt-3 leading-relaxed">
+              {data.note}
+            </p>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+const SOURCE_COLORS: Record<string, string> = {
+  openalex: '#ee3f3f',
+  scopus:   '#e9711c',
+  wos:      '#5e33bf',
+  scholar:  '#4285f4',
+  trdizin:  '#c8a45a',
+  sobiad:   '#0f2444',
+};
