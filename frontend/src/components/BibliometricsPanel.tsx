@@ -1030,7 +1030,7 @@ function UserSourcesSection({ data }: { data: any }) {
                     <div className="w-28 text-xs font-medium text-navy flex-shrink-0">{s.name}</div>
                     <div className="flex-1 h-5 rounded-full overflow-hidden" style={{ background: '#f0ede8' }}>
                       <div className="h-full rounded-full"
-                        style={{ width: `${pct}%`, background: SOURCE_COLORS[s.key] || '#0f2444' }} />
+                        style={{ width: `${pct}%`, background: USER_SOURCE_COLORS[s.key] || '#0f2444' }} />
                     </div>
                     <div className="w-24 text-right text-xs font-semibold tabular-nums text-navy">
                       {s.totalCitations.toLocaleString('tr-TR')}
@@ -1049,7 +1049,7 @@ function UserSourcesSection({ data }: { data: any }) {
   );
 }
 
-const SOURCE_COLORS: Record<string, string> = {
+const USER_SOURCE_COLORS: Record<string, string> = {
   openalex: '#ee3f3f',
   scopus:   '#e9711c',
   wos:      '#5e33bf',
