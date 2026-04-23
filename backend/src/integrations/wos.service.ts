@@ -127,7 +127,7 @@ export class WosService {
   /**
    * Yazarın yayın listesini çek (sayfalı).
    */
-  async getAuthorPublications(researcherId: string, limit = 50): Promise<WosPublication[]> {
+  async getAuthorPublications(researcherId: string, limit = 200): Promise<WosPublication[]> {
     if (!this.isConfigured()) return [];
     if (!researcherId) return [];
 
@@ -136,38 +136,53 @@ export class WosService {
     if (cached) return cached;
 
     try {
-      await this.limiter.acquire();
-      // Birden çok query formatını sırayla dene — 400 alırsan sonrakine geç
+      // Birden çok query formatını dene — ilk çalışanda dur
       const isOrcid = /^\d{4}-\d{4}-\d{4}-\d{3}[0-9Xx]$/.test(researcherId);
       const queryFormats = isOrcid
         ? [`AO=(${researcherId})`, `AO="${researcherId}"`, `AU_ORCID="${researcherId}"`]
         : [`AI=(${researcherId})`, `AI="${researcherId}"`, `AU_ID="${researcherId}"`];
 
-      let data: any = null;
-      let successQuery = '';
+      let workingQuery = '';
+      let firstPage: any = null;
       for (const q of queryFormats) {
-        const url = `${this.baseUrl}/documents?db=WOS&q=${encodeURIComponent(q)}&limit=${Math.min(limit, 50)}&page=1`;
+        await this.limiter.acquire();
+        const url = `${this.baseUrl}/documents?db=WOS&q=${encodeURIComponent(q)}&limit=50&page=1`;
         try {
           const attempt = await fetchJson(url, { headers: this.authHeaders(), timeoutMs: 25000 });
           if (attempt && (attempt.hits?.length > 0 || attempt.metadata?.total > 0)) {
-            data = attempt;
-            successQuery = q;
-            this.logger.log(`[WoS] ${researcherId}: "${q}" formatı çalıştı`);
+            firstPage = attempt;
+            workingQuery = q;
+            this.logger.log(`[WoS] ${researcherId}: "${q}" formatı çalıştı, total=${attempt?.metadata?.total}`);
             break;
           }
         } catch (e: any) {
-          // Bir sonraki formata geç
           this.logger.log(`[WoS] "${q}" denendi, sonuçsuz: ${e.message}`);
         }
       }
 
-      if (!data) {
+      if (!firstPage) {
         this.logger.warn(`[WoS] ${researcherId}: hiçbir query formatı çalışmadı`);
         return [];
       }
 
-      const hits = data?.hits || [];
-      const items: WosPublication[] = hits.map((h: any) => this.mapWosHit(h)).filter(Boolean);
+      // Sayfalama — 200 yayına kadar ek sayfalar çek (50 per sayfa, max 4 sayfa)
+      const allHits: any[] = [...(firstPage.hits || [])];
+      const total = firstPage?.metadata?.total || allHits.length;
+      const wantedPages = Math.min(Math.ceil(Math.min(limit, 200) / 50), 4);
+      for (let page = 2; page <= wantedPages && allHits.length < total; page++) {
+        await this.limiter.acquire();
+        const url = `${this.baseUrl}/documents?db=WOS&q=${encodeURIComponent(workingQuery)}&limit=50&page=${page}`;
+        try {
+          const pageData = await fetchJson(url, { headers: this.authHeaders(), timeoutMs: 25000 });
+          if (pageData?.hits?.length) {
+            allHits.push(...pageData.hits);
+          } else break;
+        } catch { break; }
+      }
+      this.logger.log(`[WoS] ${researcherId}: ${allHits.length}/${total} yayın çekildi (${wantedPages} sayfa)`);
+
+      const items: WosPublication[] = allHits.map((h: any) => this.mapWosHit(h)).filter(Boolean);
+      const hits = allHits;
 
       // Debug: ilk hit'in ham yapısı — atıf field'ı neyin altında geldi?
       if (hits[0]) {

@@ -47,22 +47,46 @@ export class ScopusService {
     if (cached) return cached;
 
     try {
-      // İstek 1: en çok atıf alan 25 yayın (h-index için)
+      // Author Retrieval API — h-index, citation-count, document-count direkt gelir
+      // (ücretsiz Scopus API'de çalışır: /content/author/author_id/{id})
+      const authorUrl = `${this.BASE}/content/author/author_id/${scopusAuthorId}?view=METRICS`;
+      const aRes = await fetch(authorUrl, { headers: this.headers(), signal: AbortSignal.timeout(20000) });
+
+      let hIndex = 0;
+      let citedByCount = 0;
+      let totalResults = 0;
+      let directMetrics = false;
+
+      if (aRes.ok) {
+        const aData = await aRes.json();
+        const retr = aData?.['author-retrieval-response']?.[0] || aData?.['author-retrieval-response'];
+        const coredata = retr?.['coredata'] || {};
+        const metrics = retr?.['h-index'] || coredata['h-index'];
+        if (metrics || coredata['citation-count']) {
+          hIndex = +(coredata['h-index'] || retr?.['h-index'] || 0);
+          citedByCount = +(coredata['citation-count'] || 0);
+          totalResults = +(coredata['document-count'] || 0);
+          directMetrics = true;
+        }
+      }
+
+      // Fallback: eski yöntem (arama endpoint'i) — Author Retrieval izin vermiyorsa
       const url = `${this.BASE}/content/search/scopus?query=AU-ID(${scopusAuthorId})&count=25&sort=-citedby-count&field=dc:title,prism:coverDate,citedby-count,dc:identifier`;
       const res = await fetch(url, { headers: this.headers(), signal: AbortSignal.timeout(20000) });
-      if (!res.ok) return null;
-      const data = await res.json();
+      if (!res.ok && !directMetrics) return null;
+      const data = res.ok ? await res.json() : { 'search-results': { entry: [] } };
 
       const entries: any[] = data?.['search-results']?.['entry'] || [];
-      const totalResults = +(data?.['search-results']?.['opensearch:totalResults'] || 0);
-      if (!entries.length) return null;
+      if (!directMetrics) {
+        totalResults = +(data?.['search-results']?.['opensearch:totalResults'] || 0);
+        if (!entries.length) return null;
 
-      const citedByCount = entries.reduce((s, e) => s + +(e['citedby-count'] || 0), 0);
-
-      const sortedCites = entries.map(e => +(e['citedby-count'] || 0)).sort((a, b) => b - a);
-      let hIndex = 0;
-      for (let i = 0; i < sortedCites.length; i++) {
-        if (sortedCites[i] >= i + 1) hIndex = i + 1; else break;
+        // Sadece arama endpoint'i varsa en çok atıf alan 25'ten hesapla
+        citedByCount = entries.reduce((s, e) => s + +(e['citedby-count'] || 0), 0);
+        const sortedCites = entries.map(e => +(e['citedby-count'] || 0)).sort((a, b) => b - a);
+        for (let i = 0; i < sortedCites.length; i++) {
+          if (sortedCites[i] >= i + 1) hIndex = i + 1; else break;
+        }
       }
 
       // İstek 2: konu alanları (opsiyonel)

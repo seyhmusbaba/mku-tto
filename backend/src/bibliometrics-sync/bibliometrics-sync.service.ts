@@ -210,13 +210,18 @@ export class BibliometricsSyncService {
     if (!user.scopusAuthorId) {
       throw new Error('Scopus Author ID tanımlı değil');
     }
+    // Cache bypass — önce sil, sonra çağır (her manuel sync'te taze veri)
+    this.scopus.clearCache(`author:${user.scopusAuthorId}`);
     const profile = await this.scopus.getAuthorProfile(user.scopusAuthorId);
-    if (!profile) throw new Error('Scopus\'ta yazar bulunamadı');
+    if (!profile) throw new Error('Scopus\'ta yazar bulunamadı — API key veya ID geçersiz');
+
+    const p: any = profile;
+    this.logger.log(`[Scopus] ${user.scopusAuthorId}: ${p.documentCount} yayın, ${p.citedByCount} atıf, h=${p.hIndex}`);
 
     return {
-      docs: (profile as any).docCount || 0,
-      citations: (profile as any).citedBy || 0,
-      hIndex: (profile as any).hIndex || 0,
+      docs: p.documentCount ?? p.docCount ?? 0,
+      citations: p.citedByCount ?? p.citedBy ?? 0,
+      hIndex: p.hIndex ?? 0,
     };
   }
 
