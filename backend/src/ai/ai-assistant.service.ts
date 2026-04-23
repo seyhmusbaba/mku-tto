@@ -13,7 +13,7 @@ export interface AssistantMessage {
 
 export interface AssistantRequest {
   messages: AssistantMessage[];
-  context?: 'general' | 'project' | 'competitions' | 'publications' | 'training';
+  context?: 'general' | 'project' | 'competitions' | 'publications';
   maxTokens?: number;
 }
 
@@ -47,6 +47,11 @@ export class AiAssistantService {
       throw new HttpException('Mesaj boş olamaz.', HttpStatus.BAD_REQUEST);
     }
 
+    // Model seçimi — env'den override edilebilir. Default: en ucuz Haiku.
+    // PORTA Asistan ucuz ve hızlı Haiku ile hallediliyor; kalite isterseniz
+    // AI_MODEL=claude-3-5-sonnet-latest gibi env ile değiştirebilirsiniz.
+    const model = process.env.AI_MODEL || 'claude-3-5-haiku-latest';
+
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -56,8 +61,8 @@ export class AiAssistantService {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: body.maxTokens || 1200,
+          model,
+          max_tokens: Math.min(body.maxTokens || 800, 1500),
           system: systemPrompt,
           messages,
         }),
@@ -66,14 +71,25 @@ export class AiAssistantService {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new HttpException(
-          'Anthropic API hatası: ' + ((err as any)?.error?.message || res.status),
-          HttpStatus.BAD_GATEWAY,
-        );
+        const anthropicMsg = (err as any)?.error?.message || '';
+        const errType = (err as any)?.error?.type || '';
+        let userMsg = 'Asistan servisi şu an yanıt veremiyor.';
+        if (/credit|balance|budget|quota|limit/i.test(anthropicMsg + errType)) {
+          userMsg = 'Anthropic API hesabında kredi/bütçe yetersiz. Lütfen Anthropic Console → Billing sayfasından bakiyeyi kontrol edin veya yeni bir API anahtarı oluşturun.';
+        } else if (/authentication|unauthorized|api_key|invalid/i.test(anthropicMsg + errType)) {
+          userMsg = 'ANTHROPIC_API_KEY geçersiz veya eksik. Railway → Backend → Variables bölümünden kontrol edin.';
+        } else if (/model|not_found|does_not_exist/i.test(anthropicMsg + errType)) {
+          userMsg = `Model "${model}" bulunamadı. AI_MODEL env'ini "claude-3-5-haiku-latest" olarak ayarlayın.`;
+        } else if (/rate|too many|overload/i.test(anthropicMsg + errType)) {
+          userMsg = 'İstek hızı aşıldı, lütfen birkaç saniye sonra tekrar deneyin.';
+        } else if (anthropicMsg) {
+          userMsg = 'Anthropic API: ' + anthropicMsg;
+        }
+        throw new HttpException(userMsg, HttpStatus.BAD_GATEWAY);
       }
       const data = await res.json();
       const text = data?.content?.find((b: any) => b.type === 'text')?.text || '';
-      return { text, context };
+      return { text, context, model };
     } catch (e: any) {
       if (e instanceof HttpException) throw e;
       throw new HttpException(e?.message || 'Bağlantı hatası', HttpStatus.BAD_GATEWAY);

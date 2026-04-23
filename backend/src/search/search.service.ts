@@ -7,10 +7,9 @@ import { ProjectDocument } from '../database/entities/project-document.entity';
 import { Competition } from '../database/entities/competition.entity';
 import { ProjectPartner } from '../database/entities/project-partner.entity';
 import { Publication } from '../database/entities/publication.entity';
-import { TrainingProgram } from '../database/entities/training.entities';
 
 export interface SearchFilters {
-  scope?: string;              // all|projects|users|documents|competitions|partners|publications|trainings
+  scope?: string;              // all|projects|users|documents|competitions|partners|publications
   type?: string;
   status?: string;
   faculty?: string;
@@ -26,7 +25,6 @@ export interface GlobalSearchResult {
   competitions: any[];
   partners: any[];
   publications: any[];
-  trainings: any[];
   totals: Record<string, number>;
 }
 
@@ -39,15 +37,14 @@ export class SearchService {
     @InjectRepository(Competition)     private compRepo: Repository<Competition>,
     @InjectRepository(ProjectPartner)  private partnerRepo: Repository<ProjectPartner>,
     @InjectRepository(Publication)     private pubRepo: Repository<Publication>,
-    @InjectRepository(TrainingProgram) private trainRepo: Repository<TrainingProgram>,
   ) {}
 
   async globalSearch(query: string, filters: SearchFilters = {}): Promise<GlobalSearchResult> {
     const q = (query || '').trim();
     const empty: GlobalSearchResult = {
       projects: [], users: [], documents: [], competitions: [],
-      partners: [], publications: [], trainings: [],
-      totals: { projects: 0, users: 0, documents: 0, competitions: 0, partners: 0, publications: 0, trainings: 0 },
+      partners: [], publications: [],
+      totals: { projects: 0, users: 0, documents: 0, competitions: 0, partners: 0, publications: 0 },
     };
     if (!q || q.length < 2) return empty;
 
@@ -88,12 +85,7 @@ export class SearchService {
       tasks.push(this.searchPublications(like, filters, limit));
     } else tasks.push(Promise.resolve({ items: [], total: 0 }));
 
-    // Trainings
-    if (want('trainings')) {
-      tasks.push(this.searchTrainings(like, filters, limit));
-    } else tasks.push(Promise.resolve({ items: [], total: 0 }));
-
-    const [projRes, userRes, docRes, compRes, partRes, pubRes, trainRes] = await Promise.all(tasks);
+    const [projRes, userRes, docRes, compRes, partRes, pubRes] = await Promise.all(tasks);
 
     return {
       projects: projRes.items,
@@ -102,7 +94,6 @@ export class SearchService {
       competitions: compRes.items,
       partners: partRes.items,
       publications: pubRes.items,
-      trainings: trainRes.items,
       totals: {
         projects: projRes.total,
         users: userRes.total,
@@ -110,7 +101,6 @@ export class SearchService {
         competitions: compRes.total,
         partners: partRes.total,
         publications: pubRes.total,
-        trainings: trainRes.total,
       },
     };
   }
@@ -243,28 +233,6 @@ export class SearchService {
         id: x.id, title: x.title, authors: x.authors, journal: x.journal,
         year: x.year, doi: x.doi, url: x.url, type: x.type,
         citations: x.citations, quartile: x.quartile, isFeatured: x.isFeatured,
-      })),
-      total,
-    };
-  }
-
-  // ── Trainings ──────────────────────────────────────────────
-  private async searchTrainings(like: string, f: SearchFilters, limit: number) {
-    const qb = this.trainRepo.createQueryBuilder('t')
-      .where('(t.title ILIKE :q OR t.description ILIKE :q OR t.instructor ILIKE :q OR t.category ILIKE :q)', { q: like })
-      .andWhere('t.isActive = true');
-    if (f.type) qb.andWhere('t.type = :t', { t: f.type });
-    if (f.status) qb.andWhere('t.status = :s', { s: f.status });
-
-    const [items, total] = await Promise.all([
-      qb.clone().orderBy('t.startDate', 'ASC').take(limit).getMany(),
-      qb.getCount(),
-    ]);
-    return {
-      items: items.map(t => ({
-        id: t.id, title: t.title, type: t.type, instructor: t.instructor,
-        startDate: t.startDate, endDate: t.endDate, category: t.category,
-        status: t.status, location: t.location,
       })),
       total,
     };

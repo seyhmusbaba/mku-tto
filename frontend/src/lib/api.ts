@@ -207,22 +207,6 @@ export const lifecycleApi = {
   deleteRisk:     (pid: string, id: string) => api.delete(`/projects/${pid}/lifecycle/risks/${id}`),
 };
 
-// ── Eğitim programları
-export const trainingApi = {
-  listPrograms:    (params?: any) => api.get('/training/programs', { params }),
-  getProgram:      (id: string)   => api.get(`/training/programs/${id}`),
-  createProgram:   (data: any)    => api.post('/training/programs', data),
-  updateProgram:   (id: string, data: any) => api.put(`/training/programs/${id}`, data),
-  deleteProgram:   (id: string)   => api.delete(`/training/programs/${id}`),
-  listRegs:        (id: string)   => api.get(`/training/programs/${id}/registrations`),
-  myRegs:          ()             => api.get('/training/my-registrations'),
-  register:        (id: string)   => api.post(`/training/programs/${id}/register`, {}),
-  unregister:      (id: string)   => api.delete(`/training/programs/${id}/register`),
-  attendance:      (regId: string, attended: boolean) => api.post(`/training/registrations/${regId}/attendance`, { attended }),
-  feedback:        (id: string, rating: number, feedback?: string) => api.post(`/training/programs/${id}/feedback`, { rating, feedback }),
-  certificate:     (regId: string) => api.post(`/training/registrations/${regId}/certificate`, {}),
-};
-
 // ── Asistan + Search
 export const assistantApi = {
   chat: (messages: Array<{ role: 'user' | 'assistant'; content: string }>, context?: string) =>

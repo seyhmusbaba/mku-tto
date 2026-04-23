@@ -13,7 +13,7 @@ export function PortaAssistant() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
-  const [context, setContext] = useState<'general' | 'project' | 'competitions' | 'publications' | 'training'>('general');
+  const [context, setContext] = useState<'general' | 'project' | 'competitions' | 'publications'>('general');
   const [sending, setSending] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
 
@@ -56,28 +56,28 @@ export function PortaAssistant() {
       <button
         onClick={() => setOpen(!open)}
         aria-label="PORTA Asistan"
-        className="fixed z-40 rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+        className="fixed z-40 rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 overflow-hidden"
         style={{
           bottom: 24,
           right: 24,
-          width: 60,
-          height: 60,
-          background: 'linear-gradient(135deg, #0f2444 0%, #1a3a6b 60%, #c8a45a 100%)',
+          width: 64,
+          height: 64,
+          background: '#ffffff',
           boxShadow: '0 10px 30px rgba(15, 36, 68, 0.35), 0 4px 12px rgba(200, 164, 90, 0.3)',
+          border: '2px solid rgba(200, 164, 90, 0.4)',
         }}
       >
         {open ? (
-          <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        ) : (
-          <div className="relative">
-            {/* Özel PORTA sparkle ikonu */}
-            <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+          <div className="w-full h-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f2444 0%, #1a3a6b 100%)' }}>
+            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
+          </div>
+        ) : (
+          <div className="relative w-full h-full">
+            <img src="/porta.png" alt="PORTA" className="w-full h-full object-cover" />
             {/* Aktif nokta */}
-            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-white" />
+            <span className="absolute bottom-1 right-1 w-3 h-3 rounded-full bg-green-400 border-2 border-white" />
           </div>
         )}
       </button>
@@ -111,12 +111,10 @@ export function PortaAssistant() {
             style={{ background: 'linear-gradient(135deg, #0f2444 0%, #1a3a6b 100%)' }}
           >
             <div
-              className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg, #c8a45a, #e8c97a)' }}
+              className="w-9 h-9 rounded-full flex-shrink-0 overflow-hidden bg-white"
+              style={{ border: '2px solid rgba(200, 164, 90, 0.6)' }}
             >
-              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-              </svg>
+              <img src="/porta.png" alt="PORTA" className="w-full h-full object-cover" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-white font-semibold text-sm leading-none">PORTA Asistan</p>
@@ -150,7 +148,6 @@ export function PortaAssistant() {
               <option value="project">Projeler</option>
               <option value="competitions">Yarışmalar</option>
               <option value="publications">Yayınlar</option>
-              <option value="training">Eğitim</option>
             </select>
           </div>
 
@@ -163,12 +160,10 @@ export function PortaAssistant() {
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center px-4">
                 <div
-                  className="w-14 h-14 rounded-full flex items-center justify-center mb-3"
-                  style={{ background: 'linear-gradient(135deg, #c8a45a22, #0f244422)' }}
+                  className="w-16 h-16 rounded-full overflow-hidden mb-3 bg-white"
+                  style={{ border: '3px solid rgba(200, 164, 90, 0.4)' }}
                 >
-                  <svg className="w-7 h-7 text-[#0f2444]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-                  </svg>
+                  <img src="/porta.png" alt="PORTA" className="w-full h-full object-cover" />
                 </div>
                 <p className="text-sm font-semibold text-navy">Merhaba, ben PORTA</p>
                 <p className="text-xs text-muted mt-1">Portaldaki gerçek veriyle sorularınızı yanıtlarım.</p>
