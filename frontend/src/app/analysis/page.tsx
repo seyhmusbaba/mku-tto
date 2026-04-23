@@ -8,6 +8,7 @@ import { ProjectTypeItem, FacultyItem } from '@/types';
 import { formatCurrency, getProjectTypeLabel, getProjectTypeColor } from '@/lib/utils';
 import { GanttChart } from '@/components/GanttChart';
 import { BibliometricsPanel } from '@/components/BibliometricsPanel';
+import { showBibliometrics, subscribeSettings, loadSettings } from '@/lib/settings-store';
 import { InstitutionalPanel } from '@/components/InstitutionalPanel';
 import { useAuth } from '@/lib/auth-context';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
@@ -73,6 +74,12 @@ export default function AnalysisPage() {
   const [filterType, setFilterType] = useState('');
   const [exporting, setExporting] = useState(false);
   const [periodModalOpen, setPeriodModalOpen] = useState(false);
+  const [biblioEnabled, setBiblioEnabled] = useState<boolean>(showBibliometrics());
+
+  useEffect(() => {
+    loadSettings().then(() => setBiblioEnabled(showBibliometrics()));
+    return subscribeSettings(() => setBiblioEnabled(showBibliometrics()));
+  }, []);
 
   useEffect(() => {
     Promise.all([
@@ -110,13 +117,14 @@ export default function AnalysisPage() {
   const TABS: { key: Tab; label: string }[] = [
     { key: 'overview',      label: 'Genel Bakış'          },
     { key: 'institutional', label: 'Kurumsal Karşılaştırma' },
-    { key: 'bibliometrics', label: 'Bibliyometri'         },
+    // Bibliyometri + Scopus sekmeleri ancak admin açıksa görünür
+    ...(biblioEnabled ? [{ key: 'bibliometrics' as Tab, label: 'Bibliyometri' }] : []),
     { key: 'faculty',       label: 'Fakülteler'           },
     { key: 'researcher',    label: 'Araştırmacılar'       },
     { key: 'funding',       label: 'Fon Analizi'          },
     { key: 'timeline',      label: 'Zaman Serisi'         },
     { key: 'gantt',         label: 'Gantt'                },
-    { key: 'scopus',        label: 'Scopus Analitik'      },
+    ...(biblioEnabled ? [{ key: 'scopus' as Tab, label: 'Scopus Analitik' }] : []),
   ];
 
   const years = Array.from({length: 6}, (_, i) => String(new Date().getFullYear() - i));
@@ -448,8 +456,8 @@ export default function AnalysisPage() {
             {/* ── KURUMSAL KARŞILAŞTIRMA ── */}
             {tab === 'institutional' && <InstitutionalPanel highlightFaculty={user?.faculty} />}
 
-            {/* ── BİBLİYOMETRİ ── */}
-            {tab === 'bibliometrics' && (
+            {/* ── BİBLİYOMETRİ ── (admin panelden kapatılabilir) */}
+            {tab === 'bibliometrics' && biblioEnabled && (
               <div className="space-y-4">
                 <div className="card p-4 flex flex-wrap items-center gap-3">
                   <span className="text-sm font-semibold text-navy">Kapsam:</span>
@@ -517,7 +525,7 @@ export default function AnalysisPage() {
               </div>
             )}
 
-            {tab === 'scopus' && <ScopusAnalyticsTab />}
+            {tab === 'scopus' && biblioEnabled && <ScopusAnalyticsTab />}
           </>
         )}
       </div>

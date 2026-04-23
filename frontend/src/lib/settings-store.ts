@@ -42,6 +42,16 @@ export function getSettings(): AppSettings {
   return _cache;
 }
 
+/**
+ * Bibliyometrik görünümler (h-index, yayın sayısı, atıf grafikleri) kapalı mı?
+ * Admin panelden kapatılabilir. Default: açık.
+ */
+export function showBibliometrics(): boolean {
+  const v = _cache.show_bibliometrics;
+  if (v === undefined || v === null || v === '') return true;
+  return String(v).toLowerCase() !== 'false';
+}
+
 export function subscribeSettings(fn: (s: AppSettings) => void): () => void {
   _listeners.push(fn);
   return () => {

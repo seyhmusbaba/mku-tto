@@ -222,6 +222,7 @@ export class BootstrapService implements OnApplicationBootstrap {
     const required = [
       { key: 'institution_name', value: 'Hatay Mustafa Kemal Üniversitesi', label: 'Kurum Adı (Raporlar için)', type: 'text' },
       { key: 'rector_name',      value: 'Prof. Dr. Veysel EREN',            label: 'Rektör Adı',                 type: 'text' },
+      { key: 'show_bibliometrics', value: 'true',                           label: 'Bibliyometrik Görünümler Aktif',  type: 'boolean' },
     ];
     for (const r of required) {
       const ex = await this.settingRepo.findOne({ where: { key: r.key } });

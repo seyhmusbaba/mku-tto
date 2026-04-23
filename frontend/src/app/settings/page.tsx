@@ -225,6 +225,27 @@ export default function SettingsPage() {
                 </div>
               ))}
             </div>
+
+            {/* Özellik kontrolleri — sistem genel davranışı */}
+            <div className="card space-y-4">
+              <h3 className="font-display text-base font-semibold text-navy pb-4 border-b" style={{borderColor:'#e8e4dc'}}>Sistem Özellikleri</h3>
+              <label className="flex items-start gap-3 p-3 rounded-lg cursor-pointer hover:bg-[#faf8f4]" style={{ border: '1px solid #e8e4dc' }}>
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 mt-0.5 flex-shrink-0"
+                  checked={String(settings.show_bibliometrics ?? 'true').toLowerCase() !== 'false'}
+                  onChange={e => setSettings(s => ({ ...s, show_bibliometrics: e.target.checked ? 'true' : 'false' }))}
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-navy">Bibliyometrik Görünümler Aktif</p>
+                  <p className="text-xs text-muted mt-1 leading-relaxed">
+                    Profil sayfalarındaki OpenAlex/Scopus/WoS/Scholar/TR Dizin metrik kartları, "Otomatik Senkronize Et" butonu,
+                    Kurumsal Analiz bibliyometri sekmesi ve vitrin portalındaki akademik göstergeler tüm sistemde gösterilir/gizlenir.
+                  </p>
+                </div>
+              </label>
+            </div>
+
             <button onClick={handleSave} disabled={saving} className="btn-primary px-8 py-3 inline-flex items-center gap-1.5">
               {saving ? <><span className="spinner w-4 h-4" />Kaydediliyor...</> : <><SIcon name="save" className="w-4 h-4" />Değişiklikleri Kaydet</>}
             </button>

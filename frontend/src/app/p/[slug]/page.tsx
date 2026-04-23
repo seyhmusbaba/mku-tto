@@ -6,6 +6,7 @@ import { PublicLayout } from '@/components/layout/PublicLayout';
 import { publicApi } from '@/lib/api';
 import { getInitials } from '@/lib/utils';
 import { SourceLogo } from '@/components/AvesisMetricsGrid';
+import { showBibliometrics, loadSettings, subscribeSettings } from '@/lib/settings-store';
 
 interface Profile {
   id: string; slug: string;
@@ -68,6 +69,12 @@ export default function ProfilePage() {
   const [tab, setTab] = useState<Tab>('about');
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [biblioEnabled, setBiblioEnabled] = useState<boolean>(showBibliometrics());
+
+  useEffect(() => {
+    loadSettings().then(() => setBiblioEnabled(showBibliometrics()));
+    return subscribeSettings(() => setBiblioEnabled(showBibliometrics()));
+  }, []);
 
   useEffect(() => {
     if (!slug) return;
@@ -207,7 +214,8 @@ export default function ProfilePage() {
         </div>
       </section>
 
-      {/* ═════ Metrikler — AVESİS tarzı kaynak-bazlı ═════ */}
+      {/* ═════ Metrikler — AVESİS tarzı kaynak-bazlı (admin kapatabilir) ═════ */}
+      {biblioEnabled && (
       <section className="border-b" style={{ borderColor: 'rgba(15, 36, 68, 0.12)', background: '#ffffff' }}>
         <div className="max-w-[1280px] mx-auto px-6 py-10">
           <p className="text-[11px] tracking-[0.25em] uppercase font-bold mb-5" style={{ color: '#8a7a52' }}>
@@ -252,6 +260,7 @@ export default function ProfilePage() {
           )}
         </div>
       </section>
+      )}
 
       {/* ═════ Tabs ═════ */}
       <section className="max-w-[1280px] mx-auto px-6 sticky top-[109px] z-10 backdrop-blur" style={{ background: 'rgba(246, 243, 236, 0.95)' }}>

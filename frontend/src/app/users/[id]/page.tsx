@@ -10,6 +10,7 @@ import { User, Project } from '@/types';
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_COLORS, getProjectTypeLabel, formatDate, formatCurrency, getInitials, ROLE_COLORS, MEMBER_ROLE_LABELS } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import { AvesisMetricsGrid } from '@/components/AvesisMetricsGrid';
+import { showBibliometrics, subscribeSettings, getSettings, loadSettings } from '@/lib/settings-store';
 
 const TITLES = ['Prof. Dr.', 'Doç. Dr.', 'Dr. Öğr. Üyesi', 'Arş. Gör. Dr.', 'Arş. Gör.', 'Öğr. Gör.', 'Dr.'];
 
@@ -61,6 +62,13 @@ export default function UserProfilePage() {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncErrors, setSyncErrors] = useState<Record<string, string>>({});
+  const [biblioEnabled, setBiblioEnabled] = useState<boolean>(showBibliometrics());
+
+  // Bibliyometrik görünümler toggle'ı dinle — admin değiştirince anında yansı
+  useEffect(() => {
+    loadSettings().then(() => setBiblioEnabled(showBibliometrics()));
+    return subscribeSettings(() => setBiblioEnabled(showBibliometrics()));
+  }, []);
 
   // Otomatik bibliyometrik senkronizasyon — OpenAlex + Scopus + TR Dizin + WoS
   const handleSync = async () => {
@@ -373,6 +381,7 @@ export default function UserProfilePage() {
             </div>
 
             {/* Bibliyometrik metrikler — opsiyonel manuel override */}
+            {biblioEnabled && (
             <div className="card p-5 space-y-3 md:col-span-2">
               <SectionTitle icon="beaker">Bibliyometrik Metrikler</SectionTitle>
               <div className="rounded-lg border p-3 flex items-start gap-2.5" style={{ borderColor: '#dbeafe', background: '#eff6ff' }}>
@@ -537,6 +546,7 @@ export default function UserProfilePage() {
                 </div>
               </div>
             </div>
+            )}
 
             {/* Sağ: Biyografi + Kaydet */}
             <div className="card p-5 space-y-4">
@@ -746,6 +756,7 @@ export default function UserProfilePage() {
               {/* SAĞ KOL — 2 sütun */}
               <div className="xl:col-span-2 space-y-6">
                 {/* AVESİS tarzı kaynak-bazlı bibliyometrik metrikler */}
+                {biblioEnabled && (
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-display text-base font-semibold text-navy flex items-center gap-2">
@@ -860,6 +871,7 @@ export default function UserProfilePage() {
                     thesisAdvising={(user as any).thesisAdvisorCount}
                   />
                 </div>
+                )}
 
                 {/* Yürütücü Projeleri */}
                 {projects.owned.length > 0 && (
