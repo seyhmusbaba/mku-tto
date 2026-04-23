@@ -12,6 +12,7 @@ import { CordisService } from './cordis.service';
 import { LiteratureService } from './literature.service';
 import { PublicationsService } from './publications.service';
 import { TrDizinService } from './trdizin.service';
+import { GoogleScholarService } from './google-scholar.service';
 
 /**
  * Entegrasyonlar modülü — akademik veri kaynaklarıyla köprü.
@@ -34,12 +35,12 @@ import { TrDizinService } from './trdizin.service';
   providers: [
     CrossrefService, ScimagoService, OpenAccessService, WosService, PatentService,
     OpenAlexService, DergiparkService, CordisService, LiteratureService,
-    PublicationsService, TrDizinService,
+    PublicationsService, TrDizinService, GoogleScholarService,
   ],
   exports: [
     CrossrefService, ScimagoService, OpenAccessService, WosService, PatentService,
     OpenAlexService, DergiparkService, CordisService, LiteratureService,
-    PublicationsService, TrDizinService,
+    PublicationsService, TrDizinService, GoogleScholarService,
   ],
 })
 export class IntegrationsModule {}

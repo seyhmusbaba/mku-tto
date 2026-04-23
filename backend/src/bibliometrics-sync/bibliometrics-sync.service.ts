@@ -7,12 +7,13 @@ import { OpenAlexService } from '../integrations/openalex.service';
 import { ScopusService } from '../scopus/scopus.service';
 import { TrDizinService } from '../integrations/trdizin.service';
 import { WosService } from '../integrations/wos.service';
+import { GoogleScholarService } from '../integrations/google-scholar.service';
 
 export interface SyncResult {
   userId: string;
   sources: {
     openalex?: { docs: number; citations: number; hIndex: number; synced: boolean; error?: string };
-    googleScholar?: { docs: number; citations: number; hIndex: number; synced: boolean; note?: string };
+    googleScholar?: { docs: number; citations: number; hIndex: number; synced: boolean; note?: string; error?: string };
     scopus?: { docs: number; citations: number; hIndex: number; synced: boolean; error?: string };
     wos?: { docs: number; citations: number; hIndex: number; synced: boolean; error?: string; note?: string };
     trDizin?: { docs: number; citations: number; hIndex: number; synced: boolean; error?: string };
@@ -44,6 +45,7 @@ export class BibliometricsSyncService {
     private scopus: ScopusService,
     private trDizin: TrDizinService,
     private wos: WosService,
+    private scholar: GoogleScholarService,
   ) {}
 
   /**
@@ -61,11 +63,12 @@ export class BibliometricsSyncService {
     };
 
     // ── Paralel başlat ─────────────────────────────────────────
-    const [oaResult, scopusResult, trResult, wosResult] = await Promise.all([
+    const [oaResult, scopusResult, trResult, wosResult, scholarResult] = await Promise.all([
       this.syncOpenAlex(user).catch(e => ({ error: e.message })),
       this.syncScopus(user).catch(e => ({ error: e.message })),
       this.syncTrDizin(user).catch(e => ({ error: e.message })),
       this.syncWos(user).catch(e => ({ error: e.message })),
+      this.syncScholar(user).catch(e => ({ error: e.message })),
     ]);
 
     // ── OpenAlex (ORCID) ─────────────────────────────────────
@@ -98,6 +101,19 @@ export class BibliometricsSyncService {
       (user as any).trDizinHIndex = trResult.hIndex;
     } else {
       result.sources.trDizin = { docs: 0, citations: 0, hIndex: 0, synced: false, error: (trResult as any).error };
+    }
+
+    // ── Google Scholar (scraping) ─────────────────────────
+    if ('docs' in scholarResult) {
+      result.sources.googleScholar = { ...scholarResult, synced: true };
+      (user as any).googleScholarDocCount = scholarResult.docs;
+      (user as any).googleScholarCitedBy = scholarResult.citations;
+      (user as any).googleScholarHIndex = scholarResult.hIndex;
+    } else {
+      result.sources.googleScholar = {
+        docs: 0, citations: 0, hIndex: 0, synced: false,
+        note: (scholarResult as any).error || 'Scholar verisi alınamadı',
+      };
     }
 
     // ── Web of Science ─────────────────────────────────────
@@ -229,6 +245,24 @@ export class BibliometricsSyncService {
       docs: profile.documentCount || 0,
       citations: profile.citedByCount || 0,
       hIndex: profile.hIndex || 0,
+    };
+  }
+
+  // ═════════ Google Scholar (scraping) ═════════
+  private async syncScholar(user: User): Promise<{ docs: number; citations: number; hIndex: number }> {
+    if (!user.googleScholarId) {
+      throw new Error('Google Scholar ID tanımlı değil');
+    }
+
+    const metrics = await this.scholar.getAuthorMetrics(user.googleScholarId);
+    if (!metrics) {
+      throw new Error('Scholar verisine ulaşılamadı (CAPTCHA, rate limit veya geçersiz ID)');
+    }
+
+    return {
+      docs: metrics.docCount,
+      citations: metrics.citations,
+      hIndex: metrics.hIndex,
     };
   }
 

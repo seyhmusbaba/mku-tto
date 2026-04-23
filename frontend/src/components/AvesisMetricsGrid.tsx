@@ -131,13 +131,18 @@ const SOURCE_CONFIG: Record<SourceKey, { domain: string; fallbackBg: string }> =
 };
 
 export function SourceLogo({ source, size = 40 }: { source: SourceKey; size?: number }) {
-  const [imgError, setImgError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const config = SOURCE_CONFIG[source];
-  // Google's favicon service — 128px boyutunda döner, yüksek kalite
-  const faviconUrl = `https://www.google.com/s2/favicons?domain=${config.domain}&sz=128`;
 
-  if (imgError) {
-    // Favicon yüklenemediyse SVG fallback (renkli arka planla)
+  // 3 denemeli strateji: DuckDuckGo → Google → SVG fallback
+  // DuckDuckGo genelde daha yüksek kaliteli favicon verir
+  const urls = [
+    `https://icons.duckduckgo.com/ip3/${config.domain}.ico`,
+    `https://www.google.com/s2/favicons?domain=${config.domain}&sz=128`,
+  ];
+
+  if (attempt >= urls.length) {
+    // Tüm favicon denemeleri başarısız → kendi brand SVG'miz
     return (
       <div
         className="flex items-center justify-center flex-shrink-0 rounded"
@@ -154,11 +159,11 @@ export function SourceLogo({ source, size = 40 }: { source: SourceKey; size?: nu
       style={{ width: size, height: size, borderColor: '#e8e4dc' }}
     >
       <img
-        src={faviconUrl}
+        src={urls[attempt]}
         alt=""
         width={size - 12}
         height={size - 12}
-        onError={() => setImgError(true)}
+        onError={() => setAttempt(a => a + 1)}
         className="object-contain"
         style={{ imageRendering: 'crisp-edges' }}
       />
@@ -183,18 +188,17 @@ function FallbackSvg({ source }: { source: SourceKey }) {
         </svg>
       );
     case 'scopus':
+      // Scopus — turuncu kutu içinde büyük S (Elsevier brand style)
       return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <path d="M17 7.5c-1.5-1.5-3.5-2-5.5-2-3 0-5 1.5-5 3.5 0 2 2 3 4.5 3.5l1 .2c2.5.5 4.5 1.5 4.5 4 0 2.3-2 4-5.5 4-2.5 0-4.5-.8-6-2.5"
-            stroke={c} strokeWidth="2" strokeLinecap="round" fill="none" />
+        <svg width={24} height={24} viewBox="0 0 24 24">
+          <text x="12" y="18" textAnchor="middle" fill={c} fontSize="18" fontWeight="900" fontFamily="Arial Black, sans-serif" fontStyle="italic">S</text>
         </svg>
       );
     case 'wos':
+      // Web of Science — mor arka planda "Wos" yazısı (Clarivate brand)
       return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="9" stroke={c} strokeWidth="2" />
-          <ellipse cx="12" cy="12" rx="4" ry="9" stroke={c} strokeWidth="1.5" />
-          <line x1="3" y1="12" x2="21" y2="12" stroke={c} strokeWidth="1.5" />
+        <svg width={36} height={24} viewBox="0 0 36 24">
+          <text x="18" y="17" textAnchor="middle" fill={c} fontSize="11" fontWeight="800" fontFamily="Arial, sans-serif" letterSpacing="-0.5">WoS</text>
         </svg>
       );
     case 'scholar':
