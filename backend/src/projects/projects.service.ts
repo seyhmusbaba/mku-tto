@@ -55,7 +55,7 @@ export class ProjectsService {
   }
 
   async findAll(query: any, currentUser: any) {
-    const { search, type, faculty, department, status, sdg, budgetMin, budgetMax, dateFrom, dateTo, page = 1, limit = 20, sortBy = 'createdAt', sortDir = 'DESC' } = query || {};
+    const { search, type, faculty, department, status, sdg, budgetMin, budgetMax, dateFrom, dateTo, ownership, page = 1, limit = 20, sortBy = 'createdAt', sortDir = 'DESC' } = query || {};
     const qb = this.projectRepo.createQueryBuilder('project')
       .leftJoinAndSelect('project.owner', 'owner')
       .leftJoinAndSelect('owner.role', 'ownerRole')
@@ -89,6 +89,16 @@ export class ProjectsService {
         qb.andWhere('project.status = :status', { status });
       }
     }
+    // ownership filtresi — "benim sahibim olduğum" / "üyesi olduğum" kısıtlaması
+    // (Rol bazlı otomatik kısıtlamanın üstüne eklenir, daraltır)
+    if (ownership === 'owned') {
+      qb.andWhere('project.ownerId = :ownUid', { ownUid: currentUser.userId });
+    } else if (ownership === 'member') {
+      qb.andWhere('members.userId = :memUid AND project.ownerId != :memUid', { memUid: currentUser.userId });
+    } else if (ownership === 'participating') {
+      qb.andWhere('(project.ownerId = :partUid OR members.userId = :partUid)', { partUid: currentUser.userId });
+    }
+
     if (budgetMin) qb.andWhere('project.budget >= :bmin', { bmin: +budgetMin });
     if (budgetMax) qb.andWhere('project.budget <= :bmax', { bmax: +budgetMax });
     if (dateFrom) qb.andWhere('project.startDate >= :df', { df: dateFrom });
@@ -353,15 +363,30 @@ export class ProjectsService {
     }
   }
 
-  async remove(id: string) {
-    const project = await this.findOne(id);
-    // FIX #14: Audit log kayitlarini temizle (orphan onlemek icin)
+  async remove(id: string, currentUser?: any) {
+    const project = await this.projectRepo.findOne({ where: { id } });
+    if (!project) throw new NotFoundException('Proje bulunamadi');
+
+    // Yetki: Süper Admin veya projenin sahibi
+    if (currentUser) {
+      const user = await this.userRepo.findOne({ where: { id: currentUser.userId }, relations: ['role'] });
+      const isAdmin = user?.role?.name === 'Süper Admin';
+      if (!isAdmin && project.ownerId !== currentUser.userId) {
+        throw new ForbiddenException('Bu projeyi silme yetkiniz yok — sadece proje sahibi veya Süper Admin silebilir');
+      }
+    }
+
+    // Audit log kayıtlarını temizle (orphan önlemek için)
     await this.auditService.deleteByEntity('project', id).catch(e => this.logSwallowed('audit:deleteByEntity', e));
     await this.projectRepo.remove(project);
     return { deleted: true, id };
   }
 
   async addMember(projectId: string, dto: { userId: string; role?: string; canUpload?: boolean }, addedBy?: any) {
+    // Yetki: Süper Admin veya projenin sahibi üye ekleyebilir
+    if (addedBy?.userId) {
+      await this.assertProjectOwnerOrAdmin(projectId, addedBy);
+    }
     // Race condition önleme: tek transaction içinde find + upsert
     const saved = await this.memberRepo.manager.transaction(async manager => {
       const repo = manager.getRepository(ProjectMember);
@@ -404,7 +429,10 @@ export class ProjectsService {
     return saved;
   }
 
-  async updateMember(projectId: string, userId: string, dto: { role?: string; canUpload?: boolean }) {
+  async updateMember(projectId: string, userId: string, dto: { role?: string; canUpload?: boolean }, currentUser?: any) {
+    if (currentUser?.userId) {
+      await this.assertProjectOwnerOrAdmin(projectId, currentUser);
+    }
     const member = await this.memberRepo.findOne({ where: { projectId, userId } });
     if (!member) throw new NotFoundException('Uye bulunamadi');
     if (dto.role !== undefined) member.role = dto.role;
@@ -412,10 +440,27 @@ export class ProjectsService {
     return this.memberRepo.save(member);
   }
 
-  async removeMember(projectId: string, userId: string) {
+  async removeMember(projectId: string, userId: string, currentUser?: any) {
+    if (currentUser?.userId) {
+      await this.assertProjectOwnerOrAdmin(projectId, currentUser);
+    }
     const member = await this.memberRepo.findOne({ where: { projectId, userId } });
     if (!member) throw new NotFoundException('Uye bulunamadi');
     return this.memberRepo.remove(member);
+  }
+
+  /**
+   * Yetki kontrolü — yalnızca proje sahibi veya Süper Admin proje üzerinde
+   * yönetim işlemi (üye ekle/sil, sil) yapabilir.
+   */
+  private async assertProjectOwnerOrAdmin(projectId: string, currentUser: any): Promise<void> {
+    const project = await this.projectRepo.findOne({ where: { id: projectId } });
+    if (!project) throw new NotFoundException('Proje bulunamadi');
+    const user = await this.userRepo.findOne({ where: { id: currentUser.userId }, relations: ['role'] });
+    const isAdmin = user?.role?.name === 'Süper Admin';
+    if (!isAdmin && project.ownerId !== currentUser.userId) {
+      throw new ForbiddenException('Bu işlem için proje sahibi veya Süper Admin olmalısınız');
+    }
   }
 
   async findSimilarByTitle(title: string, description?: string, excludeId?: string) {

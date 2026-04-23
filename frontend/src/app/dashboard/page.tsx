@@ -275,8 +275,8 @@ function PersonalDashboard({ stats, user, auditLogs }: { stats: any; user: any; 
 
       {/* KPI */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-5">
-        <KpiCard label="Yürütücü Olduğum" value={stats.ownedCount || 0} icon="briefcase" color="#1a3a6b" href="/projects?tab=owned" />
-        <KpiCard label="Üye Olduğum"       value={stats.memberCount || 0} icon="users"     color="#7c3aed" href="/projects?tab=member" />
+        <KpiCard label="Yürütücü Olduğum" value={stats.ownedCount || 0} icon="briefcase" color="#1a3a6b" href="/projects?ownership=owned" />
+        <KpiCard label="Üye Olduğum"       value={stats.memberCount || 0} icon="users"     color="#7c3aed" href="/projects?ownership=member" />
         <KpiCard label="Aktif"             value={stats.activeProjects || 0} icon="bolt" color="#059669"
           sub={total ? `%${Math.round(((stats.activeProjects||0)/total)*100)} oran` : undefined} />
         <KpiCard label="Toplam Bütçe" value={formatCurrency(stats.budget?.total)} icon="dollar" color="#c8a45a"

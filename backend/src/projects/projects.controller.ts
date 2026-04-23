@@ -43,8 +43,8 @@ export class ProjectsController {
   @Roles(...CAN_CREATE)
   @Post() create(@Body() dto: any, @Request() req: any) { return this.projectsService.create(dto, req.user.userId); }
   @Put(':id') update(@Param('id') id: string, @Body() dto: any, @Request() req: any) { return this.projectsService.update(id, dto, req.user); }
-  @Delete(':id') remove(@Param('id') id: string) { return this.projectsService.remove(id); }
-  @Post(':id/members') addMember(@Param('id') id: string, @Body() dto: any) { return this.projectsService.addMember(id, dto); }
-  @Put(':id/members/:userId') updateMember(@Param('id') id: string, @Param('userId') userId: string, @Body() dto: any) { return this.projectsService.updateMember(id, userId, dto); }
-  @Delete(':id/members/:userId') removeMember(@Param('id') id: string, @Param('userId') userId: string) { return this.projectsService.removeMember(id, userId); }
+  @Delete(':id') remove(@Param('id') id: string, @Request() req: any) { return this.projectsService.remove(id, req.user); }
+  @Post(':id/members') addMember(@Param('id') id: string, @Body() dto: any, @Request() req: any) { return this.projectsService.addMember(id, dto, req.user); }
+  @Put(':id/members/:userId') updateMember(@Param('id') id: string, @Param('userId') userId: string, @Body() dto: any, @Request() req: any) { return this.projectsService.updateMember(id, userId, dto, req.user); }
+  @Delete(':id/members/:userId') removeMember(@Param('id') id: string, @Param('userId') userId: string, @Request() req: any) { return this.projectsService.removeMember(id, userId, req.user); }
 }

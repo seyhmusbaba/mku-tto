@@ -96,6 +96,7 @@ function ProjectsPageInner() {
   const [type, setType]             = useState(() => searchParams.get('type') || '');
   const [faculty, setFaculty]       = useState(() => searchParams.get('faculty') || '');
   const [sdg, setSdg]               = useState(() => searchParams.get('sdg') || '');
+  const [ownership, setOwnership]   = useState(() => searchParams.get('ownership') || '');
   const [budgetMin, setBudgetMin]   = useState(() => searchParams.get('budgetMin') || '');
   const [budgetMax, setBudgetMax]   = useState(() => searchParams.get('budgetMax') || '');
   const [dateFrom, setDateFrom]     = useState(() => searchParams.get('dateFrom') || '');
@@ -115,7 +116,7 @@ function ProjectsPageInner() {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
 
-  const hasFilter = !!(search || status || type || faculty || sdg || budgetMin || budgetMax || dateFrom || dateTo);
+  const hasFilter = !!(search || status || type || faculty || sdg || ownership || budgetMin || budgetMax || dateFrom || dateTo);
 
   // Meta verileri (type, faculty listesi)
   useEffect(() => {
@@ -133,6 +134,7 @@ function ProjectsPageInner() {
     if (type) params.set('type', type);
     if (faculty) params.set('faculty', faculty);
     if (sdg) params.set('sdg', sdg);
+    if (ownership) params.set('ownership', ownership);
     if (budgetMin) params.set('budgetMin', budgetMin);
     if (budgetMax) params.set('budgetMax', budgetMax);
     if (dateFrom) params.set('dateFrom', dateFrom);
@@ -143,7 +145,7 @@ function ProjectsPageInner() {
     if (sortDir !== 'DESC') params.set('sortDir', sortDir);
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  }, [searchDebounced, status, type, faculty, sdg, budgetMin, budgetMax, dateFrom, dateTo, page, view, sortKey, sortDir, pathname, router]);
+  }, [searchDebounced, status, type, faculty, sdg, ownership, budgetMin, budgetMax, dateFrom, dateTo, page, view, sortKey, sortDir, pathname, router]);
 
   // Veriyi çek
   useEffect(() => {
@@ -153,6 +155,7 @@ function ProjectsPageInner() {
       search: searchDebounced, status, type, faculty, sdg,
       page, limit: 15, sortBy: sortKey, sortDir,
     };
+    if (ownership) params.ownership = ownership;
     if (budgetMin) params.budgetMin = budgetMin;
     if (budgetMax) params.budgetMax = budgetMax;
     if (dateFrom) params.dateFrom = dateFrom;
@@ -161,10 +164,10 @@ function ProjectsPageInner() {
       .then(r => setResult(r.data))
       .catch(e => setError(e?.response?.data?.message || 'Projeler yüklenemedi'))
       .finally(() => setLoading(false));
-  }, [searchDebounced, status, type, faculty, sdg, budgetMin, budgetMax, dateFrom, dateTo, page, sortKey, sortDir]);
+  }, [searchDebounced, status, type, faculty, sdg, ownership, budgetMin, budgetMax, dateFrom, dateTo, page, sortKey, sortDir]);
 
   const clearAll = () => {
-    setSearch(''); setStatus(''); setType(''); setFaculty(''); setSdg('');
+    setSearch(''); setStatus(''); setType(''); setFaculty(''); setSdg(''); setOwnership('');
     setBudgetMin(''); setBudgetMax(''); setDateFrom(''); setDateTo('');
     setPage(1);
   };
@@ -334,6 +337,15 @@ function ProjectsPageInner() {
           {showAdvanced && (
             <div className="pt-4 border-t grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3" style={{ borderColor: '#e8e4dc' }}>
               <div>
+                <label className="label text-xs">Katılım</label>
+                <select className="input text-xs" value={ownership} onChange={e => { setOwnership(e.target.value); setPage(1); }}>
+                  <option value="">Tümü</option>
+                  <option value="owned">Yürütücüsü olduğum</option>
+                  <option value="member">Sadece üyesi olduğum</option>
+                  <option value="participating">Katıldığım (yürütücü veya üye)</option>
+                </select>
+              </div>
+              <div>
                 <label className="label text-xs">Fakülte</label>
                 <select className="input text-xs" value={faculty} onChange={e => { setFaculty(e.target.value); setPage(1); }}>
                   <option value="">Tüm Fakülteler</option>
@@ -381,6 +393,7 @@ function ProjectsPageInner() {
               {status && <Chip label={PROJECT_STATUS_LABELS[status] || status} onRemove={() => setStatus('')} />}
               {type && <Chip label={getProjectTypeLabel(type, projectTypes)} onRemove={() => setType('')} />}
               {faculty && <Chip label={faculty.split(' ')[0]} onRemove={() => setFaculty('')} />}
+              {ownership && <Chip label={ownership === 'owned' ? 'Yürütücüsü olduğum' : ownership === 'member' ? 'Üyesi olduğum' : 'Katıldığım'} onRemove={() => setOwnership('')} />}
               {sdg && <Chip label={sdg} color={SDG_MAP[sdg]?.color} onRemove={() => setSdg('')} />}
               {budgetMin && <Chip label={`Bütçe ≥ ${Number(budgetMin).toLocaleString('tr-TR')}₺`} onRemove={() => setBudgetMin('')} />}
               {budgetMax && <Chip label={`Bütçe ≤ ${Number(budgetMax).toLocaleString('tr-TR')}₺`} onRemove={() => setBudgetMax('')} />}
