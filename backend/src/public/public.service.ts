@@ -57,75 +57,56 @@ export class PublicService {
 
   // ── Kurumsal istatistikler ────────────────────────────────
   /**
-   * Doğru/temiz istatistikler. Çift-saymayı önler.
-   * - Araştırmacı = public+active kullanıcı sayısı
-   * - Yayın toplamı = kullanıcıların Scopus docCount + WoS docCount'unun max'ı ile
-   *   manuel yayın sayılarından büyük olan kullanılır (çakışma riski minimize)
-   *   Aslında basitçe Scopus toplamını alıyoruz çünkü en kapsamlı
-   * - Atıf toplamı = Scopus toplam atıf
-   * - Proje = aktif proje sayısı
+   * GERÇEK kurumsal istatistikler — OpenAlex kurum endpoint'inden
+   * canlı çekilir (MKÜ için ~11.600 yayın, ~273.000 atıf, h-index 165).
+   * Kullanıcı aggregasyonu (Scopus sync bekleyen) kullanılmaz.
+   * Kayıtlı araştırmacı sayısı sistemden gelir.
    */
   async getStats() {
-    // Researcher count
     const researcherCount = await this.userRepo.count({
       where: { isActive: true as any, isPublic: true },
     });
 
-    // Projects
     const [activeProjectCount, publicProjectCount] = await Promise.all([
       this.projectRepo.count({ where: { status: 'active' } }),
       this.projectRepo.count({ where: { isPublic: true } }),
     ]);
 
-    // Kurumsal bibliyometrik toplamlar — SUM yerine en kapsamlı kaynak
-    // (Scopus) toplamını baz alıyoruz. WoS paralel bir sayım, manuel
-    // yayınlar küçük bir ek. Çift sayma olmasın diye max mantığı değil
-    // doğrudan Scopus toplamını gösteriyoruz.
-    const scopusAgg = await this.userRepo
-      .createQueryBuilder('u')
-      .where('u.isPublic = true')
-      .andWhere('u.isActive = true')
-      .select('COALESCE(SUM(u."scopusDocCount"), 0)', 'docs')
-      .addSelect('COALESCE(SUM(u."scopusCitedBy"), 0)', 'cites')
-      .addSelect('COALESCE(MAX(u."scopusHIndex"), 0)', 'hmax')
-      .getRawOne();
+    // OpenAlex'ten kurumsal metrikler (haftalık cache'li, çok hızlı)
+    let worksCount = 0;
+    let citedByCount = 0;
+    let hIndex = 0;
+    let institutionName: string | undefined;
+    try {
+      const instId = process.env.MKU_OPENALEX_ID || 'I46000314'; // MKÜ default
+      const summary = await this.openAlex.getInstitutionSummary(instId);
+      if (summary) {
+        worksCount = summary.worksCount || 0;
+        citedByCount = summary.citedByCount || 0;
+        hIndex = summary.hIndex || 0;
+        institutionName = summary.displayName;
+      }
+    } catch {}
 
-    const wosAgg = await this.userRepo
-      .createQueryBuilder('u')
-      .where('u.isPublic = true')
-      .andWhere('u.isActive = true')
-      .select('COALESCE(SUM(u."wosDocCount"), 0)', 'docs')
-      .addSelect('COALESCE(SUM(u."wosCitedBy"), 0)', 'cites')
-      .getRawOne();
-
+    // Manuel yayınlar — portalda bireysel araştırmacı eklemiş olabilir
     const manualPubCount = await this.pubRepo.count();
-
-    const scopusDocs = +(scopusAgg?.docs || 0);
-    const wosDocs = +(wosAgg?.docs || 0);
-    const scopusCites = +(scopusAgg?.cites || 0);
-    const wosCites = +(wosAgg?.cites || 0);
-
-    // Yayın — en kapsamlı sayı (Scopus genelde en geniş kapsayan)
-    const totalPublications = Math.max(scopusDocs, wosDocs, manualPubCount);
-    // Atıf — Scopus öncelikli, WoS fallback
-    const totalCitations = Math.max(scopusCites, wosCites);
 
     return {
       researchers: researcherCount,
-      publications: totalPublications,
-      citations: totalCitations,
+      publications: worksCount || manualPubCount,
+      citations: citedByCount,
       projects: activeProjectCount,
       publicProjects: publicProjectCount,
-      maxHIndex: +(scopusAgg?.hmax || 0),
-      // Kaynak detayı — UI isterse gösterir
+      hIndex: hIndex,
+      // Kaynak şeffaflığı
       sources: {
-        scopusPublications: scopusDocs,
-        scopusCitations: scopusCites,
-        wosPublications: wosDocs,
-        wosCitations: wosCites,
+        institutionId: process.env.MKU_OPENALEX_ID || 'I46000314',
+        institutionName,
+        openAlexWorks: worksCount,
+        openAlexCitations: citedByCount,
         manualPublications: manualPubCount,
       },
-      hasData: researcherCount > 0,
+      hasData: researcherCount > 0 || worksCount > 0,
     };
   }
 
@@ -453,12 +434,31 @@ export class PublicService {
   // ──────────────────────────────────────────────────────────
 
   private async resolveUser(slugOrId: string): Promise<User> {
+    // 1) Tam slug eşleşmesi
     let user = await this.userRepo.findOne({ where: { publicSlug: slugOrId, isPublic: true } });
-    if (!user && /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(slugOrId)) {
+    if (user) return user;
+
+    // 2) UUID ise id ile dene
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(slugOrId)) {
       user = await this.userRepo.findOne({ where: { id: slugOrId, isPublic: true } });
+      if (user) return user;
     }
-    if (!user) throw new NotFoundException('Araştırmacı bulunamadı');
-    return user;
+
+    // 3) Slug'ı boş kullanıcılar için in-memory computed slug eşleme
+    //    (ilk ziyarette slug'ı üretir ve kaydeder)
+    const candidates = await this.userRepo.find({
+      where: { isPublic: true, isActive: true as any },
+    });
+    for (const u of candidates) {
+      if (u.publicSlug) continue; // zaten slug'ı varsa yukarıda bulunurdu
+      const computed = toSlug(u.firstName, u.lastName);
+      if (computed === slugOrId) {
+        await this.ensureSlug(u); // slug'ı kaydet
+        return u;
+      }
+    }
+
+    throw new NotFoundException('Araştırmacı bulunamadı');
   }
 
   private stripUser(u: User) {

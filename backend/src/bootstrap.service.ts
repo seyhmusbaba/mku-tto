@@ -111,6 +111,9 @@ export class BootstrapService implements OnApplicationBootstrap {
     // 5b. Varsayılan yarışma/çağrı kaynaklarını oluştur (sadece eksikleri ekler)
     await this.seedDefaultCompetitionSources();
 
+    // 5c. Vitrin portalı için boş publicSlug alanlarını otomatik doldur
+    await this.backfillPublicSlugs();
+
     // 6. Demo projeleri seed — KALDIRILDI (kullanıcı isteği)
     // Bootstrap'ta otomatik demo ekleme yapılmıyor. Mevcut demo projeleri silmek için:
     //   DELETE /api/admin/demo-projects (Süper Admin yetkisi gerekir)
@@ -167,6 +170,51 @@ export class BootstrapService implements OnApplicationBootstrap {
           this.logger.warn(`[Competitions] ${s.name} eklenemedi: ${e.message}`);
         }
       }
+    }
+  }
+
+  /**
+   * Vitrin portalı (/p) için eksik publicSlug'ları idempotent doldur.
+   * Kullanıcının firstName+lastName'inden ASCII-safe slug türetir;
+   * çakışma varsa -2, -3 ekler.
+   */
+  private async backfillPublicSlugs() {
+    try {
+      const users = await this.userRepo
+        .createQueryBuilder('u')
+        .where('u."publicSlug" IS NULL OR u."publicSlug" = \'\'')
+        .getMany();
+      if (users.length === 0) return;
+
+      const tr: Record<string, string> = {
+        'ç': 'c', 'Ç': 'c', 'ğ': 'g', 'Ğ': 'g', 'ı': 'i', 'I': 'i',
+        'İ': 'i', 'ö': 'o', 'Ö': 'o', 'ş': 's', 'Ş': 's', 'ü': 'u', 'Ü': 'u',
+      };
+      const norm = (s: string) =>
+        (s || '').split('').map(c => tr[c] ?? c).join('')
+          .toLowerCase().trim()
+          .replace(/[^a-z0-9]+/g, '')
+          .replace(/^-+|-+$/g, '');
+
+      let updated = 0;
+      for (const u of users) {
+        let base = `${norm(u.firstName)}.${norm(u.lastName)}`.replace(/\.+/g, '.').replace(/^\.+|\.+$/g, '');
+        if (!base || base === '.') base = u.id.slice(0, 8);
+        let candidate = base;
+        let i = 1;
+        while (true) {
+          const exists = await this.userRepo.findOne({ where: { publicSlug: candidate } });
+          if (!exists || exists.id === u.id) break;
+          i++;
+          candidate = `${base}-${i}`;
+        }
+        u.publicSlug = candidate;
+        await this.userRepo.save(u);
+        updated++;
+      }
+      if (updated > 0) this.logger.log(`[Public Portal] ${updated} kullanıcı için publicSlug üretildi`);
+    } catch (e: any) {
+      this.logger.warn(`[Public Portal] Slug backfill hatası: ${e.message}`);
     }
   }
 

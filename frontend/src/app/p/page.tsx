@@ -11,14 +11,14 @@ interface Stats {
   citations: number;
   projects: number;
   publicProjects: number;
-  maxHIndex: number;
+  hIndex?: number;
   hasData: boolean;
   sources?: {
-    scopusPublications: number;
-    scopusCitations: number;
-    wosPublications: number;
-    wosCitations: number;
-    manualPublications: number;
+    institutionId?: string;
+    institutionName?: string;
+    openAlexWorks?: number;
+    openAlexCitations?: number;
+    manualPublications?: number;
   };
 }
 interface Faculty { faculty: string; count: number }
@@ -94,19 +94,20 @@ export default function PublicHomePage() {
         <h2 className="text-xs font-bold uppercase tracking-widest mb-5" style={{ color: '#6b7280' }}>
           Kurumsal Göstergeler
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-px rounded-lg overflow-hidden border" style={{ borderColor: '#e5e7eb', background: '#e5e7eb' }}>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-px rounded-lg overflow-hidden border" style={{ borderColor: '#e5e7eb', background: '#e5e7eb' }}>
           <StatCell label="Araştırmacı" value={fmt(stats?.researchers)} />
-          <StatCell label="Yayın" value={fmt(stats?.publications)} sub="Scopus & WoS" />
-          <StatCell label="Atıf" value={fmt(stats?.citations)} sub="Toplam" />
+          <StatCell label="Yayın" value={fmt(stats?.publications)} />
+          <StatCell label="Atıf" value={fmt(stats?.citations)} />
+          <StatCell label="h-index" value={fmt(stats?.hIndex)} />
           <StatCell label="Aktif Proje" value={fmt(stats?.projects)} />
         </div>
-        {stats?.sources && (
+        {stats?.sources?.openAlexWorks ? (
           <p className="mt-3 text-[11px]" style={{ color: '#9ca3af' }}>
-            Kaynaklar: Scopus ({new Intl.NumberFormat('tr-TR').format(stats.sources.scopusPublications)} yayın, {new Intl.NumberFormat('tr-TR').format(stats.sources.scopusCitations)} atıf)
-            {stats.sources.wosPublications > 0 && ` · Web of Science (${new Intl.NumberFormat('tr-TR').format(stats.sources.wosPublications)} yayın)`}
-            {stats.sources.manualPublications > 0 && ` · Manuel kayıt (${new Intl.NumberFormat('tr-TR').format(stats.sources.manualPublications)})`}
+            Kurumsal veriler OpenAlex üzerinden canlı çekilmektedir ({stats.sources.institutionName || 'MKÜ'}).
+            {stats.sources.manualPublications && stats.sources.manualPublications > 0 ?
+              ` Ayrıca portalda ${new Intl.NumberFormat('tr-TR').format(stats.sources.manualPublications)} manuel yayın kaydı mevcut.` : ''}
           </p>
-        )}
+        ) : null}
       </section>
 
       {/* ═════ Faculties ═════ */}
@@ -238,10 +239,10 @@ export default function PublicHomePage() {
 // ─────────────────────────────────────────────────────────────
 function StatCell({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="px-6 py-7 bg-white">
+    <div className="px-5 py-6 bg-white">
       <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#6b7280' }}>{label}</p>
-      <p className="text-3xl font-bold tabular-nums mt-2 tracking-tight" style={{ color: '#0f2444' }}>{value}</p>
-      {sub && <p className="text-[11px] mt-1" style={{ color: '#9ca3af' }}>{sub}</p>}
+      <p className="text-2xl md:text-3xl font-bold tabular-nums mt-1.5 tracking-tight" style={{ color: '#0f2444' }}>{value}</p>
+      {sub && <p className="text-[11px] mt-0.5" style={{ color: '#9ca3af' }}>{sub}</p>}
     </div>
   );
 }
