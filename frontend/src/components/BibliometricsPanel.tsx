@@ -151,8 +151,6 @@ export function BibliometricsPanel({
   const publications = data.publications || [];
   const sourceCoverage = data.sourceCoverage || {};
   const topResearchers = data.topResearchers || [];
-  // Institutional modda sample bazlı metrikler kaldırıldı — kullanıcı iptal etti
-  const showSampleMetrics = mode !== 'institutional';
 
   // Co-author grafını oluştur — sadece researcher modunda ve publications listesi varsa
   const collaborators = mode === 'researcher' && publications.length > 0 && user?.name
@@ -171,13 +169,13 @@ export function BibliometricsPanel({
     );
   }
 
-  const quartileData = summary.quartileDistribution ? [
+  const quartileData = [
     { name: 'Q1', value: summary.quartileDistribution.Q1, color: QUARTILE_COLORS.Q1 },
     { name: 'Q2', value: summary.quartileDistribution.Q2, color: QUARTILE_COLORS.Q2 },
     { name: 'Q3', value: summary.quartileDistribution.Q3, color: QUARTILE_COLORS.Q3 },
     { name: 'Q4', value: summary.quartileDistribution.Q4, color: QUARTILE_COLORS.Q4 },
     { name: 'Bilinmiyor', value: summary.quartileDistribution.unknown, color: QUARTILE_COLORS.unknown },
-  ].filter(d => d.value > 0) : [];
+  ].filter(d => d.value > 0);
 
   const sourceCoverageData = Object.entries(sourceCoverage)
     .map(([k, v]) => ({ name: SOURCE_LABELS[k] || k, value: v as number, color: SOURCE_COLORS[k] || '#94a3b8' }))
@@ -248,52 +246,36 @@ export function BibliometricsPanel({
           desc="Açık erişim (OA) yayın oranı — okuyucunun ücret ödemeden erişebildiği makaleler." />
       </div>
 
-      {/* Kurumsal modda sample-based metrikler kullanıcı isteği üzerine kaldırıldı */}
-
-      {/* Kurumsal: Konu Dağılımı (OpenAlex kurum endpoint'inden — gerçek kurumsal veri) */}
-      {mode === 'institutional' && data.topConcepts && data.topConcepts.length > 0 && (
-        <div className="card p-5">
-          <h4 className="font-display text-sm font-semibold text-navy mb-1 inline-flex items-center gap-2">
-            <Icon name="layers" className="w-4 h-4" />
-            Kurumun Araştırma Konuları (OpenAlex)
-            <InfoTip text="OpenAlex'in kurum için tespit ettiği konsept etiketleri. Tüm kurum geneli, örneklem değil." />
-          </h4>
-          <p className="text-xs text-muted mb-4">Kurumun baskın araştırma alanları — yayın sayısına göre sıralı</p>
-          <div className="space-y-1.5">
-            {data.topConcepts.slice(0, 8).map((c: any) => {
-              const max = data.topConcepts[0]?.score || 1;
-              const pct = (c.score / max) * 100;
-              return (
-                <div key={c.name} className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-navy w-48 flex-shrink-0">{c.name}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="h-1.5 rounded-full" style={{ background: '#f0ede8' }}>
-                      <div className="h-1.5 rounded-full" style={{ width: `${pct}%`, background: '#1a3a6b' }} />
-                    </div>
-                  </div>
-                  <span className="text-sm font-bold text-navy w-12 text-right">{c.score}</span>
-                </div>
-              );
-            })}
+      {/* SAMPLE UYARISI — kurumsal modda, örneklem bazlı metrikler öncesi */}
+      {mode === 'institutional' && data.sampleNote && (
+        <div className="p-4 rounded-2xl flex items-start gap-3 text-xs" style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}>
+          <Icon name="alert" className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <div className="leading-relaxed">
+            <strong className="font-semibold">⚠ Aşağıdaki metrikler örneklem bazlıdır.</strong> {data.sampleNote}
+            <br />Kurumsal toplamlar (yayın sayısı, atıf, h-index) yukarıdaki KPI kartlarındadır ve OpenAlex kurumsal endpoint'inden doğrudan gelir — tüm {data.total?.toLocaleString?.('tr-TR') || data.total} yayını kapsar.
           </div>
         </div>
       )}
 
-      {/* Alan-normalize metrikler — FWCI + Top 1% (sadece researcher/faculty modu — kendi yayınları, bias yok) */}
-      {showSampleMetrics && ((summary.avgFwci !== null && summary.avgFwci !== undefined) || summary.top1PctCount > 0 || summary.internationalCoauthorRatio !== undefined) ? (
+      {/* Alan-normalize metrikler — FWCI + Top 1% (SAMPLE) */}
+      {(summary.avgFwci !== null && summary.avgFwci !== undefined) || summary.top1PctCount > 0 || summary.internationalCoauthorRatio !== undefined ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {summary.avgFwci !== null && summary.avgFwci !== undefined && (
-            <KpiBig label="Ort. FWCI" value={summary.avgFwci} icon="trending" color="#7c3aed"
-              sub={summary.avgFwci >= 1.5 ? 'global ort. çok üstü' : summary.avgFwci >= 1.0 ? 'global ort. ile uyumlu' : 'global ort. altı'}
-              desc="Field-Weighted Citation Impact — atıf, yayının alanı ve yılına göre normalize edilir. 1.00 global ortalamadır; 2.00 beklenenden iki kat etki demektir." />
+            <KpiBig label={mode === 'institutional' ? 'Örneklem Ort. FWCI' : 'Ort. FWCI'} value={summary.avgFwci} icon="trending" color="#7c3aed"
+              sub={mode === 'institutional' ? `top ${data.sampleSize || 500} yayın` : (summary.avgFwci >= 1.5 ? 'global ort. çok üstü' : summary.avgFwci >= 1.0 ? 'global ort. ile uyumlu' : 'global ort. altı')}
+              desc={mode === 'institutional'
+                ? `FWCI en çok atıf alan ${data.sampleSize || 500} yayın üzerinden hesaplanır — sample, en yüksek atıflılarla sınırlı olduğu için değer kurumsal gerçek ortalamanın üstünde olur. Sadece üst-tier'ın etki yoğunluğunu gösterir.`
+                : "Field-Weighted Citation Impact — atıf, yayının alanı ve yılına göre normalize edilir. 1.00 global ortalamadır; 2.00 beklenenden iki kat etki demektir."} />
           )}
           {summary.top1PctCount > 0 && (
-            <KpiBig label="Top 1% Yayın" value={summary.top1PctCount} sub={`%${summary.top1PctRatio}`} icon="award" color="#059669"
-              desc="Alan-yıl normalize atıf sıralamasında üst %1'de yer alan yayınlar — en yüksek etkili çalışmaların göstergesi." />
+            <KpiBig label={mode === 'institutional' ? 'Örnek. Top 1%' : 'Top 1% Yayın'} value={summary.top1PctCount} sub={mode === 'institutional' ? `${data.sampleSize || 500} içinde` : `%${summary.top1PctRatio}`} icon="award" color="#059669"
+              desc={mode === 'institutional'
+                ? `En çok atıf alan ${data.sampleSize || 500} yayının ne kadarı dünya genelinde üst %1'de. Tüm kurumun değil, sample'daki üst-tier'ın göstergesi.`
+                : "Alan-yıl normalize atıf sıralamasında üst %1'de yer alan yayınlar — en yüksek etkili çalışmaların göstergesi."} />
           )}
           {summary.top10PctCount > 0 && (
-            <KpiBig label="Top 10% Yayın" value={summary.top10PctCount} sub={`%${summary.top10PctRatio}`} icon="sparkles" color="#2563eb"
-              desc="Alan-yıl normalize atıf sıralamasında üst %10'da yer alan yayınlar." />
+            <KpiBig label={mode === 'institutional' ? 'Örnek. Top 10%' : 'Top 10% Yayın'} value={summary.top10PctCount} sub={mode === 'institutional' ? `${data.sampleSize || 500} içinde` : `%${summary.top10PctRatio}`} icon="sparkles" color="#2563eb"
+              desc={mode === 'institutional' ? `Sample'daki en çok atıf alan yayınlar doğal olarak üst percentile'da çıkar.` : "Alan-yıl normalize atıf sıralamasında üst %10'da yer alan yayınlar."} />
           )}
           {summary.internationalCoauthorRatio !== undefined && summary.internationalCoauthorRatio > 0 && (
             <KpiBig label="Uluslararası Ortaklık" value={`%${summary.internationalCoauthorRatio}`}
@@ -304,7 +286,7 @@ export function BibliometricsPanel({
       ) : null}
 
       {/* Ülke işbirliği tablosu */}
-      {showSampleMetrics && summary.countryCollaboration && summary.countryCollaboration.length > 0 && (
+      {summary.countryCollaboration && summary.countryCollaboration.length > 0 && (
         <div className="card p-5">
           <h4 className="font-display text-sm font-semibold text-navy mb-1 inline-flex items-center gap-2">
             <Icon name="globe" className="w-4 h-4" />
@@ -347,7 +329,7 @@ export function BibliometricsPanel({
       )}
 
       {/* Yayın Türüne Göre Dağılım */}
-      {showSampleMetrics && summary.typeDistribution && summary.typeDistribution.length > 0 && (
+      {summary.typeDistribution && summary.typeDistribution.length > 0 && (
         <div className="card p-5">
           <h4 className="font-display text-sm font-semibold text-navy mb-1 inline-flex items-center gap-2">
             <Icon name="layers" className="w-4 h-4" />
@@ -377,8 +359,8 @@ export function BibliometricsPanel({
       )}
 
       {/* Q1-Q4 dağılımı + Yıllık trend */}
-      <div className={showSampleMetrics ? 'grid grid-cols-1 xl:grid-cols-2 gap-6' : ''}>
-        {showSampleMetrics && <div className="card p-5">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="card p-5">
           <h4 className="font-display text-sm font-semibold text-navy mb-1 inline-flex items-center gap-2">
             <Icon name="award" className="w-4 h-4" />
             Dergi Kalite Dağılımı
@@ -430,7 +412,7 @@ export function BibliometricsPanel({
               </p>
             </>
           ) : <p className="text-sm text-muted text-center py-8">SCImago verisi henüz yüklenmedi</p>}
-        </div>}
+        </div>
 
         <div className="card p-5">
           <h4 className="font-display text-sm font-semibold text-navy mb-1 inline-flex items-center gap-2">
@@ -503,7 +485,7 @@ export function BibliometricsPanel({
       )}
 
       {/* Quartile drill-down — seçili Q için yayın listesi */}
-      {showSampleMetrics && selectedQuartile && (
+      {selectedQuartile && (
         <QuartileDrilldown
           quartile={selectedQuartile}
           publications={[...(topCited || []), ...(publications || [])]}
@@ -511,8 +493,8 @@ export function BibliometricsPanel({
         />
       )}
 
-      {/* SDG dağılımı + Kaynak kapsamı — sadece researcher/faculty modlarında */}
-      {showSampleMetrics && <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      {/* SDG dağılımı + Kaynak kapsamı */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div className="card p-5">
           <h4 className="font-display text-sm font-semibold text-navy mb-1 inline-flex items-center gap-2">
             <Icon name="globe" className="w-4 h-4" />
@@ -599,7 +581,7 @@ export function BibliometricsPanel({
             </div>
           </div>
         )}
-      </div>}
+      </div>
 
       {/* Top 5 cited */}
       {mode === 'researcher' && topCited.length > 0 && (

@@ -40,9 +40,9 @@ function SIcon({ name, className = 'w-4 h-4', strokeWidth = 1.8 }: { name: SIcon
 }
 
 const FIELD_TYPES = [['text','Metin'],['number','Sayı'],['date','Tarih'],['select','Seçim Listesi'],['textarea','Uzun Metin'],['checkbox','Onay Kutusu']];
-type Tab = 'general' | 'appearance' | 'types' | 'faculties' | 'reporttypes' | 'fields' | 'maintenance';
+type Tab = 'general' | 'appearance' | 'types' | 'faculties' | 'reporttypes' | 'fields';
 const TAB_ICONS: Record<Tab, SIconName> = {
-  general: 'cog', appearance: 'palette', types: 'tag', faculties: 'building', reporttypes: 'chart', fields: 'grid', maintenance: 'cog',
+  general: 'cog', appearance: 'palette', types: 'tag', faculties: 'building', reporttypes: 'chart', fields: 'grid',
 };
 
 export default function SettingsPage() {
@@ -173,7 +173,7 @@ export default function SettingsPage() {
     await facultiesApi.delete(id); setFaculties(fs => fs.filter(f => f.id !== id)); toast.success('Fakülte silindi');
   };
 
-  const TABS: [Tab, string][] = [['general','Genel'],['appearance','Görünüm'],['types','Proje Türleri'],['faculties','Fakülteler'],['reporttypes','Rapor Türleri'],['fields','Form Alanları'],['maintenance','Bakım']];
+  const TABS: [Tab, string][] = [['general','Genel'],['appearance','Görünüm'],['types','Proje Türleri'],['faculties','Fakülteler'],['reporttypes','Rapor Türleri'],['fields','Form Alanları']];
 
   if (!me || !isAdmin) {
     return <DashboardLayout><Header title="Sistem Ayarları"/><div className="p-8 text-sm text-muted">Yönlendiriliyorsunuz...</div></DashboardLayout>;
@@ -416,45 +416,6 @@ export default function SettingsPage() {
                 </table>
               </div>
             ) : <div className="empty-state"><p className="text-sm">Henüz alan eklenmemiş</p></div>}
-          </div>
-        )}
-
-        {/* MAINTENANCE */}
-        {tab==='maintenance' && (
-          <div className="max-w-2xl space-y-6">
-            <div className="card space-y-4">
-              <h3 className="font-display text-base font-semibold text-navy pb-4 border-b" style={{borderColor:'#e8e4dc'}}>Demo Veriler</h3>
-              <p className="text-sm text-muted">
-                Sisteme daha önce eklenmiş demo/örnek projeleri (9 fakülte için toplam 25 demo proje)
-                toplu olarak silebilirsiniz. Bu işlem geri alınamaz.
-              </p>
-              <div className="p-3 rounded-xl" style={{background:'#fffbeb',border:'1px solid #fde68a'}}>
-                <p className="text-xs text-amber-800">
-                  <strong>Bilgi:</strong> Demo proje seed'i bootstrap'tan kaldırıldı —
-                  yeni başlangıçlarda otomatik demo eklenmez. Bu buton sadece mevcut
-                  demo kayıtları temizlemek içindir.
-                </p>
-              </div>
-              <button
-                onClick={async () => {
-                  if (!confirm('Tüm demo projeleri SİLMEK istediğinize emin misiniz?\n\n25 adet demo proje ve ilgili üye/belge kayıtları silinecektir. Bu işlem geri alınamaz.')) return;
-                  try {
-                    const r = await fetch((process.env.NEXT_PUBLIC_API_URL || '/api') + '/admin/demo-projects', {
-                      method: 'DELETE',
-                      headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('tto_token') || '') },
-                    });
-                    const d = await r.json();
-                    if (r.ok) toast.success(d.message || 'Demo projeler silindi');
-                    else toast.error(d.message || 'Silme başarısız');
-                  } catch (e: any) {
-                    toast.error(e?.message || 'Bağlantı hatası');
-                  }
-                }}
-                className="btn-danger inline-flex items-center gap-1.5">
-                <SIcon name="trash" className="w-4 h-4" />
-                Tüm Demo Projeleri Sil
-              </button>
-            </div>
           </div>
         )}
       </div>
