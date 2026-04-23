@@ -68,7 +68,7 @@ export class EthicsService {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: process.env.AI_MODEL || 'claude-3-5-haiku-20241022',
+          model: process.env.AI_MODEL || 'claude-3-haiku-20240307',
           max_tokens: 400,
           messages: [{ role: 'user', content: prompt }],
         }),

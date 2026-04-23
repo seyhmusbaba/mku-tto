@@ -50,7 +50,7 @@ export class AiAssistantService {
     // Model seçimi — env'den override edilebilir. Default: en ucuz Haiku.
     // PORTA Asistan ucuz ve hızlı Haiku ile hallediliyor; kalite isterseniz
     // AI_MODEL=claude-3-5-sonnet-latest gibi env ile değiştirebilirsiniz.
-    const model = process.env.AI_MODEL || 'claude-3-5-haiku-20241022';
+    const model = process.env.AI_MODEL || 'claude-3-haiku-20240307';
 
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -79,7 +79,7 @@ export class AiAssistantService {
         } else if (/authentication|unauthorized|api_key|invalid/i.test(anthropicMsg + errType)) {
           userMsg = 'ANTHROPIC_API_KEY geçersiz veya eksik. Railway → Backend → Variables bölümünden kontrol edin.';
         } else if (/model|not_found|does_not_exist/i.test(anthropicMsg + errType)) {
-          userMsg = `Model "${model}" bulunamadı. AI_MODEL env'ini "claude-3-5-haiku-20241022" olarak ayarlayın.`;
+          userMsg = `Model "${model}" bulunamadı. AI_MODEL env'ini "claude-3-haiku-20240307" olarak ayarlayın.`;
         } else if (/rate|too many|overload/i.test(anthropicMsg + errType)) {
           userMsg = 'İstek hızı aşıldı, lütfen birkaç saniye sonra tekrar deneyin.';
         } else if (anthropicMsg) {
