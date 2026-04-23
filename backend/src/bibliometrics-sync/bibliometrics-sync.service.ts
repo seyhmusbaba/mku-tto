@@ -6,6 +6,7 @@ import { User } from '../database/entities/user.entity';
 import { OpenAlexService } from '../integrations/openalex.service';
 import { ScopusService } from '../scopus/scopus.service';
 import { TrDizinService } from '../integrations/trdizin.service';
+import { WosService } from '../integrations/wos.service';
 
 export interface SyncResult {
   userId: string;
@@ -13,7 +14,7 @@ export interface SyncResult {
     openalex?: { docs: number; citations: number; hIndex: number; synced: boolean; error?: string };
     googleScholar?: { docs: number; citations: number; hIndex: number; synced: boolean; note?: string };
     scopus?: { docs: number; citations: number; hIndex: number; synced: boolean; error?: string };
-    wos?: { synced: boolean; note: string };
+    wos?: { docs: number; citations: number; hIndex: number; synced: boolean; error?: string; note?: string };
     trDizin?: { docs: number; citations: number; hIndex: number; synced: boolean; error?: string };
   };
   totalPublications?: number;
@@ -42,6 +43,7 @@ export class BibliometricsSyncService {
     private openAlex: OpenAlexService,
     private scopus: ScopusService,
     private trDizin: TrDizinService,
+    private wos: WosService,
   ) {}
 
   /**
@@ -59,10 +61,11 @@ export class BibliometricsSyncService {
     };
 
     // ── Paralel başlat ─────────────────────────────────────────
-    const [oaResult, scopusResult, trResult] = await Promise.all([
+    const [oaResult, scopusResult, trResult, wosResult] = await Promise.all([
       this.syncOpenAlex(user).catch(e => ({ error: e.message })),
       this.syncScopus(user).catch(e => ({ error: e.message })),
       this.syncTrDizin(user).catch(e => ({ error: e.message })),
+      this.syncWos(user).catch(e => ({ error: e.message })),
     ]);
 
     // ── OpenAlex (ORCID) ─────────────────────────────────────
@@ -106,13 +109,19 @@ export class BibliometricsSyncService {
       result.sources.trDizin = { docs: 0, citations: 0, hIndex: 0, synced: false, error: (trResult as any).error };
     }
 
-    // ── Web of Science — kurumsal API key yoksa manuel kalır ─
-    result.sources.wos = {
-      synced: false,
-      note: user.wosResearcherId
-        ? 'WoS API key gerekli. Manuel girebilir veya WOS_API_KEY env tanımlayın.'
-        : 'WoS Researcher ID tanımlı değil.',
-    };
+    // ── Web of Science ─────────────────────────────────────
+    if ('docs' in wosResult) {
+      result.sources.wos = { ...wosResult, synced: true };
+      (user as any).wosDocCount = wosResult.docs;
+      (user as any).wosCitedBy = wosResult.citations;
+      (user as any).wosHIndex = wosResult.hIndex;
+      user.wosLastSync = new Date().toISOString();
+    } else {
+      result.sources.wos = {
+        docs: 0, citations: 0, hIndex: 0, synced: false,
+        error: (wosResult as any).error,
+      };
+    }
 
     // ── Dedupe edilmiş toplam yayın — OpenAlex baz alınır (en geniş kapsam)
     const estimatedTotal = Math.max(
@@ -169,6 +178,30 @@ export class BibliometricsSyncService {
       docs: (profile as any).docCount || 0,
       citations: (profile as any).citedBy || 0,
       hIndex: (profile as any).hIndex || 0,
+    };
+  }
+
+  // ═════════ Web of Science ═════════
+  private async syncWos(user: User): Promise<{ docs: number; citations: number; hIndex: number }> {
+    if (!this.wos.isConfigured()) {
+      throw new Error('WOS_API_KEY env tanımlı değil');
+    }
+
+    // Önce WoS Researcher ID, yoksa ORCID ile dene — WoS Starter ikisini de destekler
+    const identifier = user.wosResearcherId || user.orcidId;
+    if (!identifier) {
+      throw new Error('WoS ResearcherID veya ORCID tanımlı değil');
+    }
+
+    const profile = await this.wos.getAuthorProfile(identifier);
+    if (!profile) {
+      throw new Error('WoS\'ta yazar bulunamadı');
+    }
+
+    return {
+      docs: profile.documentCount || 0,
+      citations: profile.citedByCount || 0,
+      hIndex: profile.hIndex || 0,
     };
   }
 

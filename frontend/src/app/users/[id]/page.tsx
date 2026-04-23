@@ -71,13 +71,15 @@ export default function UserProfilePage() {
       const res = await bibliometricsSyncApi.syncUser(id);
       const r = res.data;
       const succeeded = [
-        r.sources?.openalex?.synced && `OpenAlex (${r.sources.openalex.docs} yayın)`,
-        r.sources?.scopus?.synced && `Scopus (${r.sources.scopus.docs} yayın)`,
-        r.sources?.trDizin?.synced && `TR Dizin (${r.sources.trDizin.docs} yayın)`,
-      ].filter(Boolean).join(', ');
+        r.sources?.openalex?.synced && `OpenAlex (${r.sources.openalex.docs})`,
+        r.sources?.scopus?.synced && `Scopus (${r.sources.scopus.docs})`,
+        r.sources?.wos?.synced && `WoS (${r.sources.wos.docs})`,
+        r.sources?.trDizin?.synced && `TR Dizin (${r.sources.trDizin.docs})`,
+      ].filter(Boolean).join(' · ');
       const failed = [
         !r.sources?.openalex?.synced && r.sources?.openalex?.error && 'OpenAlex',
         !r.sources?.scopus?.synced && r.sources?.scopus?.error && 'Scopus',
+        !r.sources?.wos?.synced && r.sources?.wos?.error && 'WoS',
         !r.sources?.trDizin?.synced && r.sources?.trDizin?.error && 'TR Dizin',
       ].filter(Boolean).join(', ');
 
@@ -352,8 +354,8 @@ export default function UserProfilePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <div className="text-xs text-blue-900 leading-relaxed">
-                  <strong>Otomatik çekim var:</strong> ORCID + Scopus Author ID tanımladıysanız, kaydet sonrası profil sayfasındaki
-                  <strong className="whitespace-nowrap"> "Otomatik Senkronize Et"</strong> butonu bu rakamları OpenAlex, Scopus ve TR Dizin'den çeker.
+                  <strong>Otomatik çekim var:</strong> ORCID + Scopus Author ID + WoS ResearcherID tanımladıysanız, kaydet sonrası profil sayfasındaki
+                  <strong className="whitespace-nowrap"> "Otomatik Senkronize Et"</strong> butonu rakamları OpenAlex, Scopus, Web of Science ve TR Dizin'den otomatik çeker.
                   Aşağıdaki alanlar sadece manuel düzeltme/override içindir — boş bırakın, sync halleder.
                 </div>
               </div>
