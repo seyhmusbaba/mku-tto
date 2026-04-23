@@ -201,28 +201,19 @@ export class BibliometricsService {
   /**
    * Kurumsal bibliometri — OpenAlex institution ID üzerinden.
    *
-   * İki-aşamalı hesap:
-   *  1. Kurumsal TOPLAMLAR (works_count, cited_by_count, h_index, i10_index)
-   *     → OpenAlex institution summary endpoint'inden DIREKT. Tüm kurumu kapsar.
-   *  2. Sample bazlı detaylar (Q1-Q4, byYear, top papers, country collab, FWCI örnekleri)
-   *     → En çok atıf alan ilk N yayından. Sample olduğu AÇIKÇA işaretlenir.
-   *
-   * Eskiden her şey sample üzerinden hesaplanıyordu → FWCI 22.67, Top 1% = %40 gibi
-   * absürt sayılar çıkıyordu. Artık kurumsal gerçek sayılar + örneklem bazlı
-   * göstergeler ayrı ayrı sunuluyor.
+   * SAMPLE-BAZLI metrikler kaldırıldı (kullanıcı isteği üzerine).
+   * Sadece OpenAlex institution endpoint'inden gelen GERÇEK kurumsal
+   * toplamlar ve byYear trendi döner. Yanıltıcı FWCI, Top 1%, Q1-Q4 dağılımı,
+   * ülke ortaklığı, SDG, dergi listesi artık üretilmiyor.
    */
   async getInstitutional(
     institutionId: string,
     yearOrRange?: number | { from?: number; to?: number },
   ): Promise<any> {
-    // 1. Kurumsal TOPLAMLAR — OpenAlex institution endpoint'inden direkt
+    // Kurumsal TOPLAMLAR — OpenAlex institution endpoint'inden direkt
     const instSummary = await this.openalex.getInstitutionSummary(institutionId).catch(() => null);
 
-    // 2. SAMPLE — detay tablolar için en çok atıf alan yayınlar (dönem filtreli olabilir)
-    const pubs = await this.publications.getInstitutionPublications(institutionId, yearOrRange, 500);
-    const sampleSummary = this.publications.summarize(pubs);
-
-    // Dönem filtrelendiyse etiket için tut
+    // Dönem etiketi
     let periodLabel: string | undefined;
     let filterFromYear: number | undefined;
     let filterToYear: number | undefined;
@@ -289,79 +280,28 @@ export class BibliometricsService {
       filterToYear,
       isPeriodFiltered: !!(filterFromYear || filterToYear),
 
-      // KURUMSAL GERÇEK TOPLAMLAR
-      // Dönem filtresi varsa — byYear verisinden o dönemin toplamı
-      // Yoksa — OpenAlex institution endpoint'inden tüm zamanlar
-      total: periodTotal !== undefined ? periodTotal : (instSummary?.worksCount ?? sampleSummary.total),
-      totalCitations: periodCitations !== undefined ? periodCitations : (instSummary?.citedByCount ?? sampleSummary.totalCitations),
-      // h-index dönem hesabı zor — kurumsal veri global, sample'dan dönemsel h-index hesaplanır
-      hIndex: periodTotal !== undefined ? sampleSummary.hIndex : (instSummary?.hIndex ?? sampleSummary.hIndex),
-      i10Index: periodTotal !== undefined ? sampleSummary.i10Index : (instSummary?.i10Index ?? sampleSummary.i10Index),
+      // KURUMSAL GERÇEK TOPLAMLAR (OpenAlex institution endpoint)
+      total: periodTotal !== undefined ? periodTotal : (instSummary?.worksCount || 0),
+      totalCitations: periodCitations !== undefined ? periodCitations : (instSummary?.citedByCount || 0),
+      hIndex: instSummary?.hIndex || 0,
+      i10Index: instSummary?.i10Index || 0,
       twoYearMeanCitedness: instSummary?.twoYearMeanCitedness,
-      byYear: byYearReal.length > 0 ? byYearReal : sampleSummary.byYear,
+      byYear: byYearReal,
 
-      // SAMPLE BAZLI — net olarak 'sample' prefix ile
-      // Kalite dağılımı sample'dan — 500 top-cited içinde Q1-Q4 oranı
-      quartileDistribution: sampleSummary.quartileDistribution,
-      sdgDistribution: sampleSummary.sdgDistribution,
-
-      // Açık erişim:
-      // - Dönem filtresi varsa → byYearReal'dan dönemsel OA toplamı
-      // - Yoksa → tüm kurum için counts_by_year toplamı
-      // - Hiçbiri yoksa → sample'dan
+      // Açık erişim (gerçek — counts_by_year'dan)
       openAccessCount:
         periodOaCount !== undefined ? periodOaCount :
-        realOaRatio !== null ? realTotalOaCount :
-        sampleSummary.openAccessCount,
+        realOaRatio !== null ? realTotalOaCount : 0,
       openAccessRatio:
         periodTotal && periodTotal > 0 && periodOaCount !== undefined
           ? Math.round((periodOaCount / periodTotal) * 100)
-          : realOaRatio !== null ? realOaRatio : sampleSummary.openAccessRatio,
-      openAccessSource:
-        periodOaCount !== undefined ? 'period-institutional' :
-        realOaRatio !== null ? 'institutional' : 'sample',
-      sampleOpenAccessCount: sampleSummary.openAccessCount,
-      sampleOpenAccessRatio: sampleSummary.openAccessRatio,
+          : realOaRatio !== null ? realOaRatio : 0,
 
-      // FWCI ve Top Percentile — SAMPLE BAZLI — dürüst etiket
-      // Bunlar "en çok atıf alan 500 yayının" istatistiği; tüm kurumun değil
-      sampleSize: pubs.length,
-      sampleNote: `Aşağıdaki FWCI, Top 1%, Top 10%, dergi kalite, uluslararası ortaklık ve ülke dağılımı metrikleri kurumun en çok atıf alan ${pubs.length} yayını üzerinden hesaplanmıştır — tüm kurum değil.`,
-      avgFwci: sampleSummary.avgFwci,
-      medianFwci: sampleSummary.medianFwci,
-      fwciCoverage: sampleSummary.fwciCoverage,
-      top1PctCount: sampleSummary.top1PctCount,
-      top10PctCount: sampleSummary.top10PctCount,
-      top1PctRatio: sampleSummary.top1PctRatio,
-      top10PctRatio: sampleSummary.top10PctRatio,
-      internationalCoauthorCount: sampleSummary.internationalCoauthorCount,
-      internationalCoauthorRatio: sampleSummary.internationalCoauthorRatio,
-      countryCollaboration: sampleSummary.countryCollaboration,
-      avgAuthorsPerPaper: sampleSummary.avgAuthorsPerPaper,
-      avgCountriesPerPaper: sampleSummary.avgCountriesPerPaper,
-      topJournals: sampleSummary.topJournals,
-      typeDistribution: sampleSummary.typeDistribution,
-
-      // Yayın listesi — sample
-      publications: pubs.map(p => {
-        const countries = Array.from(new Set(
-          (p.authors || []).flatMap(a => (a.countries || []).map(c => c.toUpperCase()))
-        ));
-        return {
-          title: p.title,
-          year: p.year,
-          journal: p.journal,
-          doi: p.doi,
-          citedBy: p.citedBy,
-          quality: p.quality,
-          openAccess: p.openAccess,
-          sources: p.sources,
-          authors: (p.authors || []).slice(0, 5).map(a => a.name),
-          countries,
-        };
-      }),
+      // Konu dağılımı (top concepts — OpenAlex institution endpoint)
+      topConcepts: instSummary?.topConcepts || [],
     };
   }
+
 
   /**
    * Fakülteler arası bibliyometri karşılaştırması.

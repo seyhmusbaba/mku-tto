@@ -427,34 +427,16 @@ export default function AnnualReportPage() {
 
           {institutional && institutional.configured !== false && (
             <>
-              <h3 style={s.h3}>Kurumsal Akademik Çıktı (OpenAlex kurum endpoint — TÜM yayınlar)</h3>
+              <h3 style={s.h3}>Kurumsal Akademik Çıktı (OpenAlex kurum endpoint)</h3>
               <div style={s.kpiGrid}>
                 <Kpi label="Toplam Yayın" value={formatNum(institutional.total || 0)} color="#1a3a6b" />
                 <Kpi label="Toplam Atıf" value={formatNum(institutional.totalCitations || 0)} color="#7c3aed" />
                 <Kpi label="h-index" value={institutional.hIndex || 0} color="#c8a45a" />
                 <Kpi label="i10-index" value={formatNum(institutional.i10Index || 0)} color="#059669" />
+                <Kpi label="Açık Erişim" value={`%${institutional.openAccessRatio || 0}`} sub={`${formatNum(institutional.openAccessCount || 0)} yayın`} color="#0891b2" />
                 {institutional.twoYearMeanCitedness !== undefined && (
-                  <Kpi label="2 Yıllık Ort. Atıf" value={(+institutional.twoYearMeanCitedness).toFixed(2)} color="#0891b2" sub="OpenAlex kurum metriği" />
+                  <Kpi label="2 Yıllık Ort. Atıf" value={(+institutional.twoYearMeanCitedness).toFixed(2)} color="#2563eb" />
                 )}
-              </div>
-
-              <div style={{ marginTop: 14, padding: 10, background: '#fffbeb', borderLeft: '4px solid #f59e0b', borderRadius: 4 }}>
-                <p style={{ ...s.pSmall, color: '#92400e', margin: 0 }}>
-                  <strong>⚠ Aşağıdaki metrikler örneklem bazlıdır.</strong> Kurumumuzun en çok atıf alan
-                  {' '}{institutional.sampleSize || 500} yayını üzerinden hesaplanmıştır. Bu yüzden FWCI,
-                  Top 1%/10%, açık erişim oranı ve kalite dağılımı gerçek kurumsal ortalamanın üstünde
-                  görünür — sample yayınlar doğal olarak üst-tier'dandır.
-                </p>
-              </div>
-
-              <h3 style={s.h3}>Örneklem Bazlı Göstergeler (top {institutional.sampleSize || 500} yayın)</h3>
-              <div style={s.kpiGrid}>
-                <Kpi label="Sample Açık Erişim" value={`%${institutional.openAccessRatio || 0}`} sub={`${formatNum(institutional.openAccessCount || 0)} yayın`} color="#0891b2" />
-                <Kpi label="Q1 (sample)" value={formatNum(institutional.quartileDistribution?.Q1 || 0)} color="#059669" sub={`%${quartileKnown > 0 ? Math.round(((institutional.quartileDistribution?.Q1 || 0) / quartileKnown) * 100) : 0}`} />
-                <Kpi label="Örnek. Ort. FWCI" value={institutional.avgFwci !== null && institutional.avgFwci !== undefined ? institutional.avgFwci : '—'} color="#7c3aed" sub="sample üst-tier" />
-                <Kpi label="Örnek. Top 1%" value={formatNum(institutional.top1PctCount || 0)} color="#059669" sub={`sample ${institutional.sampleSize || 500}'de`} />
-                <Kpi label="Örnek. Top 10%" value={formatNum(institutional.top10PctCount || 0)} color="#2563eb" sub={`sample ${institutional.sampleSize || 500}'de`} />
-                <Kpi label="Uluslararası Ortaklık" value={`%${institutional.internationalCoauthorRatio || 0}`} color="#c8a45a" sub={`${formatNum(institutional.internationalCoauthorCount || 0)} sample yayın`} />
               </div>
             </>
           )}
