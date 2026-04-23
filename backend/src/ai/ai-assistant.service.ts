@@ -18,11 +18,11 @@ export interface AssistantRequest {
 }
 
 /**
- * Tek-sayfa TTO asistanı — gerçek veri bağlamı ile Claude API'ye proxy.
+ * PORTA Asistan — gerçek veri bağlamı ile Claude API'ye proxy.
  *
- * Frontend'de tek bir /assistant sayfası açılır; bu servis arkada ilgili
+ * Frontend'deki floating chat butonu bu endpoint'e bağlanır; servis
  * kurumsal bağlamı otomatik enjekte eder (proje listesi, aktif rakipler,
- * kullanıcı profili vs.) ki model "MKÜ'de şu an hangi projeler var?"
+ * kullanıcı profili vs.) ki model "Kurumda şu an hangi projeler var?"
  * sorusuna genel bilgi yerine gerçek veri ile cevap versin.
  */
 @Injectable()
@@ -86,7 +86,7 @@ export class AiAssistantService {
     const siteName = siteSetting?.value || 'Hatay Mustafa Kemal Üniversitesi';
     const instName = instSetting?.value || 'Hatay Mustafa Kemal Üniversitesi';
 
-    const base = `Sen ${instName} Teknoloji Transfer Ofisi (TTO) için çalışan bir dijital asistansın. Kullanıcılar TTO çalışanları, araştırmacılar ve yöneticidir.
+    const base = `Sen "PORTA" adlı, ${instName} Teknoloji Transfer Ofisi için çalışan dijital asistansın. Kullanıcılar TTO çalışanları, araştırmacılar ve yöneticidir.
 
 TEMEL KURALLAR:
 • Türkçe cevap ver (kullanıcı başka dilde yazmadıysa).

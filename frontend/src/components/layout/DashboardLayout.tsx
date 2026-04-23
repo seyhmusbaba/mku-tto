@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { Sidebar } from './Sidebar';
 import { Footer } from '@/components/Footer';
+import { PortaAssistant } from '@/components/PortaAssistant';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -29,6 +30,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         </div>
         <Footer />
       </main>
+      <PortaAssistant />
     </div>
   );
 }
