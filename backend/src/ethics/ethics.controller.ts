@@ -69,16 +69,15 @@ export class EthicsController {
     return this.svc.submitDecision(id, req.user.userId, body.decision, body.note, body.approvalNumber);
   }
 
-  // On analiz - herkes
+  // On analiz - POLİTİKA: AI analizi devre dışı, her proje etik kurul onayı gerektirir.
+  // Geriye uyumluluk için endpoint çağrılabilir ama sabit yanıt döner.
   @Post('preview-analyze')
-  previewAnalyze(@Body() body: {
-    title: string;
-    description: string;
-    projectText: string;
-    type: string;
-    faculty?: string;
-    department?: string;
-  }) {
-    return this.svc.analyzeWithAi(body);
+  previewAnalyze() {
+    return {
+      required: true,
+      riskScore: 100,
+      reasons: ['Kurumsal politika — tüm projeler etik kurul onayı gerektirir'],
+      recommendation: 'Etik kurul onayı zorunludur. Proje kaydedilince otomatik olarak incelemeye gönderilecektir.',
+    };
   }
 }

@@ -135,66 +135,63 @@ export class EthicsService {
     };
   }
 
-  // FIX #4: Mevcut inceleme varsa projectText degismisse yeniden analiz yap
-  async initiateReview(projectId: string, forceReanalyze = false) {
+  /**
+   * Bir proje için etik kurul incelemesi başlat.
+   *
+   * POLİTİKA (kullanıcı kararı): AI analizi devre dışı — her yeni proje
+   * OTOMATİK olarak etik kurul onayına gider. AI "gerekli değil" diyemez.
+   *
+   * Project.ethicsRequired her zaman true, EthicsReview.status her zaman 'pending'.
+   * Kurul kararı (approved/rejected) sadece kurul üyesi tarafından değiştirilebilir.
+   */
+  async initiateReview(projectId: string, _forceReanalyze = false) {
     const project = await this.projectRepo.findOne({ where: { id: projectId } });
     if (!project) throw new Error('Proje bulunamadi');
 
     const existing = await this.reviewRepo.findOne({ where: { projectId } });
 
-    // FIX #4: Karar verilmemisse veya forceReanalyze ise yeniden analiz yap
-    if (existing && !forceReanalyze && existing.status !== 'pending') {
+    // Kurul kararı zaten verilmişse (approved/rejected), yeniden pending yapma
+    if (existing && existing.status !== 'pending' && existing.status !== 'not_required') {
       return existing;
     }
 
-    const analysis = await this.analyzeWithAi({
-      projectId,
-      title: project.title,
-      description: project.description || '',
-      projectText: (project as any).projectText || '',
-      type: project.type,
-    });
-
     let review: EthicsReview;
     if (existing) {
-      // Mevcut incelemeyi guncelle
-      existing.aiEthicsRequired = analysis.required;
-      existing.aiEthicsReason = [...analysis.reasons, analysis.recommendation].filter(Boolean).join('. ');
-      existing.aiRiskScore = analysis.riskScore;
-      // FIX #5: pending'e al ki kurul yeniden karar verebilsin
-      if (forceReanalyze) existing.status = analysis.required ? 'pending' : 'not_required';
+      existing.status = 'pending';
+      existing.aiEthicsRequired = true;
+      existing.aiEthicsReason = 'Kurumsal politika gereği tüm projeler etik kurul incelemesine alınır.';
+      existing.aiRiskScore = 0;
       review = await this.reviewRepo.save(existing);
     } else {
       const newReview = this.reviewRepo.create({
         projectId,
-        aiEthicsRequired: analysis.required,
-        aiEthicsReason: [...analysis.reasons, analysis.recommendation].filter(Boolean).join('. '),
-        aiRiskScore: analysis.riskScore,
-        status: analysis.required ? 'pending' : 'not_required',
+        aiEthicsRequired: true,
+        aiEthicsReason: 'Kurumsal politika gereği tüm projeler etik kurul incelemesine alınır.',
+        aiRiskScore: 0,
+        status: 'pending',
       });
       review = await this.reviewRepo.save(newReview);
     }
 
-    await this.projectRepo.update(projectId, { ethicsRequired: analysis.required } as any);
+    // ethicsRequired her zaman true — AI override etmiyor
+    await this.projectRepo.update(projectId, { ethicsRequired: true } as any);
 
-    // Etik kurul uyelerine bildirim (sadece ilk kez veya reanaliz)
-    if (analysis.required) {
-      try {
-        const members = await this.userRepo.createQueryBuilder('u')
-          .innerJoin('u.role', 'r')
-          .where("LOWER(r.name) LIKE '%etik%'")
-          .getMany();
-        for (const m of members) {
-          await this.notificationsService.create({
-            userId: m.id,
-            title: 'Etik Inceleme Bekleniyor',
-            message: project.title + ' — Risk: ' + analysis.riskScore + '/100',
-            type: 'warning',
-            link: '/ethics',
-          }).catch(() => {});
-        }
-      } catch {}
-    }
+    // Etik kurul üyelerine bildirim
+    try {
+      const members = await this.userRepo.createQueryBuilder('u')
+        .innerJoin('u.role', 'r')
+        .where("LOWER(r.name) LIKE '%etik%'")
+        .getMany();
+      for (const m of members) {
+        await this.notificationsService.create({
+          userId: m.id,
+          title: 'Etik İnceleme Bekleniyor',
+          message: project.title + ' — kurul incelemesine hazır',
+          type: 'warning',
+          link: '/ethics',
+        }).catch(() => {});
+      }
+    } catch {}
 
     return review;
   }
