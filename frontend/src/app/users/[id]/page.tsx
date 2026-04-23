@@ -9,8 +9,6 @@ import { useAuth } from '@/lib/auth-context';
 import { User, Project } from '@/types';
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_COLORS, getProjectTypeLabel, formatDate, formatCurrency, getInitials, ROLE_COLORS, MEMBER_ROLE_LABELS } from '@/lib/utils';
 import toast from 'react-hot-toast';
-import { OrcidPublications } from '@/components/OrcidPublications';
-import { ScopusProfileCard } from '@/components/ScopusProfileCard';
 import { AvesisMetricsGrid } from '@/components/AvesisMetricsGrid';
 
 const TITLES = ['Prof. Dr.', 'Doç. Dr.', 'Dr. Öğr. Üyesi', 'Arş. Gör. Dr.', 'Arş. Gör.', 'Öğr. Gör.', 'Dr.'];
@@ -752,13 +750,15 @@ export default function UserProfilePage() {
                   <AvesisMetricsGrid
                     sources={[
                       {
-                        name: 'Google Scholar',
-                        shortName: 'GS',
-                        color: '#4285f4',
-                        docs: (user as any).googleScholarDocCount,
-                        citations: (user as any).googleScholarCitedBy,
-                        hIndex: (user as any).googleScholarHIndex,
-                        note: 'Gri literatür dahil',
+                        name: 'OpenAlex',
+                        shortName: 'OA',
+                        color: '#0077c8',
+                        docs: (user as any).openAlexDocCount,
+                        citations: (user as any).openAlexCitedBy,
+                        hIndex: (user as any).openAlexHIndex,
+                        note: 'ORCID ile otomatik',
+                        configured: !!(user as any).orcidId,
+                        lastSync: (user as any).openAlexLastSync,
                       },
                       {
                         name: 'Scopus',
@@ -767,7 +767,9 @@ export default function UserProfilePage() {
                         docs: (user as any).scopusDocCount,
                         citations: (user as any).scopusCitedBy,
                         hIndex: (user as any).scopusHIndex,
-                        note: 'Elsevier — SCI dergileri',
+                        note: 'Elsevier — SCI',
+                        configured: !!(user as any).scopusAuthorId,
+                        lastSync: (user as any).scopusLastSync,
                       },
                       {
                         name: 'Web of Science',
@@ -776,7 +778,9 @@ export default function UserProfilePage() {
                         docs: (user as any).wosDocCount,
                         citations: (user as any).wosCitedBy,
                         hIndex: (user as any).wosHIndex,
-                        note: 'Clarivate — SCI core',
+                        note: 'Clarivate',
+                        configured: !!((user as any).wosResearcherId || (user as any).orcidId),
+                        lastSync: (user as any).wosLastSync,
                       },
                       {
                         name: 'TR Dizin',
@@ -786,6 +790,17 @@ export default function UserProfilePage() {
                         citations: (user as any).trDizinCitedBy,
                         hIndex: (user as any).trDizinHIndex,
                         note: 'TÜBİTAK ULAKBİM',
+                        configured: !!(user.firstName && user.lastName), // İsim varsa aranabilir
+                      },
+                      {
+                        name: 'Google Scholar',
+                        shortName: 'GS',
+                        color: '#4285f4',
+                        docs: (user as any).googleScholarDocCount,
+                        citations: (user as any).googleScholarCitedBy,
+                        hIndex: (user as any).googleScholarHIndex,
+                        note: 'Manuel giriş (API yok)',
+                        configured: !!(user as any).googleScholarId,
                       },
                       {
                         name: 'Sobiad',
@@ -794,7 +809,8 @@ export default function UserProfilePage() {
                         docs: (user as any).sobiadDocCount,
                         citations: (user as any).sobiadCitedBy,
                         hIndex: (user as any).sobiadHIndex,
-                        note: 'Sosyal bilimler',
+                        note: 'Manuel giriş',
+                        // Manuel, Scholar gibi configured=false — rakam yoksa kart görünmez
                       },
                     ]}
                     totalPublications={(user as any).totalPublicationCount}
@@ -804,16 +820,6 @@ export default function UserProfilePage() {
                     thesisAdvising={(user as any).thesisAdvisorCount}
                   />
                 </div>
-
-                {/* Scopus Metrikleri — eski kart, hâlâ yararlı (live sync ile) */}
-                {(user as any).scopusAuthorId && (
-                  <ScopusProfileCard user={user} isMe={isMe} />
-                )}
-
-                {/* ORCID Yayınları */}
-                {(user as any).orcidId && (
-                  <OrcidPublications orcidId={(user as any).orcidId} />
-                )}
 
                 {/* Yürütücü Projeleri */}
                 {projects.owned.length > 0 && (

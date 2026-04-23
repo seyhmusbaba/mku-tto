@@ -71,19 +71,10 @@ export class BibliometricsSyncService {
     // ── OpenAlex (ORCID) ─────────────────────────────────────
     if ('docs' in oaResult) {
       result.sources.openalex = { ...oaResult, synced: true };
-
-      // Google Scholar yerine OpenAlex rakamlarını kullan — en yakın proxy
-      // (kullanıcının googleScholarId'si varsa — yani "Scholar'dan veri istiyor")
-      if (user.googleScholarId) {
-        (user as any).googleScholarDocCount = oaResult.docs;
-        (user as any).googleScholarCitedBy = oaResult.citations;
-        (user as any).googleScholarHIndex = oaResult.hIndex;
-        result.sources.googleScholar = {
-          ...oaResult,
-          synced: true,
-          note: 'Google Scholar API\'si yok — OpenAlex kapsamı kullanıldı (gri literatür dahil, Scholar\'a en yakın).',
-        };
-      }
+      (user as any).openAlexDocCount = oaResult.docs;
+      (user as any).openAlexCitedBy = oaResult.citations;
+      (user as any).openAlexHIndex = oaResult.hIndex;
+      (user as any).openAlexLastSync = new Date().toISOString();
     } else {
       result.sources.openalex = { docs: 0, citations: 0, hIndex: 0, synced: false, error: (oaResult as any).error };
     }
@@ -127,7 +118,8 @@ export class BibliometricsSyncService {
     const estimatedTotal = Math.max(
       result.sources.openalex?.docs || 0,
       result.sources.scopus?.docs || 0,
-      (user as any).totalPublicationCount || 0,
+      result.sources.wos?.docs || 0,
+      result.sources.trDizin?.docs || 0,
     );
     if (estimatedTotal > 0) {
       (user as any).totalPublicationCount = estimatedTotal;

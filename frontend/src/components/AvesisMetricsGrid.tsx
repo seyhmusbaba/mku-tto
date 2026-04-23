@@ -8,6 +8,9 @@ interface MetricSource {
   citations?: number | null;
   hIndex?: number | null;
   note?: string;
+  /** Kullanıcı bu kaynak için ID/bilgi tanımlamış mı? (tanımlıysa veri 0 olsa bile kart göster) */
+  configured?: boolean;
+  lastSync?: string | null;
 }
 
 interface Props {
@@ -38,8 +41,10 @@ export function AvesisMetricsGrid({
 }: Props) {
   const fmt = (n?: number | null) => (typeof n === 'number' && n > 0) ? n.toLocaleString('tr-TR') : '—';
 
-  // Sadece veri olan kaynakları filtrele — hiç değer yoksa kart gösterme
+  // Veri olan VEYA yapılandırılmış kaynakları göster — kullanıcı ID eklediyse
+  // kart görünmeli (rakam 0 olsa bile "bu kaynak tarandı" mesajı verir).
   const activeSources = sources.filter(s =>
+    s.configured ||
     (s.docs && s.docs > 0) || (s.citations && s.citations > 0) || (s.hIndex && s.hIndex > 0)
   );
 
@@ -89,18 +94,19 @@ export function AvesisMetricsGrid({
 }
 
 function SourceCard({ source: s, fmt }: { source: MetricSource; fmt: (n?: number | null) => string }) {
+  const noData = !(s.docs || s.citations || s.hIndex);
   return (
     <div className="border rounded-lg p-4 bg-white" style={{ borderColor: '#e8e4dc' }}>
       <div className="flex items-center gap-2 mb-3 pb-3 border-b" style={{ borderColor: '#f0ede8' }}>
         <span
-          className="w-7 h-7 rounded flex items-center justify-center text-white text-[10px] font-bold tracking-wider"
+          className="w-7 h-7 rounded flex items-center justify-center text-white text-[10px] font-bold tracking-wider flex-shrink-0"
           style={{ background: s.color }}
         >
           {s.shortName}
         </span>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-navy leading-tight">{s.name}</p>
-          {s.note && <p className="text-[10px] text-muted mt-0.5">{s.note}</p>}
+          {s.note && <p className="text-[10px] text-muted mt-0.5 truncate">{s.note}</p>}
         </div>
       </div>
       <div className="grid grid-cols-3 gap-2">
@@ -108,6 +114,19 @@ function SourceCard({ source: s, fmt }: { source: MetricSource; fmt: (n?: number
         <MetricCell label="Atıf" value={fmt(s.citations)} />
         <MetricCell label="h-index" value={fmt(s.hIndex)} />
       </div>
+      {noData && s.configured && (
+        <p className="text-[10px] text-muted italic mt-2 pt-2 border-t" style={{ borderColor: '#f0ede8' }}>
+          Bu kaynak tanımlı ancak henüz senkronizasyon yapılmadı veya sonuç bulunamadı.
+        </p>
+      )}
+      {s.lastSync && (
+        <p className="text-[10px] text-muted mt-2 flex items-center gap-1">
+          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Son sync: {new Date(s.lastSync).toLocaleDateString('tr-TR')}
+        </p>
+      )}
     </div>
   );
 }

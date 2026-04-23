@@ -16,6 +16,7 @@ interface Profile {
   scopusAuthorId?: string; wosResearcherId?: string;
   scopusHIndex?: number; scopusCitedBy?: number; scopusDocCount?: number;
   wosHIndex?: number; wosCitedBy?: number; wosDocCount?: number;
+  openAlexHIndex?: number; openAlexCitedBy?: number; openAlexDocCount?: number;
   googleScholarHIndex?: number; googleScholarCitedBy?: number; googleScholarDocCount?: number;
   trDizinHIndex?: number; trDizinCitedBy?: number; trDizinDocCount?: number;
   sobiadHIndex?: number; sobiadCitedBy?: number; sobiadDocCount?: number;
@@ -225,10 +226,11 @@ export default function ProfilePage() {
           {/* Kaynak-bazlı grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {[
-              { n: 'Google Scholar', s: 'GS', c: '#4285f4', d: profile.googleScholarDocCount, cit: profile.googleScholarCitedBy, h: profile.googleScholarHIndex },
+              { n: 'OpenAlex', s: 'OA', c: '#0077c8', d: profile.openAlexDocCount, cit: profile.openAlexCitedBy, h: profile.openAlexHIndex },
               { n: 'Scopus', s: 'SC', c: '#e9711c', d: profile.scopusDocCount, cit: profile.scopusCitedBy, h: profile.scopusHIndex },
               { n: 'Web of Science', s: 'WoS', c: '#5e33bf', d: profile.wosDocCount, cit: profile.wosCitedBy, h: profile.wosHIndex },
               { n: 'TR Dizin', s: 'TR', c: '#c8a45a', d: profile.trDizinDocCount, cit: profile.trDizinCitedBy, h: profile.trDizinHIndex },
+              { n: 'Google Scholar', s: 'GS', c: '#4285f4', d: profile.googleScholarDocCount, cit: profile.googleScholarCitedBy, h: profile.googleScholarHIndex },
               { n: 'Sobiad', s: 'SB', c: '#0f2444', d: profile.sobiadDocCount, cit: profile.sobiadCitedBy, h: profile.sobiadHIndex },
             ].filter(x => (x.d && x.d > 0) || (x.cit && x.cit > 0) || (x.h && x.h > 0)).map(x => (
               <PublicSourceCard key={x.n} name={x.n} short={x.s} color={x.c} docs={x.d} cites={x.cit} hIndex={x.h} />
@@ -242,7 +244,7 @@ export default function ProfilePage() {
             </p>
           ) : null}
 
-          {!(profile.googleScholarDocCount || profile.scopusDocCount || profile.wosDocCount || profile.trDizinDocCount || profile.sobiadDocCount) && (
+          {!(profile.openAlexDocCount || profile.googleScholarDocCount || profile.scopusDocCount || profile.wosDocCount || profile.trDizinDocCount || profile.sobiadDocCount) && (
             <p className="text-sm italic text-center py-8" style={{ fontFamily: 'Playfair Display, serif', color: '#8a7a52' }}>
               Henüz bibliyometrik metrik kaydedilmemiş.
             </p>

@@ -505,6 +505,9 @@ export class PublicService {
       wosCitedBy: u.wosCitedBy,
       wosDocCount: u.wosDocCount,
       // Yeni kaynaklar — AVESİS tarzı
+      openAlexDocCount: (u as any).openAlexDocCount,
+      openAlexCitedBy: (u as any).openAlexCitedBy,
+      openAlexHIndex: (u as any).openAlexHIndex,
       googleScholarHIndex: (u as any).googleScholarHIndex,
       googleScholarCitedBy: (u as any).googleScholarCitedBy,
       googleScholarDocCount: (u as any).googleScholarDocCount,

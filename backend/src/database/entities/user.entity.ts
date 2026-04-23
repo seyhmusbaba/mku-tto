@@ -93,6 +93,19 @@ export class User {
   wosLastSync: string;
 
   // ═════════ AVESİS tarzı kaynak-bazlı metrikler ═════════
+  // OpenAlex — ORCID üzerinden otomatik sync, bedava, Scholar'a en yakın kapsam
+  @Column({ nullable: true, type: 'int' })
+  openAlexHIndex: number;
+
+  @Column({ nullable: true, type: 'int' })
+  openAlexCitedBy: number;
+
+  @Column({ nullable: true, type: 'int' })
+  openAlexDocCount: number;
+
+  @Column({ nullable: true })
+  openAlexLastSync: string;
+
   // Google Scholar: API yok → manuel girilir (araştırmacı kendi profilinden)
   @Column({ nullable: true, type: 'int' })
   googleScholarHIndex: number;
