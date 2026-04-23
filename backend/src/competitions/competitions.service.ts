@@ -5,6 +5,7 @@ import { Competition } from '../database/entities/competition.entity';
 import { CompetitionSource } from '../database/entities/competition-source.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { User } from '../database/entities/user.entity';
+import { fetchTubitak, fetchKosgeb, fetchEuFundingPortal, FetchedItem } from './competitions.fetchers';
 
 @Injectable()
 export class CompetitionsService {
@@ -163,6 +164,12 @@ export class CompetitionsService {
         let added = 0;
         if (src.type === 'rss') {
           added = await this.fetchRSS(src);
+        } else if (src.type === 'tubitak') {
+          added = await this.fetchFromFetcher(src, await fetchTubitak(25));
+        } else if (src.type === 'kosgeb') {
+          added = await this.fetchFromFetcher(src, await fetchKosgeb(25));
+        } else if (src.type === 'eu-portal') {
+          added = await this.fetchFromFetcher(src, await fetchEuFundingPortal(25));
         }
         if (added > 0) {
           totalAdded += added;
@@ -185,8 +192,22 @@ export class CompetitionsService {
     };
   }
 
-  async testSource(url: string): Promise<{ ok: boolean; count: number; preview: string[] }> {
+  async testSource(url: string, type?: string): Promise<{ ok: boolean; count: number; preview: string[] }> {
     try {
+      // Özel kaynak türleri
+      if (type === 'tubitak') {
+        const items = await fetchTubitak(5);
+        return { ok: items.length > 0, count: items.length, preview: items.slice(0, 3).map(i => i.title) };
+      }
+      if (type === 'kosgeb') {
+        const items = await fetchKosgeb(5);
+        return { ok: items.length > 0, count: items.length, preview: items.slice(0, 3).map(i => i.title) };
+      }
+      if (type === 'eu-portal') {
+        const items = await fetchEuFundingPortal(5);
+        return { ok: items.length > 0, count: items.length, preview: items.slice(0, 3).map(i => i.title) };
+      }
+      // RSS varsayılan
       const res = await fetch(url, {
         headers: { Accept: 'application/rss+xml, application/xml, text/xml, */*' },
         signal: AbortSignal.timeout(10000),
@@ -202,6 +223,37 @@ export class CompetitionsService {
     } catch (e: any) {
       return { ok: false, count: 0, preview: [e.message || 'Bağlantı hatası'] };
     }
+  }
+
+  /**
+   * FetchedItem listesini Competition tablosuna idempotent ekle.
+   * externalId uniqueness ile dedupe.
+   */
+  private async fetchFromFetcher(src: CompetitionSource, items: FetchedItem[]): Promise<number> {
+    let added = 0;
+    for (const item of items) {
+      if (!item.externalId) continue;
+      const exists = await this.repo.findOne({ where: { externalId: item.externalId } });
+      if (exists) continue;
+      const comp = this.repo.create({
+        title: item.title,
+        description: item.description || null,
+        source: src.name.toLowerCase().replace(/\s+/g, '_').slice(0, 30),
+        sourceUrl: item.link,
+        applyUrl: item.link,
+        deadline: item.deadline || null,
+        category: item.category || src.defaultCategory || 'araştırma',
+        budget: item.budget || null,
+        status: 'active',
+        isManual: false,
+        isActive: true,
+        externalId: item.externalId,
+      });
+      const saved = await this.repo.save(comp);
+      await this.sendNotifications(saved);
+      added++;
+    }
+    return added;
   }
 
   private async fetchRSS(src: CompetitionSource): Promise<number> {
@@ -278,6 +330,42 @@ export class CompetitionsService {
         } catch (_) {}
       }
     } catch (_) {}
+  }
+
+  /**
+   * Deadline 7 / 3 / 1 gün kala kullanıcılara hatırlatma bildirimi gönder.
+   * Scheduler her gün sabah çağırır — her yarışma için max 3 bildirim (7, 3, 1 gün).
+   */
+  async sendDeadlineReminders(): Promise<number> {
+    const all = await this.repo.find({ where: { isActive: true, status: 'active' } as any });
+    const users = await this.userRepo.find({ where: { isActive: true as any } });
+    const now = new Date(); now.setHours(0, 0, 0, 0);
+    let sent = 0;
+
+    for (const comp of all) {
+      if (!comp.deadline) continue;
+      const d = this.parseDeadlineDate(comp.deadline);
+      if (!d) continue;
+      d.setHours(0, 0, 0, 0);
+      const diff = Math.round((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (![7, 3, 1].includes(diff)) continue;
+
+      const suffix = diff === 1 ? 'yarın!' : diff + ' gün kaldı';
+      for (const u of users) {
+        try {
+          await this.notificationsService.create({
+            userId: u.id,
+            title: '⏰ Son başvuru ' + suffix,
+            message: comp.title,
+            type: diff === 1 ? 'warning' : 'info',
+            link: '/competitions',
+          });
+          sent++;
+        } catch {}
+      }
+    }
+    return sent;
   }
 
   async getStats() {

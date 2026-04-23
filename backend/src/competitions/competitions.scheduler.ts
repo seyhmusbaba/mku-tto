@@ -8,12 +8,19 @@ export class CompetitionsScheduler {
 
   constructor(private readonly svc: CompetitionsService) {}
 
-  // Her gece yarısı süresi dolmuşları işaretle
+  // Her gece yarısı süresi dolmuşları işaretle + deadline hatırlatması gönder
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async autoExpire() {
     const expired = await this.svc.autoExpireCompetitions();
     if (expired > 0) {
       this.logger.log(expired + ' yarişma süresi doldu olarak işaretlendi');
+    }
+    // 7/3/1 gün kala hatırlatma bildirimi
+    try {
+      const sent = await this.svc.sendDeadlineReminders();
+      if (sent > 0) this.logger.log(sent + ' deadline hatirlatma bildirimi gonderildi');
+    } catch (e: any) {
+      this.logger.warn('Deadline reminder hatasi: ' + e.message);
     }
   }
 

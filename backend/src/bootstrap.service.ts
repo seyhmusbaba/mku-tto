@@ -6,6 +6,7 @@ import { Role } from './database/entities/role.entity';
 import { Project } from './database/entities/project.entity';
 import { User } from './database/entities/user.entity';
 import { SystemSetting } from './database/entities/system-setting.entity';
+import { CompetitionSource } from './database/entities/competition-source.entity';
 import { DEMO_PROJECTS } from './database/demo-projects';
 
 const REQUIRED_PERMISSIONS = [
@@ -53,6 +54,7 @@ export class BootstrapService implements OnApplicationBootstrap {
     @InjectRepository(Project)    private projectRepo: Repository<Project>,
     @InjectRepository(User)       private userRepo: Repository<User>,
     @InjectRepository(SystemSetting) private settingRepo: Repository<SystemSetting>,
+    @InjectRepository(CompetitionSource) private compSourceRepo: Repository<CompetitionSource>,
   ) {}
 
   async onApplicationBootstrap() {
@@ -106,6 +108,9 @@ export class BootstrapService implements OnApplicationBootstrap {
     // 5. Eksik sistem ayarlarını idempotent olarak oluştur
     await this.seedMissingSettings();
 
+    // 5b. Varsayılan yarışma/çağrı kaynaklarını oluştur (sadece eksikleri ekler)
+    await this.seedDefaultCompetitionSources();
+
     // 6. Demo projeleri seed — KALDIRILDI (kullanıcı isteği)
     // Bootstrap'ta otomatik demo ekleme yapılmıyor. Mevcut demo projeleri silmek için:
     //   DELETE /api/admin/demo-projects (Süper Admin yetkisi gerekir)
@@ -117,6 +122,54 @@ export class BootstrapService implements OnApplicationBootstrap {
    * mevcut DB'de olmayan anahtarları oluştur. Var olanlara dokunma —
    * admin tarafından değiştirilen değerler korunmalı.
    */
+  /**
+   * Yarışma/çağrı modülü için varsayılan güvenilir kaynakları oluştur.
+   * Sadece eksik olanlar eklenir — admin eklediklerini korur.
+   * Scheduler her 6 saatte bir bu kaynakları otomatik tarar.
+   */
+  private async seedDefaultCompetitionSources() {
+    const defaults = [
+      {
+        name: 'TÜBİTAK Duyurular',
+        url: 'https://tubitak.gov.tr/tr/duyuru',
+        type: 'tubitak',
+        description: 'TÜBİTAK resmi çağrı, destek, ödül ve yarışma duyuruları',
+        color: '#1d4ed8',
+        defaultCategory: 'araştırma',
+        isActive: true,
+      },
+      {
+        name: 'KOSGEB Duyurular',
+        url: 'https://www.kosgeb.gov.tr/site/tr/genel/liste/2/duyurular',
+        type: 'kosgeb',
+        description: 'KOSGEB girişimcilik destek ve çağrı duyuruları',
+        color: '#059669',
+        defaultCategory: 'girişim',
+        isActive: true,
+      },
+      {
+        name: 'EU Funding & Tenders Portal',
+        url: 'https://ec.europa.eu/info/funding-tenders/opportunities/portal',
+        type: 'eu-portal',
+        description: 'Avrupa Birliği açık çağrılar (Horizon Europe, Erasmus+, EU4Health vb.)',
+        color: '#c8a45a',
+        defaultCategory: 'uluslararası',
+        isActive: true,
+      },
+    ];
+    for (const s of defaults) {
+      const ex = await this.compSourceRepo.findOne({ where: { name: s.name } });
+      if (!ex) {
+        try {
+          await this.compSourceRepo.save(this.compSourceRepo.create(s));
+          this.logger.log(`[Competitions] Kaynak eklendi: ${s.name}`);
+        } catch (e: any) {
+          this.logger.warn(`[Competitions] ${s.name} eklenemedi: ${e.message}`);
+        }
+      }
+    }
+  }
+
   private async seedMissingSettings() {
     const required = [
       { key: 'institution_name', value: 'Hatay Mustafa Kemal Üniversitesi', label: 'Kurum Adı (Raporlar için)', type: 'text' },

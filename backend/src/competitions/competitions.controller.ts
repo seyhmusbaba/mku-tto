@@ -28,7 +28,7 @@ export class CompetitionsController {
 
   // Kaynaklar
   @Get('sources/list') getSources() { return this.svc.getSources(); }
-  @Post('sources/test') testSource(@Body() body: { url: string }) { return this.svc.testSource(body.url); }
+  @Post('sources/test') testSource(@Body() body: { url: string; type?: string }) { return this.svc.testSource(body.url, body.type); }
   @Post('sources') createSource(@Body() dto: any) { return this.svc.createSource(dto); }
   @Put('sources/:id') updateSource(@Param('id') id: string, @Body() dto: any) { return this.svc.updateSource(id, dto); }
   @Delete('sources/:id') deleteSource(@Param('id') id: string) { return this.svc.deleteSource(id); }
