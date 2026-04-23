@@ -118,12 +118,13 @@ export class SearchService {
   // ── Projects ───────────────────────────────────────────────
   private async searchProjects(like: string, f: SearchFilters, limit: number) {
     const qb = this.projectRepo.createQueryBuilder('p')
-      .where('(p.title ILIKE :q OR p.description ILIKE :q OR p.code ILIKE :q)', { q: like });
+      .where('(p.title ILIKE :q OR p.description ILIKE :q)', { q: like });
     if (f.type) qb.andWhere('p.type = :t', { t: f.type });
     if (f.status) qb.andWhere('p.status = :s', { s: f.status });
     if (f.faculty) qb.andWhere('p.faculty = :f', { f: f.faculty });
-    if (f.yearFrom) qb.andWhere('EXTRACT(YEAR FROM p."startDate") >= :yf', { yf: f.yearFrom });
-    if (f.yearTo) qb.andWhere('EXTRACT(YEAR FROM p."startDate") <= :yt', { yt: f.yearTo });
+    // startDate ISO string formatında (YYYY-MM-DD) — substring ile yıl filtrele
+    if (f.yearFrom) qb.andWhere('SUBSTRING(p."startDate", 1, 4) >= :yf', { yf: String(f.yearFrom) });
+    if (f.yearTo) qb.andWhere('SUBSTRING(p."startDate", 1, 4) <= :yt', { yt: String(f.yearTo) });
 
     const [items, total] = await Promise.all([
       qb.clone().orderBy('p.createdAt', 'DESC').take(limit).getMany(),
@@ -131,7 +132,7 @@ export class SearchService {
     ]);
     return {
       items: items.map(p => ({
-        id: p.id, title: p.title, code: (p as any).code, type: p.type, status: p.status,
+        id: p.id, title: p.title, type: p.type, status: p.status,
         faculty: p.faculty, startDate: p.startDate, endDate: p.endDate,
         snippet: (p.description || '').slice(0, 140),
       })),
@@ -187,8 +188,8 @@ export class SearchService {
   // ── Competitions ───────────────────────────────────────────
   private async searchCompetitions(like: string, f: SearchFilters, limit: number) {
     const qb = this.compRepo.createQueryBuilder('c')
-      .where('(c.title ILIKE :q OR c.description ILIKE :q OR c.organizer ILIKE :q OR c.category ILIKE :q)', { q: like });
-    if (f.type) qb.andWhere('c.type = :t', { t: f.type });
+      .where('(c.title ILIKE :q OR c.description ILIKE :q OR c.source ILIKE :q OR c.category ILIKE :q)', { q: like });
+    if (f.type) qb.andWhere('c.source = :t', { t: f.type });
     if (f.status) qb.andWhere('c.status = :s', { s: f.status });
 
     const [items, total] = await Promise.all([
@@ -197,9 +198,9 @@ export class SearchService {
     ]);
     return {
       items: items.map(c => ({
-        id: c.id, title: c.title, organizer: c.organizer, type: c.type,
+        id: c.id, title: c.title, organizer: c.source, type: c.source,
         category: c.category, deadline: c.deadline, status: c.status,
-        budget: (c as any).budget,
+        budget: c.budget,
         snippet: (c.description || '').slice(0, 140),
       })),
       total,

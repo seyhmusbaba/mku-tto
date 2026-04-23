@@ -117,13 +117,14 @@ ${recentProjects.map(p => `  • ${p.title} [${p.type}, ${p.status}${p.faculty ?
     if (context === 'competitions' || context === 'general') {
       const openComps = await this.compRepo
         .createQueryBuilder('c')
-        .where('c.status = :s', { s: 'open' })
+        .where('c.status = :s', { s: 'active' })
+        .andWhere('c.isActive = true')
         .orderBy('c.deadline', 'ASC')
         .limit(10)
         .getMany();
       if (openComps.length > 0) {
         ctx += `\n\nAKTİF YARIŞMA/DESTEK ÇAĞRILARI (ilk 10):
-${openComps.map(c => `  • ${c.title} — ${c.organizer} — son başvuru: ${c.deadline || 'belirsiz'}`).join('\n')}`;
+${openComps.map(c => `  • ${c.title} — ${c.source || 'kaynak belirsiz'} — son başvuru: ${c.deadline || 'belirsiz'}`).join('\n')}`;
       }
     }
 
