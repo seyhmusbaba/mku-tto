@@ -1,6 +1,6 @@
-import { Controller, Post, UseGuards, Request, ForbiddenException } from '@nestjs/common';
+import { Controller, Post, Delete, UseGuards, Request, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { SkipThrottle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Project } from '../database/entities/project.entity';
@@ -86,6 +86,44 @@ export class AdminController {
       message: inserted > 0
         ? `${inserted} demo proje eklendi (${skipped} zaten mevcuttu).`
         : `Tüm demo projeler zaten mevcut (${skipped} proje).`,
+    };
+  }
+
+  /**
+   * DELETE /api/admin/demo-projects
+   * Tüm demo projeleri (DEMO_PROJECTS listesindeki başlıklarla eşleşenleri) siler.
+   * Süper Admin gerekir.
+   */
+  @Delete('demo-projects')
+  async deleteDemoProjects(@Request() req: any) {
+    const roleName = req.user?.roleName || '';
+    if (roleName !== 'Süper Admin') {
+      throw new ForbiddenException('Bu işlem için Süper Admin yetkisi gereklidir');
+    }
+
+    const demoTitles = DEMO_PROJECTS.map(p => p.title);
+    const existing = await this.projectRepo.find({ where: { title: In(demoTitles) } });
+    const deletedTitles: string[] = [];
+
+    for (const p of existing) {
+      try {
+        await this.projectRepo.manager.query('DELETE FROM project_members WHERE "projectId" = $1', [p.id]);
+        await this.projectRepo.manager.query('DELETE FROM project_documents WHERE "projectId" = $1', [p.id]).catch(() => {});
+        await this.projectRepo.manager.query('DELETE FROM project_reports WHERE "projectId" = $1', [p.id]).catch(() => {});
+        await this.projectRepo.manager.query('DELETE FROM project_partners WHERE "projectId" = $1', [p.id]).catch(() => {});
+        await this.projectRepo.manager.query('DELETE FROM ethics_reviews WHERE "projectId" = $1', [p.id]).catch(() => {});
+        await this.projectRepo.delete(p.id);
+        deletedTitles.push(p.title);
+      } catch (e: any) {
+        // Continue with others
+      }
+    }
+
+    return {
+      success: true,
+      deleted: deletedTitles.length,
+      deletedTitles,
+      message: `${deletedTitles.length} demo proje silindi.`,
     };
   }
 }

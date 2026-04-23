@@ -106,10 +106,10 @@ export class BootstrapService implements OnApplicationBootstrap {
     // 5. Eksik sistem ayarlarını idempotent olarak oluştur
     await this.seedMissingSettings();
 
-    // 6. Demo projeleri idempotent seed — SEED_DEMO_PROJECTS=false ile kapatılabilir
-    if (process.env.SEED_DEMO_PROJECTS !== 'false') {
-      await this.seedDemoProjects();
-    }
+    // 6. Demo projeleri seed — KALDIRILDI (kullanıcı isteği)
+    // Eskiden: if (process.env.SEED_DEMO_PROJECTS !== 'false') await this.seedDemoProjects();
+    // Artık demo proje eklenmiyor. Mevcut demo projeleri silmek için
+    // POST /api/admin/demo-projects/delete-all endpoint'i kullanılır.
   }
 
   /**
