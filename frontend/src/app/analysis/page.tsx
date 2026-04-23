@@ -141,8 +141,14 @@ export default function AnalysisPage() {
           <div className="flex gap-2 no-print">
             {(() => {
               const perms = user?.role?.permissions?.map((p: any) => p.name) || [];
-              const canSeeAnnualReport = perms.includes('analytics:annual-report');
-              const canSeePeriodReport = perms.includes('analytics:period-report');
+              const roleName = user?.role?.name || '';
+              const reportRoles = ['Süper Admin', 'Rektör', 'Dekan', 'Bölüm Başkanı'];
+              const canSeeAnnualReport = perms.length > 0
+                ? perms.includes('analytics:annual-report')
+                : reportRoles.includes(roleName);
+              const canSeePeriodReport = perms.length > 0
+                ? perms.includes('analytics:period-report')
+                : reportRoles.includes(roleName);
               return (canSeeAnnualReport || canSeePeriodReport) ? (
                 <>
                   {canSeeAnnualReport && (
@@ -457,11 +463,15 @@ export default function AnalysisPage() {
                     {(() => {
                       type BiblioScope = 'me' | 'faculty-compare' | 'dept-compare' | 'institutional';
                       // Permission bazlı yetki kontrolü — Roller & Yetkiler modülünden yönetilir
+                      // Fallback: permissions henüz yüklenmemişse role adına bak (eski davranış)
                       const perms = user?.role?.permissions?.map((p: any) => p.name) || [];
+                      const roleName = user?.role?.name || '';
                       const has = (p: string) => perms.includes(p);
-                      const canCompareFaculty = has('analytics:faculty-compare');
-                      const canCompareDept = has('analytics:dept-compare');
-                      const canSeeInstitutional = has('analytics:institutional');
+                      const hasOrRole = (p: string, roles: string[]) =>
+                        perms.length > 0 ? has(p) : roles.includes(roleName);
+                      const canCompareFaculty = hasOrRole('analytics:faculty-compare', ['Süper Admin', 'Rektör', 'Dekan']);
+                      const canCompareDept = hasOrRole('analytics:dept-compare', ['Süper Admin', 'Rektör', 'Dekan', 'Bölüm Başkanı']);
+                      const canSeeInstitutional = hasOrRole('analytics:institutional', ['Süper Admin', 'Rektör', 'Dekan', 'Bölüm Başkanı']);
                       const opts: Array<{ v: BiblioScope; l: string }> = [
                         { v: 'me',               l: 'Benim Scorecardım' },
                         ...(canCompareFaculty ? [{ v: 'faculty-compare' as BiblioScope, l: 'Fakülte Karşılaştırma' }] : []),
@@ -485,10 +495,12 @@ export default function AnalysisPage() {
 
                 {(() => {
                   const perms = user?.role?.permissions?.map((p: any) => p.name) || [];
-                  const has = (p: string) => perms.includes(p);
-                  const canCompareFaculty = has('analytics:faculty-compare');
-                  const canCompareDept = has('analytics:dept-compare');
-                  const canSeeInstitutional = has('analytics:institutional');
+                  const roleName = user?.role?.name || '';
+                  const hasOrRole = (p: string, roles: string[]) =>
+                    perms.length > 0 ? perms.includes(p) : roles.includes(roleName);
+                  const canCompareFaculty = hasOrRole('analytics:faculty-compare', ['Süper Admin', 'Rektör', 'Dekan']);
+                  const canCompareDept = hasOrRole('analytics:dept-compare', ['Süper Admin', 'Rektör', 'Dekan', 'Bölüm Başkanı']);
+                  const canSeeInstitutional = hasOrRole('analytics:institutional', ['Süper Admin', 'Rektör', 'Dekan', 'Bölüm Başkanı']);
                   return <>
                     {biblioScope === 'me' && user?.id && (
                       <BibliometricsPanel mode="researcher" userId={user.id} />
