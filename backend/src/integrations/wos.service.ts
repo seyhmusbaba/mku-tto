@@ -63,13 +63,15 @@ export class WosService {
    * ResearcherID / ORCID üzerinden yazar profilini getir.
    * WoS Starter documents endpoint → ilk sayfa metadata.
    */
-  async getAuthorProfile(researcherId: string): Promise<WosAuthorProfile | null> {
+  async getAuthorProfile(researcherId: string, force = false): Promise<WosAuthorProfile | null> {
     if (!this.isConfigured()) return null;
     if (!researcherId) return null;
 
     const cacheKey = `author:${researcherId}`;
-    const cached = this.cache.get<WosAuthorProfile | null>(cacheKey);
-    if (cached !== undefined) return cached;
+    if (!force) {
+      const cached = this.cache.get<WosAuthorProfile | null>(cacheKey);
+      if (cached !== undefined) return cached;
+    }
 
     try {
       await this.limiter.acquire();
@@ -122,7 +124,22 @@ export class WosService {
       const url = `${this.baseUrl}/documents?q=${encodeURIComponent(q)}&limit=${Math.min(limit, 50)}&page=1&sortField=TC`;
       const data = await fetchJson(url, { headers: this.authHeaders(), timeoutMs: 25000 });
 
-      const items: WosPublication[] = (data?.hits || []).map((h: any) => this.mapWosHit(h)).filter(Boolean);
+      const hits = data?.hits || [];
+      const items: WosPublication[] = hits.map((h: any) => this.mapWosHit(h)).filter(Boolean);
+
+      // Debug: ilk hit'in ham yapısı — atıf field'ı neyin altında geldi?
+      if (hits[0]) {
+        const sample = hits[0];
+        const citationKeys: string[] = [];
+        if (Array.isArray(sample.citations)) citationKeys.push(`citations[${sample.citations.length}]: ${JSON.stringify(sample.citations[0] || {}).slice(0, 100)}`);
+        if ('timesCited' in sample) citationKeys.push(`timesCited=${sample.timesCited}`);
+        if ('tc' in sample) citationKeys.push(`tc=${sample.tc}`);
+        if ('citedBy' in sample) citationKeys.push(`citedBy=${sample.citedBy}`);
+        this.logger.log(`[WoS] ${researcherId}: ${hits.length} kayıt alındı. Citation alanları: ${citationKeys.join(' · ') || 'BULUNAMADI'}`);
+        const totalCites = items.reduce((s, p) => s + (p.citedBy || 0), 0);
+        this.logger.log(`[WoS] ${researcherId}: Toplam çıkarılan atıf: ${totalCites}`);
+      }
+
       this.cache.set(cacheKey, items, 60 * 60 * 12);
       return items;
     } catch (e: any) {
@@ -195,12 +212,53 @@ export class WosService {
       journal: source.sourceTitle || source.title,
       year: source.publishYear || (source.publishTimestamp ? new Date(source.publishTimestamp).getFullYear() : undefined),
       authors: (h.names?.authors || []).map((a: any) => a.displayName || a.fullName).filter(Boolean),
-      citedBy: h.citations?.[0]?.count,
+      citedBy: this.extractCitationCount(h),
       type: h.types?.[0],
       abstract: h.abstract,
       keywords: h.keywords?.authorKeywords,
       indexedIn: h.sourceTypes,
     };
+  }
+
+  /**
+   * WoS Starter API response'unda atıf sayısı birden fazla yerde olabilir:
+   *  - citations: [{db: "WOS", count: N}]
+   *  - citations: [{count: N}]   (db belirsiz)
+   *  - timesCited / tc / citedBy  (farklı sürümler)
+   *  - dynamic_data.citation_related.tc_list.silo_tc[].local_count  (WoS Lite)
+   *
+   * Bu metod tüm olası yolları defansif dener, ilk bulduğu number'ı döner.
+   */
+  private extractCitationCount(h: any): number | undefined {
+    if (!h) return undefined;
+
+    // 1. WoS Starter — citations array
+    if (Array.isArray(h.citations)) {
+      // WoS veritabanı öncelikli
+      const wos = h.citations.find((c: any) => {
+        const db = String(c?.db || c?.database || '').toLowerCase();
+        return db === 'wos' || db === 'wos.cc' || db === 'webofscience';
+      });
+      if (wos && typeof wos.count === 'number') return wos.count;
+
+      // Herhangi bir DB
+      const first = h.citations.find((c: any) => typeof c?.count === 'number');
+      if (first) return first.count;
+    }
+
+    // 2. Düz alanlar (farklı sürümlerde)
+    if (typeof h.timesCited === 'number') return h.timesCited;
+    if (typeof h.tc === 'number') return h.tc;
+    if (typeof h.citedBy === 'number') return h.citedBy;
+
+    // 3. WoS Lite — dynamic_data.citation_related
+    const siloTc = h?.dynamic_data?.citation_related?.tc_list?.silo_tc;
+    if (Array.isArray(siloTc)) {
+      const entry = siloTc.find((s: any) => s?.coll_id === 'WOS') || siloTc[0];
+      if (entry?.local_count != null) return +entry.local_count;
+    }
+
+    return undefined;
   }
 
   /**

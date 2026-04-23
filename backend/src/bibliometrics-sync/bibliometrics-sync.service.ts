@@ -233,7 +233,8 @@ export class BibliometricsSyncService {
     }
 
     this.logger.log(`[WoS] Yazar aranıyor: ${identifier} (${user.wosResearcherId ? 'ResearcherID' : 'ORCID'})`);
-    const profile = await this.wos.getAuthorProfile(identifier);
+    // force=true: cache bypass et — her manuel sync'te tam taze veri gelsin
+    const profile = await this.wos.getAuthorProfile(identifier, true);
 
     if (!profile) {
       throw new Error(`WoS'ta "${identifier}" ile yazar bulunamadı — API key veya ID'yi kontrol edin`);
