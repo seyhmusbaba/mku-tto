@@ -504,6 +504,20 @@ export class PublicService {
       wosHIndex: u.wosHIndex,
       wosCitedBy: u.wosCitedBy,
       wosDocCount: u.wosDocCount,
+      // Yeni kaynaklar — AVESİS tarzı
+      googleScholarHIndex: (u as any).googleScholarHIndex,
+      googleScholarCitedBy: (u as any).googleScholarCitedBy,
+      googleScholarDocCount: (u as any).googleScholarDocCount,
+      trDizinHIndex: (u as any).trDizinHIndex,
+      trDizinCitedBy: (u as any).trDizinCitedBy,
+      trDizinDocCount: (u as any).trDizinDocCount,
+      sobiadHIndex: (u as any).sobiadHIndex,
+      sobiadCitedBy: (u as any).sobiadCitedBy,
+      sobiadDocCount: (u as any).sobiadDocCount,
+      totalPublicationCount: (u as any).totalPublicationCount,
+      openAccessCount: (u as any).openAccessCount,
+      otherCitedBy: (u as any).otherCitedBy,
+      thesisAdvisorCount: (u as any).thesisAdvisorCount,
       memberSince: u.createdAt,
     };
   }

@@ -16,6 +16,13 @@ interface Profile {
   scopusAuthorId?: string; wosResearcherId?: string;
   scopusHIndex?: number; scopusCitedBy?: number; scopusDocCount?: number;
   wosHIndex?: number; wosCitedBy?: number; wosDocCount?: number;
+  googleScholarHIndex?: number; googleScholarCitedBy?: number; googleScholarDocCount?: number;
+  trDizinHIndex?: number; trDizinCitedBy?: number; trDizinDocCount?: number;
+  sobiadHIndex?: number; sobiadCitedBy?: number; sobiadDocCount?: number;
+  totalPublicationCount?: number;
+  openAccessCount?: number;
+  otherCitedBy?: number;
+  thesisAdvisorCount?: number;
   memberSince?: string;
 }
 
@@ -107,8 +114,9 @@ export default function ProfilePage() {
     );
   }
 
-  const totalPubs = Math.max(profile.scopusDocCount || 0, profile.wosDocCount || 0, pubs.length);
-  const totalCitations = Math.max(profile.scopusCitedBy || 0, profile.wosCitedBy || 0);
+  // Not: Burada tek bir "toplam yayın/atıf" hesaplamıyoruz; AVESİS tarzında
+  // her veritabanını ayrı gösteriyoruz. Bir "toplam" rakam kaynakları
+  // birleştirdiği için yanıltıcı olur.
 
   return (
     <PublicLayout showSearch={false}>
@@ -197,16 +205,48 @@ export default function ProfilePage() {
         </div>
       </section>
 
-      {/* ═════ Stats — ölçü şeridi ═════ */}
+      {/* ═════ Metrikler — AVESİS tarzı kaynak-bazlı ═════ */}
       <section className="border-b" style={{ borderColor: 'rgba(15, 36, 68, 0.12)', background: '#ffffff' }}>
-        <div className="max-w-[1280px] mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-5 divide-x" style={{ borderColor: 'rgba(15, 36, 68, 0.12)' }}>
-            <StatInline label="Toplam Yayın" value={totalPubs} hero />
-            <StatInline label="Toplam Atıf" value={totalCitations} hero />
-            <StatInline label="Scopus h-index" value={profile.scopusHIndex || 0} />
-            <StatInline label="WoS h-index" value={profile.wosHIndex || 0} />
-            <StatInline label="Projeler" value={projects.length} />
+        <div className="max-w-[1280px] mx-auto px-6 py-10">
+          <p className="text-[11px] tracking-[0.25em] uppercase font-bold mb-5" style={{ color: '#8a7a52' }}>
+            Bibliyometrik Göstergeler
+          </p>
+
+          {/* Özet sayılar */}
+          {(profile.totalPublicationCount || projects.length || profile.thesisAdvisorCount || profile.openAccessCount) ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-0 border-t border-l mb-6" style={{ borderColor: 'rgba(15, 36, 68, 0.12)' }}>
+              <PublicSummaryCell label="Toplam Yayın" value={profile.totalPublicationCount} />
+              <PublicSummaryCell label="Proje" value={projects.length} />
+              <PublicSummaryCell label="Tez Danışmanlığı" value={profile.thesisAdvisorCount} />
+              <PublicSummaryCell label="Açık Erişim" value={profile.openAccessCount} />
+            </div>
+          ) : null}
+
+          {/* Kaynak-bazlı grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {[
+              { n: 'Google Scholar', s: 'GS', c: '#4285f4', d: profile.googleScholarDocCount, cit: profile.googleScholarCitedBy, h: profile.googleScholarHIndex },
+              { n: 'Scopus', s: 'SC', c: '#e9711c', d: profile.scopusDocCount, cit: profile.scopusCitedBy, h: profile.scopusHIndex },
+              { n: 'Web of Science', s: 'WoS', c: '#5e33bf', d: profile.wosDocCount, cit: profile.wosCitedBy, h: profile.wosHIndex },
+              { n: 'TR Dizin', s: 'TR', c: '#c8a45a', d: profile.trDizinDocCount, cit: profile.trDizinCitedBy, h: profile.trDizinHIndex },
+              { n: 'Sobiad', s: 'SB', c: '#0f2444', d: profile.sobiadDocCount, cit: profile.sobiadCitedBy, h: profile.sobiadHIndex },
+            ].filter(x => (x.d && x.d > 0) || (x.cit && x.cit > 0) || (x.h && x.h > 0)).map(x => (
+              <PublicSourceCard key={x.n} name={x.n} short={x.s} color={x.c} docs={x.d} cites={x.cit} hIndex={x.h} />
+            ))}
           </div>
+
+          {profile.otherCitedBy && profile.otherCitedBy > 0 ? (
+            <p className="text-xs mt-4 flex items-center gap-2" style={{ color: '#8a7a52' }}>
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#c8a45a' }} />
+              Diğer kaynaklardan toplam <strong style={{ color: '#0f2444' }}>{profile.otherCitedBy.toLocaleString('tr-TR')}</strong> atıf
+            </p>
+          ) : null}
+
+          {!(profile.googleScholarDocCount || profile.scopusDocCount || profile.wosDocCount || profile.trDizinDocCount || profile.sobiadDocCount) && (
+            <p className="text-sm italic text-center py-8" style={{ fontFamily: 'Playfair Display, serif', color: '#8a7a52' }}>
+              Henüz bibliyometrik metrik kaydedilmemiş.
+            </p>
+          )}
         </div>
       </section>
 
@@ -522,14 +562,50 @@ export default function ProfilePage() {
 }
 
 // ─────────────────────────────────────────────────────────────
-function StatInline({ label, value, hero }: { label: string; value: number; hero?: boolean }) {
+function PublicSummaryCell({ label, value }: { label: string; value?: number | null }) {
+  const fmt = (typeof value === 'number' && value > 0) ? value.toLocaleString('tr-TR') : '—';
+  const empty = fmt === '—';
   return (
-    <div className="px-5 md:px-6 py-6">
+    <div className="px-5 py-5 bg-white border-r border-b" style={{ borderColor: 'rgba(15, 36, 68, 0.12)' }}>
       <p className="text-[10px] tracking-[0.22em] uppercase font-bold mb-2" style={{ color: '#8a7a52' }}>{label}</p>
-      <p className={`${hero ? 'text-3xl md:text-4xl' : 'text-2xl md:text-3xl'} font-bold tabular-nums tracking-tight`}
-        style={{ fontFamily: 'Playfair Display, serif', color: '#0f2444' }}>
-        {value > 0 ? new Intl.NumberFormat('tr-TR').format(value) : '—'}
+      <p className={`text-2xl md:text-3xl font-bold tabular-nums tracking-tight`}
+        style={{ fontFamily: 'Playfair Display, serif', color: empty ? '#d4d0c8' : '#0f2444' }}>
+        {fmt}
       </p>
+    </div>
+  );
+}
+
+function PublicSourceCard({
+  name, short, color, docs, cites, hIndex,
+}: {
+  name: string; short: string; color: string;
+  docs?: number; cites?: number; hIndex?: number;
+}) {
+  const fmt = (n?: number) => (typeof n === 'number' && n > 0) ? n.toLocaleString('tr-TR') : '—';
+  return (
+    <div className="border p-4 bg-white" style={{ borderColor: 'rgba(15, 36, 68, 0.12)', borderRadius: 1 }}>
+      <div className="flex items-center gap-2 mb-3 pb-3 border-b" style={{ borderColor: 'rgba(15, 36, 68, 0.08)' }}>
+        <span className="w-8 h-8 flex items-center justify-center text-white text-[10px] font-bold tracking-wider"
+          style={{ background: color, borderRadius: 1 }}>
+          {short}
+        </span>
+        <p className="text-sm font-semibold" style={{ color: '#0f2444' }}>{name}</p>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <div>
+          <p className="text-[9px] tracking-[0.2em] uppercase font-semibold mb-1" style={{ color: '#a88a3f' }}>Yayın</p>
+          <p className="text-xl font-bold tabular-nums" style={{ fontFamily: 'Playfair Display, serif', color: fmt(docs) === '—' ? '#d4d0c8' : '#0f2444' }}>{fmt(docs)}</p>
+        </div>
+        <div>
+          <p className="text-[9px] tracking-[0.2em] uppercase font-semibold mb-1" style={{ color: '#a88a3f' }}>Atıf</p>
+          <p className="text-xl font-bold tabular-nums" style={{ fontFamily: 'Playfair Display, serif', color: fmt(cites) === '—' ? '#d4d0c8' : '#0f2444' }}>{fmt(cites)}</p>
+        </div>
+        <div>
+          <p className="text-[9px] tracking-[0.2em] uppercase font-semibold mb-1" style={{ color: '#a88a3f' }}>h-index</p>
+          <p className="text-xl font-bold tabular-nums" style={{ fontFamily: 'Playfair Display, serif', color: fmt(hIndex) === '—' ? '#d4d0c8' : '#0f2444' }}>{fmt(hIndex)}</p>
+        </div>
+      </div>
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { PROJECT_STATUS_LABELS, PROJECT_STATUS_COLORS, getProjectTypeLabel, form
 import toast from 'react-hot-toast';
 import { OrcidPublications } from '@/components/OrcidPublications';
 import { ScopusProfileCard } from '@/components/ScopusProfileCard';
+import { AvesisMetricsGrid } from '@/components/AvesisMetricsGrid';
 
 const TITLES = ['Prof. Dr.', 'Doç. Dr.', 'Dr. Öğr. Üyesi', 'Arş. Gör. Dr.', 'Arş. Gör.', 'Öğr. Gör.', 'Dr.'];
 
@@ -106,6 +107,26 @@ export default function UserProfilePage() {
         expertiseArea: editForm.expertiseArea, bio: editForm.bio,
         scopusAuthorId: editForm.scopusAuthorId,
         isPublic: editForm.isPublic,
+        // AVESİS tarzı per-source bibliyometrik metrikler
+        googleScholarDocCount: editForm.googleScholarDocCount,
+        googleScholarCitedBy: editForm.googleScholarCitedBy,
+        googleScholarHIndex: editForm.googleScholarHIndex,
+        scopusDocCount: editForm.scopusDocCount,
+        scopusCitedBy: editForm.scopusCitedBy,
+        scopusHIndex: editForm.scopusHIndex,
+        wosDocCount: editForm.wosDocCount,
+        wosCitedBy: editForm.wosCitedBy,
+        wosHIndex: editForm.wosHIndex,
+        trDizinDocCount: editForm.trDizinDocCount,
+        trDizinCitedBy: editForm.trDizinCitedBy,
+        trDizinHIndex: editForm.trDizinHIndex,
+        sobiadDocCount: editForm.sobiadDocCount,
+        sobiadCitedBy: editForm.sobiadCitedBy,
+        sobiadHIndex: editForm.sobiadHIndex,
+        totalPublicationCount: editForm.totalPublicationCount,
+        openAccessCount: editForm.openAccessCount,
+        otherCitedBy: editForm.otherCitedBy,
+        thesisAdvisorCount: editForm.thesisAdvisorCount,
       };
       if (isAdmin) { payload.firstName = editForm.firstName; payload.lastName = editForm.lastName; payload.email = editForm.email; }
       await usersApi.update(id, payload);
@@ -286,6 +307,166 @@ export default function UserProfilePage() {
               <div>
                 <label className="label">Uzmanlık Alanı</label>
                 <input className="input" placeholder="Makine öğrenmesi, IoT, Biyomedikal..." value={editForm.expertiseArea||''} onChange={e => set('expertiseArea', e.target.value)} />
+              </div>
+            </div>
+
+            {/* Bibliyometrik metrikler — AVESİS tarzı kaynak-bazlı manuel giriş */}
+            <div className="card p-5 space-y-3 md:col-span-2">
+              <SectionTitle icon="chart-bar">Bibliyometrik Metrikler (AVESİS tarzı)</SectionTitle>
+              <p className="text-xs text-muted -mt-1">
+                Her kaynağı ayrı girin. Google Scholar'ın API'si olmadığı için o rakamları kendi profilinize girmeniz gerekir.
+                Scopus ve WoS alanları sync ile otomatik doldurulabilir.
+              </p>
+
+              {/* Google Scholar */}
+              <div className="border rounded-lg p-3" style={{ borderColor: '#e8e4dc', background: '#faf8f4' }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-5 h-5 rounded text-white text-[10px] font-bold flex items-center justify-center" style={{ background: '#4285f4' }}>GS</span>
+                  <p className="text-sm font-semibold text-navy">Google Scholar</p>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-semibold">Manuel</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[11px] text-muted block">Yayın</label>
+                    <input type="number" className="input py-1.5 text-sm" placeholder="0" value={editForm.googleScholarDocCount ?? ''}
+                      onChange={e => set('googleScholarDocCount', e.target.value ? +e.target.value : null)} />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-muted block">Atıf</label>
+                    <input type="number" className="input py-1.5 text-sm" placeholder="0" value={editForm.googleScholarCitedBy ?? ''}
+                      onChange={e => set('googleScholarCitedBy', e.target.value ? +e.target.value : null)} />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-muted block">h-index</label>
+                    <input type="number" className="input py-1.5 text-sm" placeholder="0" value={editForm.googleScholarHIndex ?? ''}
+                      onChange={e => set('googleScholarHIndex', e.target.value ? +e.target.value : null)} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Scopus (auto from sync) */}
+              <div className="border rounded-lg p-3" style={{ borderColor: '#e8e4dc', background: '#faf8f4' }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-5 h-5 rounded text-white text-[10px] font-bold flex items-center justify-center" style={{ background: '#e9711c' }}>SC</span>
+                  <p className="text-sm font-semibold text-navy">Scopus</p>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-semibold">API sync</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[11px] text-muted block">Yayın</label>
+                    <input type="number" className="input py-1.5 text-sm" placeholder="0" value={editForm.scopusDocCount ?? ''}
+                      onChange={e => set('scopusDocCount', e.target.value ? +e.target.value : null)} />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-muted block">Atıf</label>
+                    <input type="number" className="input py-1.5 text-sm" placeholder="0" value={editForm.scopusCitedBy ?? ''}
+                      onChange={e => set('scopusCitedBy', e.target.value ? +e.target.value : null)} />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-muted block">h-index</label>
+                    <input type="number" className="input py-1.5 text-sm" placeholder="0" value={editForm.scopusHIndex ?? ''}
+                      onChange={e => set('scopusHIndex', e.target.value ? +e.target.value : null)} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Web of Science */}
+              <div className="border rounded-lg p-3" style={{ borderColor: '#e8e4dc', background: '#faf8f4' }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-5 h-5 rounded text-white text-[10px] font-bold flex items-center justify-center" style={{ background: '#5e33bf' }}>WoS</span>
+                  <p className="text-sm font-semibold text-navy">Web of Science</p>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[11px] text-muted block">Yayın</label>
+                    <input type="number" className="input py-1.5 text-sm" placeholder="0" value={editForm.wosDocCount ?? ''}
+                      onChange={e => set('wosDocCount', e.target.value ? +e.target.value : null)} />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-muted block">Atıf</label>
+                    <input type="number" className="input py-1.5 text-sm" placeholder="0" value={editForm.wosCitedBy ?? ''}
+                      onChange={e => set('wosCitedBy', e.target.value ? +e.target.value : null)} />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-muted block">h-index</label>
+                    <input type="number" className="input py-1.5 text-sm" placeholder="0" value={editForm.wosHIndex ?? ''}
+                      onChange={e => set('wosHIndex', e.target.value ? +e.target.value : null)} />
+                  </div>
+                </div>
+              </div>
+
+              {/* TR Dizin */}
+              <div className="border rounded-lg p-3" style={{ borderColor: '#e8e4dc', background: '#faf8f4' }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-5 h-5 rounded text-white text-[10px] font-bold flex items-center justify-center" style={{ background: '#c8a45a' }}>TR</span>
+                  <p className="text-sm font-semibold text-navy">TR Dizin</p>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[11px] text-muted block">Yayın</label>
+                    <input type="number" className="input py-1.5 text-sm" placeholder="0" value={editForm.trDizinDocCount ?? ''}
+                      onChange={e => set('trDizinDocCount', e.target.value ? +e.target.value : null)} />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-muted block">Atıf</label>
+                    <input type="number" className="input py-1.5 text-sm" placeholder="0" value={editForm.trDizinCitedBy ?? ''}
+                      onChange={e => set('trDizinCitedBy', e.target.value ? +e.target.value : null)} />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-muted block">h-index</label>
+                    <input type="number" className="input py-1.5 text-sm" placeholder="0" value={editForm.trDizinHIndex ?? ''}
+                      onChange={e => set('trDizinHIndex', e.target.value ? +e.target.value : null)} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Sobiad */}
+              <div className="border rounded-lg p-3" style={{ borderColor: '#e8e4dc', background: '#faf8f4' }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-5 h-5 rounded text-white text-[10px] font-bold flex items-center justify-center" style={{ background: '#0f2444' }}>SB</span>
+                  <p className="text-sm font-semibold text-navy">Sobiad</p>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[11px] text-muted block">Yayın</label>
+                    <input type="number" className="input py-1.5 text-sm" placeholder="0" value={editForm.sobiadDocCount ?? ''}
+                      onChange={e => set('sobiadDocCount', e.target.value ? +e.target.value : null)} />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-muted block">Atıf</label>
+                    <input type="number" className="input py-1.5 text-sm" placeholder="0" value={editForm.sobiadCitedBy ?? ''}
+                      onChange={e => set('sobiadCitedBy', e.target.value ? +e.target.value : null)} />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-muted block">h-index</label>
+                    <input type="number" className="input py-1.5 text-sm" placeholder="0" value={editForm.sobiadHIndex ?? ''}
+                      onChange={e => set('sobiadHIndex', e.target.value ? +e.target.value : null)} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Aggregate / diğer */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                <div>
+                  <label className="text-[11px] text-muted block">Toplam Yayın (dedupe)</label>
+                  <input type="number" className="input py-1.5 text-sm" placeholder="0" value={editForm.totalPublicationCount ?? ''}
+                    onChange={e => set('totalPublicationCount', e.target.value ? +e.target.value : null)} />
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted block">Açık Erişim</label>
+                  <input type="number" className="input py-1.5 text-sm" placeholder="0" value={editForm.openAccessCount ?? ''}
+                    onChange={e => set('openAccessCount', e.target.value ? +e.target.value : null)} />
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted block">Diğer Atıf</label>
+                  <input type="number" className="input py-1.5 text-sm" placeholder="0" value={editForm.otherCitedBy ?? ''}
+                    onChange={e => set('otherCitedBy', e.target.value ? +e.target.value : null)} />
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted block">Tez Danışmanlığı</label>
+                  <input type="number" className="input py-1.5 text-sm" placeholder="0" value={editForm.thesisAdvisorCount ?? ''}
+                    onChange={e => set('thesisAdvisorCount', e.target.value ? +e.target.value : null)} />
+                </div>
               </div>
             </div>
 
@@ -496,7 +677,69 @@ export default function UserProfilePage() {
 
               {/* SAĞ KOL — 2 sütun */}
               <div className="xl:col-span-2 space-y-6">
-                {/* Scopus Metrikleri — en üstte */}
+                {/* AVESİS tarzı kaynak-bazlı bibliyometrik metrikler */}
+                <div>
+                  <h3 className="font-display text-base font-semibold text-navy mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-5 rounded-full inline-block" style={{ background: '#c8a45a' }} />
+                    Bibliyometrik Göstergeler
+                  </h3>
+                  <AvesisMetricsGrid
+                    sources={[
+                      {
+                        name: 'Google Scholar',
+                        shortName: 'GS',
+                        color: '#4285f4',
+                        docs: (user as any).googleScholarDocCount,
+                        citations: (user as any).googleScholarCitedBy,
+                        hIndex: (user as any).googleScholarHIndex,
+                        note: 'Gri literatür dahil',
+                      },
+                      {
+                        name: 'Scopus',
+                        shortName: 'SC',
+                        color: '#e9711c',
+                        docs: (user as any).scopusDocCount,
+                        citations: (user as any).scopusCitedBy,
+                        hIndex: (user as any).scopusHIndex,
+                        note: 'Elsevier — SCI dergileri',
+                      },
+                      {
+                        name: 'Web of Science',
+                        shortName: 'WoS',
+                        color: '#5e33bf',
+                        docs: (user as any).wosDocCount,
+                        citations: (user as any).wosCitedBy,
+                        hIndex: (user as any).wosHIndex,
+                        note: 'Clarivate — SCI core',
+                      },
+                      {
+                        name: 'TR Dizin',
+                        shortName: 'TR',
+                        color: '#c8a45a',
+                        docs: (user as any).trDizinDocCount,
+                        citations: (user as any).trDizinCitedBy,
+                        hIndex: (user as any).trDizinHIndex,
+                        note: 'TÜBİTAK ULAKBİM',
+                      },
+                      {
+                        name: 'Sobiad',
+                        shortName: 'SB',
+                        color: '#0f2444',
+                        docs: (user as any).sobiadDocCount,
+                        citations: (user as any).sobiadCitedBy,
+                        hIndex: (user as any).sobiadHIndex,
+                        note: 'Sosyal bilimler',
+                      },
+                    ]}
+                    totalPublications={(user as any).totalPublicationCount}
+                    openAccess={(user as any).openAccessCount}
+                    otherCitations={(user as any).otherCitedBy}
+                    projects={projects.owned.length + projects.member.length}
+                    thesisAdvising={(user as any).thesisAdvisorCount}
+                  />
+                </div>
+
+                {/* Scopus Metrikleri — eski kart, hâlâ yararlı (live sync ile) */}
                 {(user as any).scopusAuthorId && (
                   <ScopusProfileCard user={user} isMe={isMe} />
                 )}

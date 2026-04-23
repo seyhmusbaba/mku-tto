@@ -92,6 +92,53 @@ export class User {
   @Column({ nullable: true })
   wosLastSync: string;
 
+  // ═════════ AVESİS tarzı kaynak-bazlı metrikler ═════════
+  // Google Scholar: API yok → manuel girilir (araştırmacı kendi profilinden)
+  @Column({ nullable: true, type: 'int' })
+  googleScholarHIndex: number;
+
+  @Column({ nullable: true, type: 'int' })
+  googleScholarCitedBy: number;
+
+  @Column({ nullable: true, type: 'int' })
+  googleScholarDocCount: number;
+
+  // TR Dizin (TÜBİTAK ULAKBİM) — otomatik veya manuel
+  @Column({ nullable: true, type: 'int' })
+  trDizinHIndex: number;
+
+  @Column({ nullable: true, type: 'int' })
+  trDizinCitedBy: number;
+
+  @Column({ nullable: true, type: 'int' })
+  trDizinDocCount: number;
+
+  // Sobiad (sosyal bilimler atıf indeksi) — manuel
+  @Column({ nullable: true, type: 'int' })
+  sobiadHIndex: number;
+
+  @Column({ nullable: true, type: 'int' })
+  sobiadCitedBy: number;
+
+  @Column({ nullable: true, type: 'int' })
+  sobiadDocCount: number;
+
+  // Diğer kaynaklardan toplam atıf (manuel)
+  @Column({ nullable: true, type: 'int' })
+  otherCitedBy: number;
+
+  // Tez danışmanlığı sayısı — manuel
+  @Column({ nullable: true, type: 'int' })
+  thesisAdvisorCount: number;
+
+  // Açık erişim yayın sayısı (farklı kaynaklardan toplanan) — manuel veya hesaplanmış
+  @Column({ nullable: true, type: 'int' })
+  openAccessCount: number;
+
+  // Toplam yayın sayısı (dedupe'li gerçek sayı) — manuel giriş izinli
+  @Column({ nullable: true, type: 'int' })
+  totalPublicationCount: number;
+
   @Column({ default: 1 })
   isActive: boolean;
 
