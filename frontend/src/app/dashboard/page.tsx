@@ -466,9 +466,9 @@ function AdminDashboard({ stats, user, auditLogs }: { stats: any; user: any; aud
             Gerçekleşme Oranları
           </h3>
           <div className="flex justify-around flex-wrap gap-4">
-            <GaugeChart value={stats.completedProjects || 0} max={total || 1} color="#059669" label="Tamamlanma" />
-            <GaugeChart value={stats.activeProjects || 0}    max={total || 1} color="#1a3a6b" label="Aktivite" />
-            <GaugeChart value={total - (stats.cancelledProjects || 0)} max={total || 1} color="#c8a45a" label="Sürüyor / Bitti" />
+            <GaugeChart value={stats.activeProjects || 0}    max={total || 1} color="#059669" label="Aktiflik" />
+            <GaugeChart value={stats.completedProjects || 0} max={total || 1} color="#2563eb" label="Tamamlanma" />
+            <GaugeChart value={stats.pendingProjects || 0}   max={total || 1} color="#d97706" label="Başvuru Sürecinde" />
           </div>
         </div>
         <div className="card">

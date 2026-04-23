@@ -139,18 +139,57 @@ export default function AnalysisPage() {
     }
   };
 
+  // ═════════ ROL BAZLI ERİŞİM KONTROLÜ ═════════
+  // Prensipler:
+  //  - Süper Admin / Rektör: TÜM sekmeler
+  //  - Dekan: kendi fakültesinin özet + karşılaştırma (scope backend'de otomatik)
+  //  - Bölüm Başkanı: kendi bölümünün özet + karşılaştırma
+  //  - Diğer (Akademisyen / Araştırma Görevlisi): SADECE kendi projelerinin özeti
+  // Kurumsal Karşılaştırma (fakülteler arası radar) SADECE Süper Admin / Rektör
+  const roleName = user?.role?.name || '';
+  const isSuperAdmin = roleName === 'Süper Admin';
+  const isRector     = roleName === 'Rektör';
+  const isDean       = roleName === 'Dekan';
+  const isHead       = roleName === 'Bölüm Başkanı';
+  const isInstitutionWide = isSuperAdmin || isRector;
+  const isFacultyWide     = isInstitutionWide || isDean;
+  const isDeptWide        = isFacultyWide || isHead;
+  // Akademisyen / Araştırma Görevlisi / diğer: sadece kendi projelerinin analizi
+
   const TABS: { key: Tab; label: string }[] = [
-    { key: 'overview',      label: 'Genel Bakış'          },
-    { key: 'institutional', label: 'Kurumsal Karşılaştırma' },
-    // Bibliyometri + Scopus sekmeleri ancak admin açıksa görünür
-    ...(biblioEnabled ? [{ key: 'bibliometrics' as Tab, label: 'Bibliyometri' }] : []),
-    { key: 'faculty',       label: 'Fakülteler'           },
-    { key: 'researcher',    label: 'Araştırmacılar'       },
-    { key: 'funding',       label: 'Fon Analizi'          },
-    { key: 'timeline',      label: 'Zaman Serisi'         },
-    { key: 'gantt',         label: 'Gantt'                },
-    ...(biblioEnabled ? [{ key: 'scopus' as Tab, label: 'Scopus Analitik' }] : []),
+    // Genel Bakış herkese açık (scope backend'de otomatik kısıtlanır: user → sadece kendisi)
+    { key: 'overview', label: 'Genel Bakış' },
+
+    // Kurumsal Karşılaştırma — SADECE rektörlük seviyesi
+    ...(isInstitutionWide ? [{ key: 'institutional' as Tab, label: 'Kurumsal Karşılaştırma' }] : []),
+
+    // Bibliyometri — biblioEnabled + en az fakülte-genişliğinde yetki gerek
+    ...(biblioEnabled && isDeptWide ? [{ key: 'bibliometrics' as Tab, label: 'Bibliyometri' }] : []),
+
+    // Fakülteler karşılaştırması — Dekan+ görür (dekan sadece kendi fakültesi context'inde)
+    ...(isFacultyWide ? [{ key: 'faculty' as Tab, label: 'Fakülteler' }] : []),
+
+    // Araştırmacı verimliliği — Bölüm Başkanı+ görür (kendi kapsamında)
+    ...(isDeptWide ? [{ key: 'researcher' as Tab, label: 'Araştırmacılar' }] : []),
+
+    // Fon Analizi — Bölüm Başkanı+ (kendi kapsamında)
+    ...(isDeptWide ? [{ key: 'funding' as Tab, label: 'Fon Analizi' }] : []),
+
+    // Zaman ve Gantt — kendi projeleri herkese faydalı, scope otomatik
+    { key: 'timeline', label: 'Zaman Serisi' },
+    { key: 'gantt',    label: 'Gantt'        },
+
+    // Scopus Analitik — biblioEnabled + en az fakülte-genişliğinde
+    ...(biblioEnabled && isFacultyWide ? [{ key: 'scopus' as Tab, label: 'Scopus Analitik' }] : []),
   ];
+
+  // URL'den gelen sekme yetkiye sığmıyorsa overview'a düş
+  useEffect(() => {
+    if (!TABS.find(t => t.key === tab)) {
+      setTab('overview');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roleName]);
 
   const years = Array.from({length: 6}, (_, i) => String(new Date().getFullYear() - i));
 
@@ -362,7 +401,7 @@ export default function AnalysisPage() {
             )}
 
             {/* ── FAKÜLTE ANALİZİ ── */}
-            {tab === 'faculty' && (
+            {tab === 'faculty' && isFacultyWide && (
               <div className="space-y-6">
                 <div className="card p-5">
                   <h3 className="font-display text-sm font-semibold text-navy mb-4">Fakülte Bazlı Proje Dağılımı</h3>
@@ -412,7 +451,7 @@ export default function AnalysisPage() {
             )}
 
             {/* ── ARAŞTIRMACI VERİMLİLİĞİ ── */}
-            {tab === 'researcher' && (
+            {tab === 'researcher' && isDeptWide && (
               <div className="space-y-4">
                 <div className="card p-5">
                   <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
@@ -463,7 +502,7 @@ export default function AnalysisPage() {
             )}
 
             {/* ── FON ANALİZİ ── */}
-            {tab === 'funding' && (
+            {tab === 'funding' && isDeptWide && (
               <div className="space-y-6">
                 {/* ═ Proje Türü Başarı Oranları ═ */}
                 <div className="card p-5">
@@ -657,7 +696,7 @@ export default function AnalysisPage() {
 
             {/* ── SCOPUS ANALİTİK ── */}
             {/* ── KURUMSAL KARŞILAŞTIRMA ── */}
-            {tab === 'institutional' && <InstitutionalPanel highlightFaculty={user?.faculty} />}
+            {tab === 'institutional' && isInstitutionWide && <InstitutionalPanel highlightFaculty={user?.faculty} />}
 
             {/* ── BİBLİYOMETRİ ── (admin panelden kapatılabilir) */}
             {tab === 'bibliometrics' && biblioEnabled && (
