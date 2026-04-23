@@ -21,8 +21,8 @@ export class AnalyticsController {
   }
 
   @Get('faculty-performance')
-  facultyPerformance(@Request() req: any) {
-    return this.svc.getFacultyPerformance(req.user.userId, req.user.roleName);
+  facultyPerformance(@Query() q: any, @Request() req: any) {
+    return this.svc.getFacultyPerformance(q, req.user.userId, req.user.roleName);
   }
 
   @Get('researcher-productivity')
@@ -31,8 +31,8 @@ export class AnalyticsController {
   }
 
   @Get('funding-success')
-  fundingSuccess(@Request() req: any) {
-    return this.svc.getFundingSuccess(req.user.userId, req.user.roleName);
+  fundingSuccess(@Query() q: any, @Request() req: any) {
+    return this.svc.getFundingSuccess(q, req.user.userId, req.user.roleName);
   }
 
   @Get('budget-utilization')

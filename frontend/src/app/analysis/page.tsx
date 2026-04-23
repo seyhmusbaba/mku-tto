@@ -74,6 +74,8 @@ export default function AnalysisPage() {
   const [filterType, setFilterType] = useState('');
   const [exporting, setExporting] = useState(false);
   const [periodModalOpen, setPeriodModalOpen] = useState(false);
+  const [researcherLimit, setResearcherLimit] = useState<number>(10);
+  const [timelineGran, setTimelineGran] = useState<'month' | 'quarter' | 'year'>('month');
   const [biblioEnabled, setBiblioEnabled] = useState<boolean>(showBibliometrics());
 
   useEffect(() => {
@@ -95,11 +97,27 @@ export default function AnalysisPage() {
 
   useEffect(() => {
     setOverviewLoading(true);
-    api.get('/analytics/overview', { params: { year: filterYear, faculty: filterFaculty, type: filterType } })
+    const filterParams = { year: filterYear, faculty: filterFaculty, type: filterType };
+
+    api.get('/analytics/overview', { params: filterParams })
       .then(r => setOverview(r.data))
       .catch(() => {})
       .finally(() => setOverviewLoading(false));
-  }, [filterYear, filterFaculty, filterType]);
+
+    // Filtre değişince tüm diğer sekmeler de yeniden çekilsin — tutarlı görünüm için
+    api.get('/analytics/faculty-performance', { params: filterParams })
+      .then(r => setFacultyData(r.data || []))
+      .catch(() => {});
+    api.get('/analytics/researcher-productivity', { params: { ...filterParams, limit: researcherLimit } })
+      .then(r => setResearcherData(r.data || []))
+      .catch(() => {});
+    api.get('/analytics/funding-success', { params: filterParams })
+      .then(r => setFundingData(r.data || []))
+      .catch(() => {});
+    api.get('/analytics/timeline', { params: { ...filterParams, granularity: timelineGran } })
+      .then(r => setTimelineData(r.data || []))
+      .catch(() => {});
+  }, [filterYear, filterFaculty, filterType, researcherLimit, timelineGran]);
 
   const handleOpenTabReport = () => {
     setExporting(true);
@@ -244,12 +262,12 @@ export default function AnalysisPage() {
                 )}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {([
-                    { label: 'Toplam Proje', val: overview.total, icon: 'folder' as AIconName, color: '#1a3a6b' },
-                    { label: 'Toplam Bütçe', val: formatCurrency(overview.totalBudget), icon: 'dollar' as AIconName, color: '#c8a45a' },
-                    { label: 'Başarı Oranı', val: `%${overview.successRate}`, icon: 'check' as AIconName, color: '#059669' },
-                    { label: 'Ort. Bütçe', val: formatCurrency(overview.avgBudget), icon: 'chart' as AIconName, color: '#7c3aed' },
+                    { label: 'Toplam Proje', val: overview.total, icon: 'folder' as AIconName, color: '#1a3a6b', tip: 'Filtreye uyan tüm projeler (tüm durumlar dahil)' },
+                    { label: 'Toplam Bütçe', val: formatCurrency(overview.totalBudget), icon: 'dollar' as AIconName, color: '#c8a45a', tip: 'Projelerde belirtilen toplam bütçe' },
+                    { label: 'Tamamlanma Oranı', val: `%${overview.successRate}`, icon: 'check' as AIconName, color: '#059669', tip: `Sonucu belli olan projelerde oran: ${overview.completed} tamamlandı / ${overview.decided} karara bağlandı. Beklemedeki veya iptal edilen projeler değerlendirme dışı.` },
+                    { label: 'Ort. Bütçe', val: formatCurrency(overview.avgBudget), icon: 'chart' as AIconName, color: '#7c3aed', tip: 'Toplam bütçe / proje sayısı' },
                   ]).map(item => (
-                    <div key={item.label} className="card p-5 text-center">
+                    <div key={item.label} className="card p-5 text-center" title={item.tip}>
                       <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl mb-2"
                         style={{ background: item.color + '18', color: item.color }}>
                         <AIcon name={item.icon} className="w-5 h-5" />
@@ -347,10 +365,27 @@ export default function AnalysisPage() {
             {tab === 'researcher' && (
               <div className="space-y-4">
                 <div className="card p-5">
-                  <h3 className="font-display text-sm font-semibold text-navy mb-4 inline-flex items-center gap-2">
-                    <AIcon name="beaker" className="w-4 h-4 text-navy" />
-                    Araştırmacı Üretkenlik Sıralaması
-                  </h3>
+                  <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                    <h3 className="font-display text-sm font-semibold text-navy inline-flex items-center gap-2">
+                      <AIcon name="beaker" className="w-4 h-4 text-navy" />
+                      Araştırmacı Üretkenlik Sıralaması
+                      <span className="text-xs font-normal text-muted">({researcherData.length} araştırmacı)</span>
+                    </h3>
+                    <div className="flex items-center gap-1 text-xs">
+                      <span className="text-muted">Göster:</span>
+                      {[10, 25, 50, 100, 0].map(n => (
+                        <button key={n}
+                          onClick={() => setResearcherLimit(n)}
+                          className="px-2.5 py-1 rounded-md font-semibold transition-colors"
+                          style={{
+                            background: researcherLimit === n ? '#0f2444' : '#f0ede8',
+                            color: researcherLimit === n ? 'white' : '#6b7280',
+                          }}>
+                          {n === 0 ? 'Tümü' : `Top ${n}`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <div className="space-y-3">
                     {researcherData.map((r, i) => (
                       <div key={i} className="flex items-center gap-4 p-3 rounded-xl" style={{ background: i < 3 ? '#f8f6f2' : 'transparent', border: '1px solid #f0ede8' }}>
@@ -420,16 +455,48 @@ export default function AnalysisPage() {
             {/* ── ZAMAN SERİSİ ── */}
             {tab === 'timeline' && (
               <div className="card p-5">
-                <h3 className="font-display text-sm font-semibold text-navy mb-4">Aylık Proje Başlangıç Trendi</h3>
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                  <h3 className="font-display text-sm font-semibold text-navy">
+                    Proje Başlangıç Trendi
+                    <span className="text-xs font-normal text-muted ml-2">
+                      ({timelineGran === 'month' ? 'Aylık' : timelineGran === 'quarter' ? 'Çeyrek bazlı' : 'Yıllık'})
+                    </span>
+                  </h3>
+                  <div className="flex items-center gap-1 text-xs">
+                    <span className="text-muted">Çözünürlük:</span>
+                    {([
+                      { v: 'month', l: 'Ay' },
+                      { v: 'quarter', l: 'Çeyrek' },
+                      { v: 'year', l: 'Yıl' },
+                    ] as const).map(o => (
+                      <button key={o.v}
+                        onClick={() => setTimelineGran(o.v)}
+                        className="px-2.5 py-1 rounded-md font-semibold transition-colors"
+                        style={{
+                          background: timelineGran === o.v ? '#0f2444' : '#f0ede8',
+                          color: timelineGran === o.v ? 'white' : '#6b7280',
+                        }}>
+                        {o.l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <ResponsiveContainer width="100%" height={320}>
                   <LineChart data={timelineData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0ede8" />
                     <XAxis dataKey="month" tick={{ fontSize: 10 }} />
                     <YAxis tick={{ fontSize: 11 }} />
                     <Tooltip />
-                    <Line type="monotone" dataKey="count" stroke="#1a3a6b" strokeWidth={2.5} dot={{ r: 4 }} name="Proje Sayısı" />
+                    <Line type="monotone" dataKey="count" stroke="#1a3a6b" strokeWidth={2.5} dot={{ r: 4 }} name="Başlayan Proje" />
+                    <Line type="monotone" dataKey="completed" stroke="#059669" strokeWidth={2} dot={{ r: 3 }} name="Tamamlanan" />
+                    <Line type="monotone" dataKey="active" stroke="#c8a45a" strokeWidth={2} dot={{ r: 3 }} name="Aktif" />
                   </LineChart>
                 </ResponsiveContainer>
+                {timelineData.length === 0 && (
+                  <p className="text-sm text-muted text-center py-6 italic">
+                    Seçili filtrelerle eşleşen proje yok.
+                  </p>
+                )}
               </div>
             )}
 

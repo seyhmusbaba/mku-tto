@@ -51,6 +51,24 @@ export class AnalyticsService {
     return qb;
   }
 
+  /**
+   * Ortak proje filtresi — year/faculty/type/from/to parametrelerini QB'ye uygular.
+   * Tüm analytics endpoint'leri bu helper'dan geçerse filtre davranışı
+   * sekmeler arasında tutarlı olur.
+   */
+  private applyProjectFilters<T>(
+    qb: SelectQueryBuilder<T>,
+    alias: string,
+    f: { year?: string; faculty?: string; type?: string; from?: string; to?: string } = {},
+  ): SelectQueryBuilder<T> {
+    if (f.year) qb.andWhere(`${alias}."startDate" IS NOT NULL AND SUBSTRING(${alias}."startDate", 1, 4) = :fYear`, { fYear: String(f.year) });
+    if (f.from) qb.andWhere(`${alias}."startDate" IS NOT NULL AND ${alias}."startDate" >= :fFrom`, { fFrom: f.from });
+    if (f.to)   qb.andWhere(`${alias}."startDate" IS NOT NULL AND ${alias}."startDate" <= :fTo`,   { fTo: f.to });
+    if (f.faculty) qb.andWhere(`${alias}.faculty = :fFaculty`, { fFaculty: f.faculty });
+    if (f.type)    qb.andWhere(`${alias}.type = :fType`,       { fType: f.type });
+    return qb;
+  }
+
   // Geriye uyumluluk — eski signature kullanan yerler kalırsa false döner
   private async hasFullAccess(roleName: string): Promise<boolean> {
     if (GLOBAL_ROLES.includes(roleName)) return true;
@@ -91,11 +109,7 @@ export class AnalyticsService {
       this.applyScope(qb, 'p', scope);
     }
 
-    if (q.year) qb.andWhere(`p."startDate" IS NOT NULL AND SUBSTRING(p."startDate", 1, 4) = :year`, { year: q.year });
-    if (q.from) qb.andWhere(`p."startDate" IS NOT NULL AND p."startDate" >= :from`, { from: q.from });
-    if (q.to) qb.andWhere(`p."startDate" IS NOT NULL AND p."startDate" <= :to`, { to: q.to });
-    if (q.faculty) qb.andWhere('p.faculty = :faculty', { faculty: q.faculty });
-    if (q.type) qb.andWhere('p.type = :type', { type: q.type });
+    this.applyProjectFilters(qb, 'p', q);
 
     const projects = await qb.getMany();
     const total = projects.length;
@@ -147,7 +161,11 @@ export class AnalyticsService {
     };
   }
 
-  async getFacultyPerformance(userId: string, roleName: string) {
+  async getFacultyPerformance(
+    q: { year?: string; faculty?: string; type?: string; from?: string; to?: string } = {},
+    userId: string,
+    roleName: string,
+  ) {
     const scope = await this.resolveScope(userId, roleName);
     const qb = this.projectRepo.createQueryBuilder('p')
       .select([
@@ -168,6 +186,7 @@ export class AnalyticsService {
     } else {
       this.applyScope(qb, 'p', scope);
     }
+    this.applyProjectFilters(qb, 'p', q);
 
     const raw = await qb.groupBy('p.faculty').orderBy('total', 'DESC').getRawMany();
     return raw.map(r => {
@@ -181,9 +200,16 @@ export class AnalyticsService {
     });
   }
 
-  async getResearcherProductivity(q: { limit?: string }, userId: string, roleName: string) {
+  async getResearcherProductivity(
+    q: { limit?: string; year?: string; faculty?: string; type?: string; from?: string; to?: string },
+    userId: string,
+    roleName: string,
+  ) {
     const scope = await this.resolveScope(userId, roleName);
-    const limit = parseInt(q.limit || '10');
+    // Limit: 10 default, 0 = tümü, max 500 (aşırı yük önlem)
+    const limitRaw = parseInt(q.limit || '10');
+    const useLimit = limitRaw > 0;
+    const limit = useLimit ? Math.min(limitRaw, 500) : 0;
 
     const qb = this.projectRepo.createQueryBuilder('p')
       .select([
@@ -200,8 +226,11 @@ export class AnalyticsService {
     } else {
       this.applyScope(qb, 'p', scope);
     }
+    this.applyProjectFilters(qb, 'p', q);
 
-    const raw = await qb.groupBy('p."ownerId"').orderBy('total', 'DESC').limit(limit).getRawMany();
+    qb.groupBy('p."ownerId"').orderBy('total', 'DESC');
+    if (useLimit) qb.limit(limit);
+    const raw = await qb.getRawMany();
     const userIds = raw.map(r => r.ownerId);
     if (!userIds.length) return [];
     const users = await this.userRepo.findByIds(userIds);
@@ -220,7 +249,11 @@ export class AnalyticsService {
     });
   }
 
-  async getFundingSuccess(userId: string, roleName: string) {
+  async getFundingSuccess(
+    q: { year?: string; faculty?: string; type?: string; from?: string; to?: string } = {},
+    userId: string,
+    roleName: string,
+  ) {
     const scope = await this.resolveScope(userId, roleName);
     const qb = this.projectRepo.createQueryBuilder('p')
       .select([
@@ -241,6 +274,7 @@ export class AnalyticsService {
     } else {
       this.applyScope(qb, 'p', scope);
     }
+    this.applyProjectFilters(qb, 'p', q);
 
     const raw = await qb.groupBy('p.type').orderBy('total', 'DESC').getRawMany();
     return raw.map(r => {
@@ -276,13 +310,28 @@ export class AnalyticsService {
     return qb.groupBy('p.id, p.title, p.budget, p.faculty, p.type, p.status').getRawMany();
   }
 
-  async getTimeline(q: { from?: string; to?: string }, userId: string, roleName: string) {
+  async getTimeline(
+    q: { from?: string; to?: string; year?: string; faculty?: string; type?: string; granularity?: 'month' | 'quarter' | 'year' } = {},
+    userId: string,
+    roleName: string,
+  ) {
     const scope = await this.resolveScope(userId, roleName);
+
+    // Granülerite: month (default, 7 char), quarter (4 char yıl + çeyrek hesap), year (4 char)
+    const gran = q.granularity || 'month';
+    const dateExpr = gran === 'year'
+      ? `SUBSTRING(p."startDate", 1, 4)`
+      : gran === 'quarter'
+      ? `CONCAT(SUBSTRING(p."startDate", 1, 4), '-Q', CAST(CEIL(CAST(SUBSTRING(p."startDate", 6, 2) AS INT) / 3.0) AS TEXT))`
+      : `SUBSTRING(p."startDate", 1, 7)`;
+
     const qb = this.projectRepo.createQueryBuilder('p')
       .select([
-        `SUBSTRING(p."startDate", 1, 7) as month`,
+        `${dateExpr} as month`,
         'COUNT(*) as count',
         'SUM(p.budget) as budget',
+        `SUM(CASE WHEN p.status = 'completed' THEN 1 ELSE 0 END) as completed`,
+        `SUM(CASE WHEN p.status = 'active' THEN 1 ELSE 0 END) as active`,
       ])
       .where('p."startDate" IS NOT NULL');
 
@@ -293,8 +342,9 @@ export class AnalyticsService {
     } else {
       this.applyScope(qb, 'p', scope);
     }
+    this.applyProjectFilters(qb, 'p', q);
 
-    return qb.groupBy(`SUBSTRING(p."startDate", 1, 7)`).orderBy('month', 'ASC').getRawMany();
+    return qb.groupBy(dateExpr).orderBy('month', 'ASC').getRawMany();
   }
 
   async getExportData(q: any, userId: string, roleName: string) {
