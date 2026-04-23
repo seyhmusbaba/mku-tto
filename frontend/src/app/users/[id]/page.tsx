@@ -753,26 +753,47 @@ export default function UserProfilePage() {
                       Bibliyometrik Göstergeler
                     </h3>
                     {(isMe || isAdmin) && (
-                      <button
-                        onClick={handleSync}
-                        disabled={syncing}
-                        className="btn-secondary text-xs inline-flex items-center gap-2 disabled:opacity-50"
-                        title="OpenAlex (ORCID), Scopus ve TR Dizin'den otomatik çek"
-                      >
-                        {syncing ? (
-                          <>
-                            <span className="spinner w-3 h-3" />
-                            Senkronize ediliyor...
-                          </>
-                        ) : (
-                          <>
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                            Otomatik Senkronize Et
-                          </>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleSync}
+                          disabled={syncing}
+                          className="btn-secondary text-xs inline-flex items-center gap-2 disabled:opacity-50"
+                          title="OpenAlex (ORCID), Scopus ve TR Dizin'den otomatik çek"
+                        >
+                          {syncing ? (
+                            <>
+                              <span className="spinner w-3 h-3" />
+                              Senkronize ediliyor...
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              </svg>
+                              Otomatik Senkronize Et
+                            </>
+                          )}
+                        </button>
+                        {isAdmin && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                const r = await bibliometricsSyncApi.debugWos(id);
+                                const data = r.data;
+                                console.log('[WoS DEBUG]', data);
+                                const msg = `WoS Raw Response:\n\nStatus: ${data.statusCode}\nTotal Hits: ${data.totalHits}\nFirst Hit Keys: ${data.firstHitKeys?.join(', ')}\n\nKonsolu açın (F12) — tam JSON orada.`;
+                                alert(msg);
+                              } catch (e: any) {
+                                alert('Debug hatası: ' + (e?.response?.data?.message || e?.message));
+                              }
+                            }}
+                            className="btn-secondary text-[10px] px-2 py-1"
+                            title="WoS raw response görür (admin)"
+                          >
+                            🐛 WoS Debug
+                          </button>
                         )}
-                      </button>
+                      </div>
                     )}
                   </div>
                   <AvesisMetricsGrid

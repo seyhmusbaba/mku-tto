@@ -172,6 +172,44 @@ export class WosService {
     }
   }
 
+  /**
+   * Debug — ham API response'unu döner. Mapping hataları için kullanılır.
+   */
+  async debugRawResponse(identifier: string): Promise<{
+    url: string;
+    configured: boolean;
+    statusCode?: number;
+    metadata?: any;
+    firstHit?: any;  // tam ham ilk sonuç
+    firstHitKeys?: string[];
+    totalHits?: number;
+    error?: string;
+  }> {
+    if (!this.isConfigured()) {
+      return { url: '', configured: false, error: 'WOS_API_KEY tanımlı değil' };
+    }
+
+    const q = this.buildAuthorQuery(identifier);
+    const url = `${this.baseUrl}/documents?q=${encodeURIComponent(q)}&limit=3&page=1&sortField=TC`;
+
+    try {
+      const res = await fetch(url, { headers: this.authHeaders() as any });
+      const data = await res.json();
+      const hits = data?.hits || [];
+      return {
+        url,
+        configured: true,
+        statusCode: res.status,
+        metadata: data?.metadata,
+        totalHits: hits.length,
+        firstHit: hits[0] || null,
+        firstHitKeys: hits[0] ? Object.keys(hits[0]) : [],
+      };
+    } catch (e: any) {
+      return { url, configured: true, error: e.message };
+    }
+  }
+
   /** Kurumsal arama — MKÜ için agrega metrikler */
   async searchByAffiliation(affiliation: string, limit = 100): Promise<{ total: number; sample: WosPublication[] }> {
     if (!this.isConfigured()) return { total: 0, sample: [] };

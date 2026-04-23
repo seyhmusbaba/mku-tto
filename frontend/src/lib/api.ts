@@ -211,6 +211,7 @@ export const lifecycleApi = {
 export const bibliometricsSyncApi = {
   syncUser: (userId: string) => api.post(`/bibliometrics-sync/user/${userId}`, {}),
   syncAll:  ()               => api.post('/bibliometrics-sync/all', {}),
+  debugWos: (userId: string) => api.get(`/bibliometrics-sync/debug-wos/${userId}`),
 };
 
 // ── Vitrin portalı (public — auth yok)
