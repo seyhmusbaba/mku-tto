@@ -207,6 +207,12 @@ export const lifecycleApi = {
   deleteRisk:     (pid: string, id: string) => api.delete(`/projects/${pid}/lifecycle/risks/${id}`),
 };
 
+// ── Bibliyometrik senkronizasyon (OpenAlex + Scopus + TR Dizin)
+export const bibliometricsSyncApi = {
+  syncUser: (userId: string) => api.post(`/bibliometrics-sync/user/${userId}`, {}),
+  syncAll:  ()               => api.post('/bibliometrics-sync/all', {}),
+};
+
 // ── Vitrin portalı (public — auth yok)
 export const publicApi = {
   institution:        ()                => api.get('/public/institution'),

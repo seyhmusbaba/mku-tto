@@ -4,7 +4,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Header } from '@/components/layout/Header';
-import { api, usersApi } from '@/lib/api';
+import { api, usersApi, bibliometricsSyncApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { User, Project } from '@/types';
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_COLORS, getProjectTypeLabel, formatDate, formatCurrency, getInitials, ROLE_COLORS, MEMBER_ROLE_LABELS } from '@/lib/utils';
@@ -61,6 +61,40 @@ export default function UserProfilePage() {
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving]     = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  // Otomatik bibliyometrik senkronizasyon — OpenAlex + Scopus + TR Dizin
+  const handleSync = async () => {
+    setSyncing(true);
+    const t = toast.loading('Kaynaklar taranıyor — OpenAlex, Scopus, TR Dizin…');
+    try {
+      const res = await bibliometricsSyncApi.syncUser(id);
+      const r = res.data;
+      const succeeded = [
+        r.sources?.openalex?.synced && `OpenAlex (${r.sources.openalex.docs} yayın)`,
+        r.sources?.scopus?.synced && `Scopus (${r.sources.scopus.docs} yayın)`,
+        r.sources?.trDizin?.synced && `TR Dizin (${r.sources.trDizin.docs} yayın)`,
+      ].filter(Boolean).join(', ');
+      const failed = [
+        !r.sources?.openalex?.synced && r.sources?.openalex?.error && 'OpenAlex',
+        !r.sources?.scopus?.synced && r.sources?.scopus?.error && 'Scopus',
+        !r.sources?.trDizin?.synced && r.sources?.trDizin?.error && 'TR Dizin',
+      ].filter(Boolean).join(', ');
+
+      toast.dismiss(t);
+      if (succeeded) toast.success(`Güncellendi: ${succeeded}`, { duration: 5000 });
+      if (failed)    toast.error(`Atlandı: ${failed} (ID tanımlı değil veya API hatası)`, { duration: 5000 });
+
+      // User verisini yeniden yükle
+      const u = await usersApi.getOne(id);
+      setUser(u.data); setEditForm(u.data);
+    } catch (e: any) {
+      toast.dismiss(t);
+      toast.error(e?.response?.data?.message || 'Senkronizasyon başarısız');
+    } finally {
+      setSyncing(false);
+    }
+  };
   const [visitors, setVisitors] = useState<any[]>([]);
   const [editForm, setEditForm] = useState<any>({});
 
@@ -310,13 +344,19 @@ export default function UserProfilePage() {
               </div>
             </div>
 
-            {/* Bibliyometrik metrikler — AVESİS tarzı kaynak-bazlı manuel giriş */}
+            {/* Bibliyometrik metrikler — opsiyonel manuel override */}
             <div className="card p-5 space-y-3 md:col-span-2">
-              <SectionTitle icon="chart-bar">Bibliyometrik Metrikler (AVESİS tarzı)</SectionTitle>
-              <p className="text-xs text-muted -mt-1">
-                Her kaynağı ayrı girin. Google Scholar'ın API'si olmadığı için o rakamları kendi profilinize girmeniz gerekir.
-                Scopus ve WoS alanları sync ile otomatik doldurulabilir.
-              </p>
+              <SectionTitle icon="chart-bar">Bibliyometrik Metrikler</SectionTitle>
+              <div className="rounded-lg border p-3 flex items-start gap-2.5" style={{ borderColor: '#dbeafe', background: '#eff6ff' }}>
+                <svg className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="text-xs text-blue-900 leading-relaxed">
+                  <strong>Otomatik çekim var:</strong> ORCID + Scopus Author ID tanımladıysanız, kaydet sonrası profil sayfasındaki
+                  <strong className="whitespace-nowrap"> "Otomatik Senkronize Et"</strong> butonu bu rakamları OpenAlex, Scopus ve TR Dizin'den çeker.
+                  Aşağıdaki alanlar sadece manuel düzeltme/override içindir — boş bırakın, sync halleder.
+                </div>
+              </div>
 
               {/* Google Scholar */}
               <div className="border rounded-lg p-3" style={{ borderColor: '#e8e4dc', background: '#faf8f4' }}>
@@ -679,10 +719,34 @@ export default function UserProfilePage() {
               <div className="xl:col-span-2 space-y-6">
                 {/* AVESİS tarzı kaynak-bazlı bibliyometrik metrikler */}
                 <div>
-                  <h3 className="font-display text-base font-semibold text-navy mb-3 flex items-center gap-2">
-                    <span className="w-1.5 h-5 rounded-full inline-block" style={{ background: '#c8a45a' }} />
-                    Bibliyometrik Göstergeler
-                  </h3>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-display text-base font-semibold text-navy flex items-center gap-2">
+                      <span className="w-1.5 h-5 rounded-full inline-block" style={{ background: '#c8a45a' }} />
+                      Bibliyometrik Göstergeler
+                    </h3>
+                    {(isMe || isAdmin) && (
+                      <button
+                        onClick={handleSync}
+                        disabled={syncing}
+                        className="btn-secondary text-xs inline-flex items-center gap-2 disabled:opacity-50"
+                        title="OpenAlex (ORCID), Scopus ve TR Dizin'den otomatik çek"
+                      >
+                        {syncing ? (
+                          <>
+                            <span className="spinner w-3 h-3" />
+                            Senkronize ediliyor...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Otomatik Senkronize Et
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
                   <AvesisMetricsGrid
                     sources={[
                       {
