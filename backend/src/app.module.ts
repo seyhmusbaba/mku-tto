@@ -22,6 +22,7 @@ import { EthicsModule } from './ethics/ethics.module';
 import { EthicsReview } from './ethics/ethics-review.entity';
 import { Competition } from './database/entities/competition.entity';
 import { CompetitionSource } from './database/entities/competition-source.entity';
+import { CompetitionFavorite } from './database/entities/competition-favorite.entity';
 import { AuditLog } from './database/entities/audit-log.entity';
 import { ProfileVisit } from './database/entities/profile-visit.entity';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -73,7 +74,7 @@ import { BootstrapService } from './bootstrap.service';
       ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
       entities: [
         User, Role, Permission, Project, ProjectMember, ProjectDocument, ProjectReport, ProjectPartner,
-        SystemSetting, DynamicProjectField, Notification, ProjectType, Faculty, ReportType, AuditLog, ProfileVisit, Competition, CompetitionSource, EthicsReview,
+        SystemSetting, DynamicProjectField, Notification, ProjectType, Faculty, ReportType, AuditLog, ProfileVisit, Competition, CompetitionSource, CompetitionFavorite, EthicsReview,
       ],
       synchronize: true,
       logging: false,

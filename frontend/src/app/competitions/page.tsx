@@ -104,7 +104,10 @@ export default function CompetitionsPage() {
   const { user } = useAuth();
   const isAdmin = user?.role?.name === 'Süper Admin';
 
-  const [tab, setTab] = useState<'list' | 'sources'>('list');
+  const [tab, setTab] = useState<'list' | 'favorites' | 'sources'>('list');
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [favorites, setFavorites] = useState<any[]>([]);
+  const [favLoading, setFavLoading] = useState(false);
   const [competitions, setCompetitions] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -153,6 +156,37 @@ export default function CompetitionsPage() {
   useEffect(() => { load(1); api.get('/competitions/stats').then(r => setStats(r.data)).catch(() => {}); }, [filters]);
   useEffect(() => { if (tab === 'sources') loadSources(); }, [tab]);
 
+  // Favori ID'leri her zaman yüklü olsun — kart üzerinde star state
+  useEffect(() => {
+    api.get('/competitions/favorites/ids').then(r => setFavoriteIds(r.data || [])).catch(() => {});
+  }, []);
+
+  // Favori sekmesi açılınca favori detay listesini çek
+  useEffect(() => {
+    if (tab !== 'favorites') return;
+    setFavLoading(true);
+    api.get('/competitions/favorites/list')
+      .then(r => setFavorites(r.data || []))
+      .catch(() => setFavorites([]))
+      .finally(() => setFavLoading(false));
+  }, [tab]);
+
+  const toggleFavorite = async (compId: string) => {
+    try {
+      const r = await api.post(`/competitions/favorites/${compId}/toggle`);
+      if (r.data.favorited) {
+        setFavoriteIds(prev => [...prev, compId]);
+        toast.success('Favorilere eklendi');
+      } else {
+        setFavoriteIds(prev => prev.filter(id => id !== compId));
+        setFavorites(prev => prev.filter(c => c.id !== compId));
+        toast.success('Favorilerden çıkarıldı');
+      }
+    } catch {
+      toast.error('İşlem başarısız');
+    }
+  };
+
   const handleFetch = async () => {
     setFetching(true);
     try {
@@ -165,11 +199,11 @@ export default function CompetitionsPage() {
   };
 
   const handleTestSource = async () => {
-    if (!sourceForm.url) { toast.error('URL girin'); return; }
+    if (sourceForm.type === 'rss' && !sourceForm.url) { toast.error('RSS için URL zorunlu'); return; }
     setTesting(true);
     setTestResult(null);
     try {
-      const r = await api.post('/competitions/sources/test', { url: sourceForm.url });
+      const r = await api.post('/competitions/sources/test', { url: sourceForm.url, type: sourceForm.type });
       setTestResult(r.data);
     } catch { setTestResult({ ok: false, count: 0, preview: ['Bağlantı hatası'] }); }
     finally { setTesting(false); }
@@ -190,7 +224,14 @@ export default function CompetitionsPage() {
   };
 
   const handleSaveSource = async () => {
-    if (!sourceForm.name || !sourceForm.url) { toast.error('Ad ve URL zorunlu'); return; }
+    if (!sourceForm.name) { toast.error('Kaynak adı zorunlu'); return; }
+    if (sourceForm.type === 'rss' && !sourceForm.url) { toast.error('RSS kaynakları için URL zorunlu'); return; }
+    // Sabit fetcher türleri için URL yoksa placeholder ata
+    if (!sourceForm.url && sourceForm.type !== 'rss') {
+      sourceForm.url = sourceForm.type === 'tubitak' ? 'https://tubitak.gov.tr/tr/duyuru'
+        : sourceForm.type === 'kosgeb' ? 'https://www.kosgeb.gov.tr/site/tr/genel/liste/2/duyurular'
+        : 'https://ec.europa.eu/info/funding-tenders/opportunities/portal';
+    }
     setSavingSource(true);
     try {
       if (editSource) { await api.put(`/competitions/sources/${editSource.id}`, sourceForm); toast.success('Kaynak güncellendi'); }
@@ -257,19 +298,24 @@ export default function CompetitionsPage() {
       />
 
       <div className="p-6 space-y-5">
-        {/* Sekmeler */}
-        {isAdmin && (
-          <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: '#f0ede8' }}>
-            {([['list','Duyurular','trophy'], ['sources','Kaynaklar','rss']] as const).map(([k, l, ic]) => (
+        {/* Sekmeler — Favoriler herkese açık, Kaynaklar sadece admin */}
+        <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: '#f0ede8' }}>
+          {[
+            ['list', 'Duyurular', 'trophy'],
+            ['favorites', `Favorilerim${favoriteIds.length > 0 ? ` (${favoriteIds.length})` : ''}`, 'fire'],
+            ...(isAdmin ? [['sources', 'Kaynaklar', 'rss']] : []),
+          ].map((entry: any) => {
+            const [k, l, ic] = entry;
+            return (
               <button key={k} onClick={() => setTab(k as any)}
                 className="px-4 py-2 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-1.5"
                 style={{ background: tab === k ? 'white' : 'transparent', color: tab === k ? '#0f2444' : '#9ca3af', boxShadow: tab === k ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>
                 <CIcon name={ic as CIconName} className="w-3.5 h-3.5" />
                 {l}
               </button>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
 
         {/* ── KAYNAKLAR SEKMESİ ── */}
         {tab === 'sources' && isAdmin && (
@@ -346,6 +392,66 @@ export default function CompetitionsPage() {
               </div>
             )}
           </div>
+        )}
+
+        {/* ── FAVORİLERİM SEKMESİ ── */}
+        {tab === 'favorites' && (
+          <>
+            {favLoading ? (
+              <div className="flex justify-center py-20"><div className="spinner" /></div>
+            ) : favorites.length === 0 ? (
+              <div className="card p-12 text-center">
+                <CIcon name="fire" className="w-10 h-10 mx-auto text-muted" strokeWidth={1.5} />
+                <p className="text-sm font-medium text-navy mt-3">Henüz favori duyurunuz yok</p>
+                <p className="text-xs text-muted mt-1">Duyurular sekmesinde star butonu ile favorilerinize ekleyin.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {favorites.map(comp => {
+                  const status = STATUS_STYLES[comp.status] || STATUS_STYLES.active;
+                  const dl = comp.deadline ? getDeadlineInfo(comp.deadline) : null;
+                  return (
+                    <div key={comp.id} className="card p-5 flex flex-col gap-3 hover:shadow-md transition-shadow relative overflow-hidden"
+                      style={{ opacity: dl?.isExpired ? 0.72 : 1, borderLeft: '3px solid #c8a45a' }}>
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="text-xs font-semibold px-2 py-1 rounded-full" style={{ background: '#f0ede8', color: '#0f2444' }}>{comp.source || 'Duyuru'}</span>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => toggleFavorite(comp.id)} title="Favorilerden çıkar"
+                            className="w-7 h-7 rounded-lg flex items-center justify-center transition-all hover:bg-red-50" style={{ color: '#c8a45a' }}>
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                            </svg>
+                          </button>
+                          <span className="text-xs font-semibold px-2 py-1 rounded-full" style={{ background: status.bg, color: status.color }}>● {status.label}</span>
+                        </div>
+                      </div>
+                      <h3 className="font-display font-semibold text-navy text-sm leading-snug">{comp.title}</h3>
+                      {comp.description && <p className="text-xs text-muted leading-relaxed line-clamp-3">{comp.description}</p>}
+                      {dl && dl.bg !== 'transparent' && (
+                        <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg font-semibold text-xs self-start"
+                          style={{ background: dl.bg, color: dl.color, border: `1px solid ${dl.color}22` }}>
+                          <CIcon name={dl.icon} className="w-3.5 h-3.5" />
+                          {dl.isExpired ? 'Sona erdi: ' : 'Son başvuru: '}{dl.label}
+                        </div>
+                      )}
+                      <div className="mt-auto flex gap-2 pt-2 border-t" style={{ borderColor: '#f0ede8' }}>
+                        {comp.applyUrl && (
+                          <a href={comp.applyUrl} target="_blank" rel="noopener noreferrer" className="btn-primary text-xs flex-1 text-center">
+                            Başvuru
+                          </a>
+                        )}
+                        {comp.sourceUrl && comp.sourceUrl !== comp.applyUrl && (
+                          <a href={comp.sourceUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary text-xs flex-1 text-center">
+                            Kaynak
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
 
         {/* ── DUYURULAR SEKMESİ ── */}
@@ -425,7 +531,18 @@ export default function CompetitionsPage() {
                         )}
                         <div className="flex items-center justify-between gap-2 flex-wrap">
                           <span className="text-xs font-semibold px-2 py-1 rounded-full" style={{ background: '#f0ede8', color: '#0f2444' }}>{comp.source || 'Duyuru'}</span>
-                          <span className="text-xs font-semibold px-2 py-1 rounded-full" style={{ background: status.bg, color: status.color }}>● {status.label}</span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); toggleFavorite(comp.id); }}
+                              title={favoriteIds.includes(comp.id) ? 'Favorilerden çıkar' : 'Favorilere ekle'}
+                              className="w-7 h-7 rounded-lg flex items-center justify-center transition-all hover:bg-[#fffbeb]"
+                              style={{ color: favoriteIds.includes(comp.id) ? '#c8a45a' : '#9ca3af' }}>
+                              <svg className="w-4 h-4" fill={favoriteIds.includes(comp.id) ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                              </svg>
+                            </button>
+                            <span className="text-xs font-semibold px-2 py-1 rounded-full" style={{ background: status.bg, color: status.color }}>● {status.label}</span>
+                          </div>
                         </div>
                         <h3 className="font-display font-semibold text-navy text-sm leading-snug">{comp.title}</h3>
                         {comp.description && <p className="text-xs text-muted leading-relaxed line-clamp-3">{comp.description}</p>}
@@ -535,7 +652,24 @@ export default function CompetitionsPage() {
             <div className="p-5 space-y-4">
               <div><label className="label">Kaynak Adı *</label><input className="input" value={sourceForm.name} onChange={e => sf('name', e.target.value)} placeholder="TÜBİTAK, KOSGEB..." /></div>
               <div>
-                <label className="label">RSS Feed URL *</label>
+                <label className="label">Kaynak Türü *</label>
+                <select className="input" value={sourceForm.type} onChange={e => { sf('type', e.target.value); setTestResult(null); }}>
+                  <option value="rss">RSS Feed (standart XML)</option>
+                  <option value="tubitak">TÜBİTAK HTML Scrape (tubitak.gov.tr)</option>
+                  <option value="kosgeb">KOSGEB HTML Scrape (kosgeb.gov.tr)</option>
+                  <option value="eu-portal">EU Funding &amp; Tenders Portal (SEDIA API)</option>
+                </select>
+                <p className="text-[11px] text-muted mt-1">
+                  {sourceForm.type === 'rss' && 'Standart RSS/Atom feed URL girin. Test butonu ile feed geçerliliğini doğrulayın.'}
+                  {sourceForm.type === 'tubitak' && 'URL ihmal edilebilir — fetcher sabit endpoint kullanır. Test butonu canlı tarar.'}
+                  {sourceForm.type === 'kosgeb' && 'URL ihmal edilebilir — fetcher sabit endpoint kullanır. Test butonu canlı tarar.'}
+                  {sourceForm.type === 'eu-portal' && 'URL ihmal edilebilir — SEDIA JSON API kullanılır. Horizon Europe, Erasmus+, EU4Health dahil.'}
+                </p>
+              </div>
+              <div>
+                <label className="label">
+                  {sourceForm.type === 'rss' ? 'RSS Feed URL *' : 'URL (opsiyonel — fetcher sabit endpoint kullanır)'}
+                </label>
                 <div className="flex gap-2">
                   <input className="input flex-1" value={sourceForm.url} onChange={e => { sf('url', e.target.value); setTestResult(null); }} placeholder="https://..." />
                   <button onClick={handleTestSource} disabled={testing} className="btn-secondary text-xs px-3 flex-shrink-0">

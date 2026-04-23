@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Competition } from '../database/entities/competition.entity';
 import { CompetitionSource } from '../database/entities/competition-source.entity';
+import { CompetitionFavorite } from '../database/entities/competition-favorite.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { User } from '../database/entities/user.entity';
 import { fetchTubitak, fetchKosgeb, fetchEuFundingPortal, FetchedItem } from './competitions.fetchers';
@@ -12,6 +13,7 @@ export class CompetitionsService {
   constructor(
     @InjectRepository(Competition) private repo: Repository<Competition>,
     @InjectRepository(CompetitionSource) private sourceRepo: Repository<CompetitionSource>,
+    @InjectRepository(CompetitionFavorite) private favRepo: Repository<CompetitionFavorite>,
     @InjectRepository(User) private userRepo: Repository<User>,
     private notificationsService: NotificationsService,
   ) {}
@@ -315,10 +317,50 @@ export class CompetitionsService {
     return items;
   }
 
+  /**
+   * Yeni yarışma bildirimi — kategori bazlı hedefleme.
+   *
+   * Kategori → hedef fakülte eşleşmesi:
+   *  - inovasyon      → Mühendislik, Teknoloji, Bilişim, Fen, Mimarlık
+   *  - girişim        → İktisadi İdari, İşletme, Ekonomi + Süper Admin/Dekan
+   *  - araştırma      → Tıp, Sağlık, Fen, Edebiyat, Eğitim, Veteriner, Ziraat
+   *  - uluslararası   → herkes (her fakülte yararlanabilir)
+   *  - diger          → herkes
+   *
+   * Rektör/Süper Admin/Dekan her zaman bildirim alır.
+   */
   private async sendNotifications(comp: Competition): Promise<void> {
     try {
-      const users = await this.userRepo.find({ where: { isActive: true as any } });
+      const category = (comp.category || '').toLocaleLowerCase('tr-TR');
+
+      // Kategori bazlı fakülte regex listesi
+      const facultyMatchers: Record<string, RegExp[]> = {
+        inovasyon:  [/mühendislik/i, /muhendislik/i, /teknoloji/i, /bilişim/i, /bilisim/i, /fen/i, /mimarlık/i, /mimarlik/i, /bilgisayar/i],
+        girişim:    [/iktisadi/i, /idari/i, /işletme/i, /isletme/i, /ekonomi/i, /turizm/i, /ticaret/i],
+        'girisim':  [/iktisadi/i, /idari/i, /işletme/i, /isletme/i, /ekonomi/i, /turizm/i, /ticaret/i],
+        araştırma:  [/tıp/i, /tip/i, /sağlık/i, /saglik/i, /fen/i, /edebiyat/i, /eğitim/i, /egitim/i, /veteriner/i, /ziraat/i, /eczacı/i, /eczaci/i, /hemşire/i, /hemsire/i],
+        'arastirma':[/tıp/i, /tip/i, /sağlık/i, /saglik/i, /fen/i, /edebiyat/i, /eğitim/i, /egitim/i, /veteriner/i, /ziraat/i, /eczacı/i, /eczaci/i, /hemşire/i, /hemsire/i],
+      };
+
+      const matchers = facultyMatchers[category];
+      const isBroadcast = !matchers || category === 'uluslararası' || category === 'uluslararasi' || category === 'diger' || category === 'diğer';
+
+      const users = await this.userRepo.find({
+        where: { isActive: true as any },
+        relations: ['role'],
+      });
+
       for (const u of users) {
+        const roleName = u.role?.name || '';
+        const isAdmin = ['Süper Admin', 'Rektör', 'Dekan'].includes(roleName);
+        let shouldNotify = isBroadcast || isAdmin;
+
+        if (!shouldNotify && matchers && u.faculty) {
+          shouldNotify = matchers.some(r => r.test(u.faculty));
+        }
+
+        if (!shouldNotify) continue;
+
         try {
           await this.notificationsService.create({
             userId: u.id,
@@ -366,6 +408,45 @@ export class CompetitionsService {
       }
     }
     return sent;
+  }
+
+  // ── FAVORİLER ─────────────────────────────────────────────────
+
+  /**
+   * Kullanıcının favori yarışmalarını listele.
+   * Her favori kayıt için ilgili competition verisi de yüklenir.
+   */
+  async getFavorites(userId: string) {
+    const favs = await this.favRepo.find({ where: { userId } });
+    if (!favs.length) return [];
+    const compIds = favs.map(f => f.competitionId);
+    const comps = await this.repo.findByIds(compIds);
+    // Favori sırasına göre döndür — en son eklenen önce
+    favs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const compMap = Object.fromEntries(comps.map(c => [c.id, c]));
+    return favs.map(f => compMap[f.competitionId]).filter(Boolean);
+  }
+
+  /**
+   * Kullanıcının favori olup olmadığını döndüren ID listesi.
+   * Frontend toplu çağrıda kullanır (kart üzerinde star durumu).
+   */
+  async getFavoriteIds(userId: string): Promise<string[]> {
+    const favs = await this.favRepo.find({ where: { userId }, select: ['competitionId'] });
+    return favs.map(f => f.competitionId);
+  }
+
+  /**
+   * Toggle — varsa sil, yoksa ekle. idempotent.
+   */
+  async toggleFavorite(userId: string, competitionId: string): Promise<{ favorited: boolean }> {
+    const existing = await this.favRepo.findOne({ where: { userId, competitionId } });
+    if (existing) {
+      await this.favRepo.delete(existing.id);
+      return { favorited: false };
+    }
+    await this.favRepo.save(this.favRepo.create({ userId, competitionId }));
+    return { favorited: true };
   }
 
   async getStats() {

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards, Request } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CompetitionsService } from './competitions.service';
@@ -12,6 +12,18 @@ export class CompetitionsController {
   // Yarışmalar
   @Get() findAll(@Query() q: any) { return this.svc.findAll(q); }
   @Get('stats') getStats() { return this.svc.getStats(); }
+
+  // Favoriler
+  @Get('favorites/list')
+  getFavorites(@Request() req: any) { return this.svc.getFavorites(req.user.userId); }
+
+  @Get('favorites/ids')
+  getFavoriteIds(@Request() req: any) { return this.svc.getFavoriteIds(req.user.userId); }
+
+  @Post('favorites/:id/toggle')
+  toggleFavorite(@Param('id') id: string, @Request() req: any) {
+    return this.svc.toggleFavorite(req.user.userId, id);
+  }
   @Get('schedule-info') getScheduleInfo() {
     return {
       enabled: true,
