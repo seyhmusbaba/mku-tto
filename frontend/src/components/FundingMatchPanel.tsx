@@ -39,7 +39,18 @@ export function FundingMatchPanel({ keywords, tags, projectType, title }: Props)
     finally { setLoading(false); }
   };
 
-  if (scopusOff) return null;
+  // Scopus yapılandırılmadıysa veya hata olduysa — açıklayıcı mesaj göster
+  if (scopusOff) {
+    return (
+      <div className="text-xs p-3 rounded-xl flex items-start gap-2"
+        style={{ background: '#fef3c7', border: '1px solid #fde68a', color: '#92400e' }}>
+        <span>⚠</span>
+        <div>
+          <strong>Scopus entegrasyonu yapılandırılmamış.</strong> Hibe eşleştirme için Scopus API anahtarı gerekli — admin Railway → Backend → Variables ekranından <code>SCOPUS_API_KEY</code> ekleyince bu özellik aktif olur.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -53,6 +64,17 @@ export function FundingMatchPanel({ keywords, tags, projectType, title }: Props)
 
       {open && data && !loading && (
         <div className="mt-3 space-y-3">
+          {/* Anahtar kelime yetersizse uyar */}
+          {(!data.subjectAreas?.length && !data.recommendations?.length) && (
+            <div className="text-xs p-3 rounded-xl flex items-start gap-2"
+              style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af' }}>
+              <span>ℹ</span>
+              <div>
+                <strong>Analiz için yeterli veri yok.</strong> Projeye en az 2-3 anahtar kelime veya etiket ekleyin ki Scopus'ta konu alanı eşleştirmesi yapılabilsin. Proje "Düzenle" sayfasından anahtar kelime / etiket alanlarını doldurabilirsiniz.
+              </div>
+            </div>
+          )}
+
           {/* Konu alanları */}
           {data.subjectAreas?.length > 0 && (
             <div className="p-3 rounded-xl" style={{ background: '#faf8f4', border: '1px solid #e8e4dc' }}>

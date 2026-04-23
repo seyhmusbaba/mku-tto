@@ -27,7 +27,18 @@ export function SimilarResearchPanel({ title, description, keywords }: Props) {
     finally { setLoading(false); }
   };
 
-  if (scopusOff || (!title?.trim())) return null;
+  if (!title?.trim()) return null;
+  if (scopusOff) {
+    return (
+      <div className="text-xs p-3 rounded-xl flex items-start gap-2"
+        style={{ background: '#fef3c7', border: '1px solid #fde68a', color: '#92400e' }}>
+        <span>⚠</span>
+        <div>
+          <strong>Scopus entegrasyonu yapılandırılmamış.</strong> Dünya literatürü taraması için Scopus API anahtarı gerekli — admin Railway → Backend → Variables ekranından <code>SCOPUS_API_KEY</code> ekleyince bu özellik aktif olur.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

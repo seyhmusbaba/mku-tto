@@ -38,7 +38,9 @@ export function BudgetEstimator({ type, faculty }: Props) {
         </button>
       )}
       {noData && !loading && (
-        <p className="text-xs text-muted mt-1">📊 Bu proje türü için henüz bütçe verisi bulunmuyor.</p>
+        <div className="mt-2 text-xs p-2.5 rounded-lg" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af' }}>
+          <strong>📊 Geçmiş bütçe verisi yok.</strong> Bu proje türü{faculty ? ` (${faculty})` : ''} için sistemde bütçeli proje bulunmuyor — ilk bütçeyi siz belirleyin. Ortalama tahminleri görmek için sistemde aynı türde birkaç proje olması gerekiyor.
+        </div>
       )}
       {open && data && (
         <div className="mt-2 p-3 rounded-xl" style={{ background: '#f0fdf4', border: '1px solid #86efac' }}>
