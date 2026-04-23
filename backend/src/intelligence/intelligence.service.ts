@@ -831,7 +831,7 @@ SADECE JSON döndür, başka hiçbir şey yazma:
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: process.env.AI_MODEL || 'claude-3-5-haiku-latest',
+          model: process.env.AI_MODEL || 'claude-3-5-haiku-20241022',
           max_tokens: 1500,
           messages: [{ role: 'user', content: prompt }],
         }),
