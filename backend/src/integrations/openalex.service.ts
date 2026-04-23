@@ -48,7 +48,7 @@ export interface OpenAlexWork {
   citedBy: number;
   openAccess?: { isOa: boolean; oaStatus?: string; oaUrl?: string };
   venue?: { displayName?: string; issn?: string[]; type?: string; publisher?: string };
-  authors: Array<{ id?: string; displayName: string; orcid?: string; institution?: string; countries?: string[] }>;
+  authors: Array<{ id?: string; displayName: string; orcid?: string; institution?: string; institutions?: string[]; countries?: string[] }>;
   concepts: Array<{ displayName: string; level: number; score: number }>;
   sdgs?: Array<{ displayName: string; id: string; score: number }>;  // UN SDG eşlemesi — AVESIS seviyesini geçer
   referencesCount?: number;
@@ -198,19 +198,33 @@ export class OpenAlexService {
     if (cached) return cached;
 
     try {
-      await this.limiter.acquire();
       const filterParts = [`institutions.id:${cleanId}`];
       if (yearFilter) filterParts.push(`publication_year:${yearFilter}`);
-      const params = new URLSearchParams({
-        filter: filterParts.join(','),
-        'per-page': String(Math.min(limit, 100)),
-        sort: 'cited_by_count:desc',
-      });
-      const url = `${this.baseUrl}/works?${params}`;
-      const data = await fetchJson(url, { headers: { 'User-Agent': this.userAgent() } });
-      const items = (data?.results || []).map((w: any) => this.mapWork(w)).filter(Boolean) as OpenAlexWork[];
-      this.cache.set(cacheKey, items, 60 * 60 * 6);
-      return items;
+      const perPage = 100;
+      const maxPages = Math.ceil(Math.min(limit, 2000) / perPage); // Max 2000 kayıt = 20 sayfa
+      const collected: OpenAlexWork[] = [];
+
+      // Sayfalama — OpenAlex `page` parametresi ile
+      for (let page = 1; page <= maxPages; page++) {
+        await this.limiter.acquire();
+        const params = new URLSearchParams({
+          filter: filterParts.join(','),
+          'per-page': String(perPage),
+          page: String(page),
+          sort: 'cited_by_count:desc',
+        });
+        const url = `${this.baseUrl}/works?${params}`;
+        const data = await fetchJson(url, { headers: { 'User-Agent': this.userAgent() } });
+        const items = (data?.results || []).map((w: any) => this.mapWork(w)).filter(Boolean) as OpenAlexWork[];
+        collected.push(...items);
+        // Daha az sonuç geldiyse son sayfadayız
+        if (items.length < perPage) break;
+        if (collected.length >= limit) break;
+      }
+
+      const final = collected.slice(0, limit);
+      this.cache.set(cacheKey, final, 60 * 60 * 6);
+      return final;
     } catch (e: any) {
       this.logger.warn(`OpenAlex institution works failed: ${e.message}`);
       return [];
@@ -312,11 +326,16 @@ export class OpenAlexService {
         if (countries.length === 0 && Array.isArray(a.countries)) {
           for (const c of a.countries) if (c) countries.push(c);
         }
+        // Yazarın tüm kurum adlarını listele (co-authorship universite analizi için)
+        const institutions = (a.institutions || [])
+          .map((i: any) => i.display_name)
+          .filter(Boolean) as string[];
         return {
           id: a.author?.id,
           displayName: a.author?.display_name || '',
           orcid: a.author?.orcid ? String(a.author.orcid).replace(/^https?:\/\/orcid\.org\//, '') : undefined,
           institution: a.institutions?.[0]?.display_name,
+          institutions,
           countries,
         };
       }),

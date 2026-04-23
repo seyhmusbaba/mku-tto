@@ -33,7 +33,7 @@ export interface UnifiedPublication {
   publisher?: string;
 
   // Authors
-  authors: Array<{ name: string; orcid?: string; affiliation?: string; countries?: string[] }>;
+  authors: Array<{ name: string; orcid?: string; affiliation?: string; countries?: string[]; institutions?: string[] }>;
 
   // Metrics (kaynakların max'ını al — bazen farklılık olur)
   citedBy: {
@@ -368,10 +368,11 @@ export class PublicationsService {
       existing.countriesDistinctCount = w.countriesDistinctCount ?? existing.countriesDistinctCount;
       existing.institutionsDistinctCount = w.institutionsDistinctCount ?? existing.institutionsDistinctCount;
       existing.sdgs = (w.sdgs || []).map(s => ({ id: s.id, name: s.displayName, score: s.score }));
-      // OpenAlex'ten gelen yazar ülkelerini mevcut yazarlara ekle
+      // OpenAlex'ten gelen yazar ülkeleri ve kurumlarını mevcut yazarlara ekle
       for (let i = 0; i < Math.min(existing.authors.length, (w.authors || []).length); i++) {
         const oa = w.authors[i];
         if (oa && oa.countries && oa.countries.length > 0) existing.authors[i].countries = oa.countries;
+        if (oa && oa.institutions && oa.institutions.length > 0) existing.authors[i].institutions = oa.institutions;
       }
       if (w.openAccess) {
         existing.openAccess = {
@@ -397,6 +398,7 @@ export class PublicationsService {
           name: a.displayName,
           orcid: a.orcid,
           affiliation: a.institution,
+          institutions: a.institutions,
           countries: a.countries,
         })),
         citedBy: { openalex: w.citedBy, best: w.citedBy },
@@ -556,6 +558,8 @@ export class PublicationsService {
     topJournals: Array<{ name: string; count: number }>;
     // Yayın türüne göre dağılım — article, book, book-chapter, dissertation, preprint vb.
     typeDistribution: Array<{ type: string; label: string; count: number; citations: number }>;
+    // Üniversite işbirliği — yazarların kurumlarına göre (MKÜ hariç)
+    universityCollaboration: Array<{ name: string; count: number; country?: string }>;
   } {
     const total = pubs.length;
     const totalCitations = pubs.reduce((s, p) => s + (p.citedBy.best || 0), 0);
@@ -700,7 +704,10 @@ export class PublicationsService {
     // (article + journal-article + PAPER hepsi "Makale" → tek satır)
     const typeMap = new Map<string, { label: string; count: number; citations: number; rawTypes: Set<string> }>();
     for (const p of pubs) {
-      const raw = (p.type || 'other').toLowerCase();
+      // OpenAlex type bazen URL olarak gelebilir: "https://openalex.org/types/article"
+      // Son parçayı al
+      let raw = (p.type || 'other').toLowerCase().trim();
+      if (raw.includes('/')) raw = raw.split('/').pop() || 'other';
       const label = typeLabels[raw] || (raw.charAt(0).toUpperCase() + raw.slice(1).replace(/-/g, ' '));
       const cur = typeMap.get(label) || { label, count: 0, citations: 0, rawTypes: new Set() };
       cur.count++;
@@ -716,6 +723,34 @@ export class PublicationsService {
         citations: v.citations,
       }))
       .sort((a, b) => b.count - a.count);
+
+    // ── Üniversite işbirliği ──
+    // Her yayının yazarlarında geçen kurum adlarını say, MKÜ'yü dışla.
+    // "Mustafa Kemal" geçen isimler MKÜ varyantları sayılır.
+    const MKU_PATTERNS = [/mustafa\s*kemal/i, /hatay\s*mustafa/i];
+    const isMku = (name: string) => MKU_PATTERNS.some(p => p.test(name));
+    const uniMap = new Map<string, { name: string; count: number }>();
+    for (const p of pubs) {
+      const seenInThisPub = new Set<string>();  // aynı kurumu bir yayında 2 kez sayma
+      for (const a of p.authors || []) {
+        const names = a.institutions && a.institutions.length > 0
+          ? a.institutions
+          : (a.affiliation ? [a.affiliation] : []);
+        for (const n of names) {
+          if (!n || n.trim().length < 3) continue;
+          if (isMku(n)) continue;
+          const normalized = n.trim();
+          if (seenInThisPub.has(normalized.toLowerCase())) continue;
+          seenInThisPub.add(normalized.toLowerCase());
+          const cur = uniMap.get(normalized) || { name: normalized, count: 0 };
+          cur.count++;
+          uniMap.set(normalized, cur);
+        }
+      }
+    }
+    const universityCollaboration = Array.from(uniMap.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 50);
 
     return {
       total,
@@ -741,6 +776,7 @@ export class PublicationsService {
       avgCountriesPerPaper: countriesPapers > 0 ? +((countriesSum / countriesPapers)).toFixed(1) : null,
       topJournals,
       typeDistribution,
+      universityCollaboration,
     };
   }
 }

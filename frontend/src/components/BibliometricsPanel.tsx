@@ -328,6 +328,41 @@ export function BibliometricsPanel({
         </div>
       )}
 
+      {/* Üniversite İşbirliği — MKÜ dışındaki co-author kurumları */}
+      {summary.universityCollaboration && summary.universityCollaboration.length > 0 && (
+        <div className="card p-5">
+          <h4 className="font-display text-sm font-semibold text-navy mb-1 inline-flex items-center gap-2">
+            <Icon name="layers" className="w-4 h-4" />
+            Üniversite İşbirliği
+            <InfoTip text="Yayın yazarlarının bağlı olduğu MKÜ dışı kurumlar (üniversite, araştırma merkezi vb.). Aynı yayında çoklu yazardan gelen aynı kurum bir kez sayılır." />
+          </h4>
+          <p className="text-xs text-muted mb-4">İlk {Math.min(summary.universityCollaboration.length, 25)} kurum — ortak yayın sayısına göre</p>
+          <div className="space-y-1.5">
+            {summary.universityCollaboration.slice(0, 25).map((u: any, i: number) => {
+              const max = summary.universityCollaboration[0]?.count || 1;
+              const pct = (u.count / max) * 100;
+              return (
+                <div key={u.name} className="flex items-center gap-3">
+                  <span className="text-xs text-muted w-6 text-right flex-shrink-0">{i + 1}.</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-navy truncate" title={u.name}>{u.name}</p>
+                    <div className="h-1.5 rounded-full mt-1" style={{ background: '#f0ede8' }}>
+                      <div className="h-1.5 rounded-full" style={{ width: `${pct}%`, background: '#c8a45a' }} />
+                    </div>
+                  </div>
+                  <span className="text-sm font-bold text-navy w-12 text-right flex-shrink-0">{u.count}</span>
+                </div>
+              );
+            })}
+          </div>
+          {summary.universityCollaboration.length > 25 && (
+            <p className="text-[11px] text-muted mt-2 text-center">
+              Toplam {summary.universityCollaboration.length} işbirlikli kurum — ilk 25 gösterildi.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Yayın Türüne Göre Dağılım */}
       {summary.typeDistribution && summary.typeDistribution.length > 0 && (
         <div className="card p-5">
@@ -747,13 +782,14 @@ function YearDrilldown({ year, publications, topCited, onClose }: {
       </div>
       {filtered.length === 0 ? (
         <p className="text-sm text-muted text-center py-6">
-          {year} yılında yayın örneği bulunamadı (sample dışı kalmış olabilir — kurumsal toplam daha yüksek).
+          {year} yılında yayın bulunamadı (örneklem dışı kalmış olabilir — kurumsal toplam daha yüksek).
         </p>
       ) : (
-        <div className="divide-y" style={{ borderColor: '#f0ede8', maxHeight: 400, overflowY: 'auto' }}>
-          {filtered.slice(0, 50).map((p: any, i: number) => (
+        <div className="divide-y" style={{ borderColor: '#f0ede8', maxHeight: 600, overflowY: 'auto' }}>
+          {/* Tüm yayınlar — slice yok, scrollbar ile gezilir */}
+          {filtered.map((p: any, i: number) => (
             <div key={p.doi || (p.title || '') + i} className="py-2.5 flex gap-3">
-              <div className="w-6 text-xs text-muted font-semibold text-right flex-shrink-0">{i + 1}.</div>
+              <div className="w-8 text-xs text-muted font-semibold text-right flex-shrink-0">{i + 1}.</div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-navy line-clamp-2">{p.title}</p>
                 <p className="text-xs text-muted mt-0.5">
@@ -783,9 +819,9 @@ function YearDrilldown({ year, publications, topCited, onClose }: {
           ))}
         </div>
       )}
-      {filtered.length > 50 && (
-        <p className="text-xs text-muted mt-2 text-center">İlk 50 yayın gösterildi (toplam {filtered.length}).</p>
-      )}
+      <p className="text-[11px] text-muted mt-2 text-center">
+        {filtered.length > 0 ? `${filtered.length} yayın gösteriliyor — liste içinde kaydırarak gezebilirsiniz` : ''}
+      </p>
     </div>
   );
 }

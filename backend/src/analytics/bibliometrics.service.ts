@@ -219,7 +219,8 @@ export class BibliometricsService {
     const instSummary = await this.openalex.getInstitutionSummary(institutionId).catch(() => null);
 
     // 2. SAMPLE — detay tablolar için en çok atıf alan yayınlar (dönem filtreli olabilir)
-    const pubs = await this.publications.getInstitutionPublications(institutionId, yearOrRange, 500);
+    // Sample büyüklüğü 500'den 1000'e çıkarıldı — daha temsili, sample bias'ı azalır
+    const pubs = await this.publications.getInstitutionPublications(institutionId, yearOrRange, 1000);
     const sampleSummary = this.publications.summarize(pubs);
 
     // Dönem filtrelendiyse etiket için tut
@@ -324,9 +325,9 @@ export class BibliometricsService {
       sampleOpenAccessRatio: sampleSummary.openAccessRatio,
 
       // FWCI ve Top Percentile — SAMPLE BAZLI — dürüst etiket
-      // Bunlar "en çok atıf alan 500 yayının" istatistiği; tüm kurumun değil
+      // Artık en fazla 1000 yayın sample (öncesinde 500'dü) — daha temsili
       sampleSize: pubs.length,
-      sampleNote: `Aşağıdaki FWCI, Top 1%, Top 10%, dergi kalite, uluslararası ortaklık ve ülke dağılımı metrikleri kurumun en çok atıf alan ${pubs.length} yayını üzerinden hesaplanmıştır — tüm kurum değil.`,
+      sampleNote: `Aşağıdaki FWCI, Top 1%, Top 10%, dergi kalite, uluslararası ortaklık, ülke dağılımı ve üniversite işbirliği metrikleri kurumun en çok atıf alan ${pubs.length} yayını üzerinden hesaplanmıştır — tüm kurumsal yayın havuzu değil (kurum geneli ~11K+ yayın).`,
       avgFwci: sampleSummary.avgFwci,
       medianFwci: sampleSummary.medianFwci,
       fwciCoverage: sampleSummary.fwciCoverage,
@@ -341,6 +342,7 @@ export class BibliometricsService {
       avgCountriesPerPaper: sampleSummary.avgCountriesPerPaper,
       topJournals: sampleSummary.topJournals,
       typeDistribution: sampleSummary.typeDistribution,
+      universityCollaboration: sampleSummary.universityCollaboration,
 
       // Yayın listesi — sample
       publications: pubs.map(p => {
