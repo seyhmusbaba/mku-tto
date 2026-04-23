@@ -35,6 +35,11 @@ export class AnalyticsController {
     return this.svc.getFundingSuccess(q, req.user.userId, req.user.roleName);
   }
 
+  @Get('funding-source-breakdown')
+  fundingSourceBreakdown(@Query() q: any, @Request() req: any) {
+    return this.svc.getFundingSourceBreakdown(q, req.user.userId, req.user.roleName);
+  }
+
   @Get('budget-utilization')
   budgetUtilization(@Request() req: any) {
     return this.svc.getBudgetUtilization(req.user.userId, req.user.roleName);

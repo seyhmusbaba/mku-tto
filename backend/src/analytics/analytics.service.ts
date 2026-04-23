@@ -288,6 +288,108 @@ export class AnalyticsService {
     });
   }
 
+  /**
+   * Fon kaynağı bazlı kırılım (TÜBİTAK, Rektörlük, Sanayi, AB vs.).
+   * Project.fundingSource alanı üzerinden gruplar. Boş/NULL kaynaklar
+   * "Belirtilmemiş" olarak toplanır.
+   */
+  async getFundingSourceBreakdown(
+    q: { year?: string; faculty?: string; type?: string; from?: string; to?: string } = {},
+    userId: string,
+    roleName: string,
+  ) {
+    const scope = await this.resolveScope(userId, roleName);
+    const qb = this.projectRepo.createQueryBuilder('p')
+      .select([
+        `COALESCE(NULLIF(TRIM(p."fundingSource"), ''), 'Belirtilmemiş') as source`,
+        'COUNT(*) as total',
+        `SUM(CASE WHEN p.status = 'completed' THEN 1 ELSE 0 END) as completed`,
+        `SUM(CASE WHEN p.status = 'active' THEN 1 ELSE 0 END) as active`,
+        `SUM(CASE WHEN p.status IN ('application','pending') THEN 1 ELSE 0 END) as pending`,
+        `SUM(CASE WHEN p.status = 'cancelled' THEN 1 ELSE 0 END) as cancelled`,
+        'AVG(p.budget) as "avgBudget"',
+        'SUM(p.budget) as "totalBudget"',
+        'MAX(p.budget) as "maxBudget"',
+      ]);
+
+    if (scope.kind === 'user') {
+      const ids = await this.getUserProjectIds(userId);
+      if (!ids.length) return [];
+      qb.where('p.id IN (:...ids)', { ids });
+    } else {
+      this.applyScope(qb, 'p', scope);
+    }
+    this.applyProjectFilters(qb, 'p', q);
+
+    const raw = await qb
+      .groupBy(`COALESCE(NULLIF(TRIM(p."fundingSource"), ''), 'Belirtilmemiş')`)
+      .orderBy('total', 'DESC')
+      .getRawMany();
+
+    // Kaynak adı normalleştirme — "tubitak" / "TUBİTAK" / "TÜBİTAK" aynı bucket'a
+    const normalized = new Map<string, any>();
+    for (const r of raw) {
+      const key = this.normalizeFundingSource(r.source);
+      if (normalized.has(key)) {
+        const existing = normalized.get(key);
+        existing.total += +r.total;
+        existing.completed += +r.completed;
+        existing.active += +r.active;
+        existing.pending += +r.pending;
+        existing.cancelled += +r.cancelled;
+        existing.totalBudget += +r.totalBudget || 0;
+        existing.maxBudget = Math.max(existing.maxBudget, +r.maxBudget || 0);
+        existing.avgBudget = existing.totalBudget / existing.total;
+      } else {
+        normalized.set(key, {
+          source: key,
+          originalLabels: [r.source],
+          total: +r.total,
+          completed: +r.completed,
+          active: +r.active,
+          pending: +r.pending,
+          cancelled: +r.cancelled,
+          totalBudget: +r.totalBudget || 0,
+          avgBudget: +r.avgBudget || 0,
+          maxBudget: +r.maxBudget || 0,
+        });
+      }
+    }
+
+    return Array.from(normalized.values())
+      .map(x => {
+        const decided = x.completed + x.cancelled;
+        return {
+          ...x,
+          successRate: decided > 0 ? Math.round((x.completed / decided) * 100) : 0,
+          avgBudget: Math.round(x.avgBudget || 0),
+          totalBudget: Math.round(x.totalBudget),
+          maxBudget: Math.round(x.maxBudget),
+        };
+      })
+      .sort((a, b) => b.total - a.total);
+  }
+
+  /**
+   * Fon kaynağı adlarını kanonik forma çevirir. Aynı kaynağın farklı
+   * yazımları tek bucket'ta toplanır.
+   */
+  private normalizeFundingSource(raw: string): string {
+    if (!raw) return 'Belirtilmemiş';
+    const lower = raw.toLowerCase().trim();
+    if (/^(tübitak|tubitak|tüb[iı]tak)/i.test(lower)) return 'TÜBİTAK';
+    if (/kosgeb/i.test(lower)) return 'KOSGEB';
+    if (/rekt[oö]rl[uü]k|mk[uü]|bap|iç kaynak/i.test(lower)) return 'Rektörlük / BAP';
+    if (/horizon|h2020|avrupa|european|eu |erc|erasmus|cost/i.test(lower)) return 'AB / Horizon Europe';
+    if (/kalk[ıi]nma|dka|doka|çka|mka|kka|öka/i.test(lower)) return 'Kalkınma Ajansları';
+    if (/sanayi|bakanl[ıi]k|tarım|sa[ğg]l[ıi]k bak/i.test(lower)) return 'Bakanlıklar / Kamu';
+    if (/özel|private|sanayi ortak|firma|\.a\.ş|ltd|a\.ş/i.test(lower)) return 'Özel Sektör';
+    if (/vakıf|foundation|dern/i.test(lower)) return 'Vakıf / Dernek';
+    if (/belirti|unknown|none/i.test(lower)) return 'Belirtilmemiş';
+    // Başka bir şey ise orijinal etiketi koru (title-case)
+    return raw.trim().replace(/\b\w/g, c => c.toUpperCase());
+  }
+
   async getBudgetUtilization(userId: string, roleName: string) {
     const scope = await this.resolveScope(userId, roleName);
     const qb = this.reportRepo.createQueryBuilder('r')

@@ -51,6 +51,8 @@ const STATUS_COLORS: Record<string,string> = {
   application:'#d97706', pending:'#d97706', active:'#059669', completed:'#2563eb',
   suspended:'#6b7280', cancelled:'#dc2626',
 };
+// Fon kaynağı panelindeki bar renkleri — MKÜ paletine uyumlu
+const SOURCE_COLORS = ['#0f2444', '#c8a45a', '#059669', '#7c3aed', '#e9711c', '#4285f4', '#dc2626', '#5e33bf'];
 
 type Tab = 'overview' | 'institutional' | 'bibliometrics' | 'faculty' | 'researcher' | 'funding' | 'timeline' | 'gantt' | 'scopus';
 
@@ -76,6 +78,8 @@ export default function AnalysisPage() {
   const [periodModalOpen, setPeriodModalOpen] = useState(false);
   const [researcherLimit, setResearcherLimit] = useState<number>(10);
   const [timelineGran, setTimelineGran] = useState<'month' | 'quarter' | 'year'>('month');
+  const [fundingSourceData, setFundingSourceData] = useState<any[]>([]);
+  const [drilldown, setDrilldown] = useState<{ filter: Record<string, string>; title: string } | null>(null);
   const [biblioEnabled, setBiblioEnabled] = useState<boolean>(showBibliometrics());
 
   useEffect(() => {
@@ -113,6 +117,9 @@ export default function AnalysisPage() {
       .catch(() => {});
     api.get('/analytics/funding-success', { params: filterParams })
       .then(r => setFundingData(r.data || []))
+      .catch(() => {});
+    api.get('/analytics/funding-source-breakdown', { params: filterParams })
+      .then(r => setFundingSourceData(r.data || []))
       .catch(() => {});
     api.get('/analytics/timeline', { params: { ...filterParams, granularity: timelineGran } })
       .then(r => setTimelineData(r.data || []))
@@ -213,6 +220,15 @@ export default function AnalysisPage() {
           <PeriodReportModal onClose={() => setPeriodModalOpen(false)} />
         )}
 
+        {/* Drilldown Modal — KPI/chart tıklayınca proje listesi */}
+        {drilldown && (
+          <DrilldownModal
+            filter={drilldown.filter}
+            title={drilldown.title}
+            onClose={() => setDrilldown(null)}
+          />
+        )}
+
         {/* Filtreler (overview sekmesinde) */}
         {tab === 'overview' && (
           <div className="flex gap-3 flex-wrap">
@@ -262,20 +278,37 @@ export default function AnalysisPage() {
                 )}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {([
-                    { label: 'Toplam Proje', val: overview.total, icon: 'folder' as AIconName, color: '#1a3a6b', tip: 'Filtreye uyan tüm projeler (tüm durumlar dahil)' },
-                    { label: 'Toplam Bütçe', val: formatCurrency(overview.totalBudget), icon: 'dollar' as AIconName, color: '#c8a45a', tip: 'Projelerde belirtilen toplam bütçe' },
-                    { label: 'Tamamlanma Oranı', val: `%${overview.successRate}`, icon: 'check' as AIconName, color: '#059669', tip: `Sonucu belli olan projelerde oran: ${overview.completed} tamamlandı / ${overview.decided} karara bağlandı. Beklemedeki veya iptal edilen projeler değerlendirme dışı.` },
-                    { label: 'Ort. Bütçe', val: formatCurrency(overview.avgBudget), icon: 'chart' as AIconName, color: '#7c3aed', tip: 'Toplam bütçe / proje sayısı' },
-                  ]).map(item => (
-                    <div key={item.label} className="card p-5 text-center" title={item.tip}>
+                    { label: 'Toplam Proje', val: overview.total, icon: 'folder' as AIconName, color: '#1a3a6b',
+                      tip: 'Filtreye uyan tüm projeler (tüm durumlar dahil). Tıkla → proje listesini gör',
+                      href: `/projects${filterYear ? `?dateFrom=${filterYear}-01-01&dateTo=${filterYear}-12-31` : ''}${filterFaculty ? (filterYear ? '&' : '?') + `faculty=${encodeURIComponent(filterFaculty)}` : ''}${filterType ? (filterYear || filterFaculty ? '&' : '?') + `type=${filterType}` : ''}`,
+                    },
+                    { label: 'Toplam Bütçe', val: formatCurrency(overview.totalBudget), icon: 'dollar' as AIconName, color: '#c8a45a',
+                      tip: 'Projelerde belirtilen toplam bütçe' },
+                    { label: 'Tamamlanma Oranı', val: `%${overview.successRate}`, icon: 'check' as AIconName, color: '#059669',
+                      tip: `Sonucu belli olan projelerde oran: ${overview.completed} tamamlandı / ${overview.decided} karara bağlandı. Beklemedeki veya iptal edilen projeler değerlendirme dışı.`,
+                      href: `/projects?status=completed${filterFaculty ? `&faculty=${encodeURIComponent(filterFaculty)}` : ''}${filterType ? `&type=${filterType}` : ''}`,
+                    },
+                    { label: 'Ort. Bütçe', val: formatCurrency(overview.avgBudget), icon: 'chart' as AIconName, color: '#7c3aed',
+                      tip: 'Toplam bütçe / proje sayısı' },
+                  ]).map(item => {
+                    const Wrap: any = (item as any).href ? 'a' : 'div';
+                    const wrapProps: any = (item as any).href
+                      ? { href: (item as any).href, className: 'card p-5 text-center cursor-pointer hover:shadow-md transition-shadow block', title: item.tip }
+                      : { className: 'card p-5 text-center', title: item.tip };
+                    return (
+                    <Wrap key={item.label} {...wrapProps}>
                       <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl mb-2"
                         style={{ background: item.color + '18', color: item.color }}>
                         <AIcon name={item.icon} className="w-5 h-5" />
                       </span>
                       <div className="font-display text-2xl font-bold" style={{ color: item.color }}>{item.val}</div>
                       <div className="text-xs text-muted mt-1">{item.label}</div>
-                    </div>
-                  ))}
+                      {(item as any).href && (
+                        <div className="text-[10px] text-muted mt-1 italic">Tıkla →</div>
+                      )}
+                    </Wrap>
+                    );
+                  })}
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-6">
@@ -415,30 +448,113 @@ export default function AnalysisPage() {
             {/* ── FON ANALİZİ ── */}
             {tab === 'funding' && (
               <div className="space-y-6">
+                {/* ═ Proje Türü Başarı Oranları ═ */}
                 <div className="card p-5">
-                  <h3 className="font-display text-sm font-semibold text-navy mb-4">Fon Kaynağı Başarı Oranları</h3>
+                  <h3 className="font-display text-sm font-semibold text-navy mb-1">Proje Türüne Göre Dağılım</h3>
+                  <p className="text-xs text-muted mb-4">TÜBİTAK 1001, BAP, AB projesi gibi — proje türü bazlı başarı oranları</p>
                   <ResponsiveContainer width="100%" height={280}>
                     <BarChart data={fundingData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0ede8" />
                       <XAxis dataKey="type" tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} />
                       <Tooltip />
-                      <Bar dataKey="total" fill="#1a3a6b" name="Toplam" />
+                      <Legend />
+                      <Bar dataKey="total" fill="#1a3a6b" name="Toplam" cursor="pointer"
+                        onClick={(d: any) => d?.type && setDrilldown({ filter: { type: d.type }, title: `Proje türü: ${d.type}` })} />
                       <Bar dataKey="completed" fill="#059669" name="Tamamlandı" />
                       <Bar dataKey="active" fill="#c8a45a" name="Aktif" />
-                      <Legend />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
 
+                {/* ═ YENİ: Fon Kaynağı Breakdown ═ */}
+                {fundingSourceData.length > 0 && (
+                  <div className="card p-5">
+                    <h3 className="font-display text-sm font-semibold text-navy mb-1 inline-flex items-center gap-2">
+                      <AIcon name="dollar" className="w-4 h-4" />
+                      Fon Kaynağına Göre Dağılım
+                    </h3>
+                    <p className="text-xs text-muted mb-4">
+                      Nereden geliyor — TÜBİTAK, Rektörlük/BAP, AB, Sanayi, Kalkınma Ajansları vs. (Normalleştirilmiş)
+                    </p>
+
+                    {/* Horizontal stacked bar */}
+                    <div className="mb-5">
+                      {(() => {
+                        const maxTotal = Math.max(...fundingSourceData.map(f => f.total));
+                        const totalBudgetAll = fundingSourceData.reduce((s, f) => s + f.totalBudget, 0);
+                        return (
+                          <div className="space-y-2">
+                            {fundingSourceData.map((f, i) => {
+                              const pct = (f.total / maxTotal) * 100;
+                              const budgetShare = totalBudgetAll > 0 ? Math.round((f.totalBudget / totalBudgetAll) * 100) : 0;
+                              const color = SOURCE_COLORS[i % SOURCE_COLORS.length];
+                              return (
+                                <div key={f.source}
+                                  className="grid grid-cols-[180px_1fr_auto] items-center gap-3 text-xs cursor-pointer hover:bg-[#faf8f4] p-2 rounded-lg"
+                                  onClick={() => setDrilldown({ filter: { fundingSource: f.source }, title: `Fon kaynağı: ${f.source}` })}
+                                  title={`${f.source}: ${f.total} proje, ${formatCurrency(f.totalBudget)} toplam bütçe. Tıklayın → projeleri görün.`}>
+                                  <span className="font-medium text-navy truncate">{f.source}</span>
+                                  <div className="h-6 rounded" style={{ background: '#f0ede8', position: 'relative' }}>
+                                    <div className="h-6 rounded flex items-center px-2 text-white text-[10px] font-semibold"
+                                      style={{ width: `${pct}%`, background: color, minWidth: pct > 5 ? 'auto' : '0' }}>
+                                      {pct > 15 && <span>{f.total} proje</span>}
+                                    </div>
+                                  </div>
+                                  <div className="text-right whitespace-nowrap">
+                                    <p className="font-bold tabular-nums" style={{ color }}>{f.total}</p>
+                                    <p className="text-[10px] text-muted">%{budgetShare} bütçe</p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    {/* Detay kartlar */}
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3 pt-4 border-t" style={{ borderColor: '#f0ede8' }}>
+                      {fundingSourceData.slice(0, 6).map((f, i) => (
+                        <div key={f.source} className="rounded-xl p-3 border hover:shadow-sm transition-shadow cursor-pointer"
+                          style={{ borderColor: SOURCE_COLORS[i % SOURCE_COLORS.length] + '40', background: SOURCE_COLORS[i % SOURCE_COLORS.length] + '08' }}
+                          onClick={() => setDrilldown({ filter: { fundingSource: f.source }, title: `Fon kaynağı: ${f.source}` })}>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-semibold text-sm text-navy truncate">{f.source}</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold"
+                              style={{ background: f.successRate >= 50 ? '#dcfce7' : '#fef3c7', color: f.successRate >= 50 ? '#15803d' : '#92400e' }}>
+                              %{f.successRate}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-1 text-center text-[11px] mb-2">
+                            <div><p className="font-bold text-navy">{f.total}</p><p className="text-muted">Proje</p></div>
+                            <div><p className="font-bold" style={{ color: '#059669' }}>{f.completed}</p><p className="text-muted">Bitti</p></div>
+                            <div><p className="font-bold" style={{ color: '#c8a45a' }}>{f.active}</p><p className="text-muted">Aktif</p></div>
+                          </div>
+                          <div className="pt-2 border-t text-[11px]" style={{ borderColor: SOURCE_COLORS[i % SOURCE_COLORS.length] + '30' }}>
+                            <p className="flex items-center justify-between text-muted">
+                              Toplam:<span className="font-semibold text-navy tabular-nums">{formatCurrency(f.totalBudget)}</span>
+                            </p>
+                            <p className="flex items-center justify-between text-muted mt-0.5">
+                              Ort.:<span className="font-semibold text-navy tabular-nums">{formatCurrency(f.avgBudget)}</span>
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Proje türü detay kartları */}
                 <div className="grid md:grid-cols-2 gap-4">
                   {fundingData.map((f, i) => (
-                    <div key={i} className="card p-4">
+                    <div key={i} className="card p-4 cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => setDrilldown({ filter: { type: f.type }, title: `Proje türü: ${f.type}` })}>
                       <div className="flex items-center justify-between mb-3">
                         <span className="font-semibold text-navy">{f.type?.toUpperCase()}</span>
                         <span className="text-xs px-2 py-1 rounded-full font-bold"
                           style={{ background: f.successRate >= 50 ? '#d1fae5' : '#fef3c7', color: f.successRate >= 50 ? '#059669' : '#d97706' }}>
-                          %{f.successRate} başarı
+                          %{f.successRate} tamamlanma
                         </span>
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-center text-xs">
@@ -1110,6 +1226,105 @@ function DepartmentComparisonPanel({ userFaculty, userDept, roleName }: { userFa
       {!loading && data?.departments?.length === 0 && (
         <div className="card py-12 text-center text-sm text-muted">Bu fakültede kimliği tanımlı araştırmacı yok.</div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Drilldown Modal — KPI/chart bileşenine tıklandığında açılır,
+ * filtreli proje listesini modal içinde gösterir.
+ */
+function DrilldownModal({ filter, title, onClose }: {
+  filter: Record<string, string>;
+  title: string;
+  onClose: () => void;
+}) {
+  const [projects, setProjects] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+
+  useEffect(() => {
+    setLoading(true);
+    const params: any = { limit: 100 };
+    // Backend projects/findAll bazı anahtarları anlıyor
+    if (filter.type) params.type = filter.type;
+    if (filter.status) params.status = filter.status;
+    if (filter.faculty) params.faculty = filter.faculty;
+    // fundingSource için search'e düşeceğiz — projects endpoint'inde direkt filtre yok
+    api.get('/projects', { params }).then(r => {
+      let data = r.data?.data || [];
+      // fundingSource filtresi client-side normalleştir
+      if (filter.fundingSource && filter.fundingSource !== 'Belirtilmemiş') {
+        const want = filter.fundingSource.toLowerCase();
+        data = data.filter((p: any) => (p.fundingSource || '').toLowerCase().includes(want.split('/')[0].trim().toLowerCase()));
+      } else if (filter.fundingSource === 'Belirtilmemiş') {
+        data = data.filter((p: any) => !p.fundingSource || p.fundingSource.trim() === '');
+      }
+      setProjects(data);
+      setTotal(data.length);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, [filter]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)' }}
+      onClick={onClose}>
+      <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[85vh] overflow-hidden flex flex-col"
+        onClick={e => e.stopPropagation()}>
+        <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: '#e8e4dc' }}>
+          <div>
+            <p className="text-[10px] tracking-widest uppercase font-bold mb-1" style={{ color: '#8a7a52' }}>Drill-down</p>
+            <h3 className="font-display text-lg font-bold text-navy">{title}</h3>
+            <p className="text-xs text-muted mt-1">{loading ? 'Yükleniyor…' : `${total} proje bulundu`}</p>
+          </div>
+          <button onClick={onClose} className="text-2xl text-muted hover:text-navy leading-none" aria-label="Kapat">
+            ×
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {loading ? (
+            <div className="flex justify-center py-16"><div className="spinner" /></div>
+          ) : projects.length === 0 ? (
+            <div className="py-16 text-center text-sm text-muted italic">Bu kritere uygun proje bulunamadı.</div>
+          ) : (
+            <div className="divide-y" style={{ borderColor: '#f0ede8' }}>
+              {projects.map(p => (
+                <a key={p.id} href={`/projects/${p.id}`}
+                  className="block px-5 py-3 hover:bg-[#faf8f4] transition-colors">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-navy line-clamp-1">{p.title}</p>
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted mt-1">
+                        <span>{p.type}</span>
+                        {p.faculty && <span>· {p.faculty}</span>}
+                        {p.fundingSource && <span>· {p.fundingSource}</span>}
+                        {p.startDate && <span>· {p.startDate}</span>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {p.budget && (
+                        <span className="text-xs font-semibold tabular-nums text-navy">{formatCurrency(p.budget)}</span>
+                      )}
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                        style={{
+                          background: p.status === 'active' ? '#dcfce7' : p.status === 'completed' ? '#dbeafe' : p.status === 'cancelled' ? '#fee2e2' : '#fef3c7',
+                          color: p.status === 'active' ? '#15803d' : p.status === 'completed' ? '#1d4ed8' : p.status === 'cancelled' ? '#b91c1c' : '#92400e',
+                        }}>
+                        {STATUS_LABELS[p.status] || p.status}
+                      </span>
+                    </div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="px-5 py-3 border-t flex items-center justify-between text-xs" style={{ borderColor: '#e8e4dc', background: '#faf8f4' }}>
+          <span className="text-muted">Proje adına tıklayarak detay sayfasına gidin</span>
+          <button onClick={onClose} className="btn-secondary text-xs px-3 py-1.5">Kapat</button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -202,13 +202,62 @@ export function InstitutionalPanel({ highlightFaculty }: { highlightFaculty?: st
                   <Radar key={f} dataKey={f} stroke={color} fill={color} fillOpacity={0.15} strokeWidth={2} />
                 );
               })}
-              <Tooltip />
+              <Tooltip content={<RadarTooltip radar={radar} />} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
             </RadarChart>
           </ResponsiveContainer>
         ) : (
           <div className="text-center py-12 text-sm text-muted">
             Yukarıdan karşılaştırmak istediğiniz fakülteleri seçin
+          </div>
+        )}
+
+        {/* Seçili fakültelerin yan yana detay kartı */}
+        {selectedFaculties.length > 0 && (
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {selectedFaculties.map(fn => {
+              const f = radar.find((x: any) => x.faculty === fn);
+              const origIndex = radar.findIndex((x: any) => x.faculty === fn);
+              const color = FACULTY_COLORS[origIndex % FACULTY_COLORS.length];
+              if (!f) return null;
+              return (
+                <a key={fn} href={`/projects?faculty=${encodeURIComponent(fn)}`}
+                  className="rounded-xl border p-3 hover:shadow-md transition-shadow"
+                  style={{ borderColor: color + '40', background: color + '08' }}>
+                  <div className="flex items-center gap-2 mb-3 pb-2 border-b" style={{ borderColor: color + '30' }}>
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
+                    <span className="font-semibold text-sm truncate" style={{ color: '#0f2444' }}>{fn}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
+                    <div>
+                      <p className="font-bold text-lg text-navy">{f.totalProjects}</p>
+                      <p className="text-muted">Proje</p>
+                    </div>
+                    <div>
+                      <p className="font-bold text-lg" style={{ color: '#059669' }}>{f.activeProjects}</p>
+                      <p className="text-muted">Aktif</p>
+                    </div>
+                    <div>
+                      <p className="font-bold text-lg" style={{ color: '#c8a45a' }}>%{f.successRate}</p>
+                      <p className="text-muted">Başarı</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-center text-[11px] mt-2 pt-2 border-t" style={{ borderColor: color + '20' }}>
+                    <div>
+                      <p className="font-semibold text-navy tabular-nums">{f.sdgCoverage}/17</p>
+                      <p className="text-muted">SDG</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-navy tabular-nums">{formatCurrency(f.totalBudget).slice(0, -2)}</p>
+                      <p className="text-muted">Bütçe</p>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-[10px] text-center italic" style={{ color: color }}>
+                    Projeleri gör →
+                  </p>
+                </a>
+              );
+            })}
           </div>
         )}
 
@@ -234,11 +283,15 @@ export function InstitutionalPanel({ highlightFaculty }: { highlightFaculty?: st
                 const color = FACULTY_COLORS[i % FACULTY_COLORS.length];
                 const isOwn = highlightFaculty && f.faculty === highlightFaculty;
                 return (
-                  <tr key={f.faculty} className="border-b" style={{ borderColor: '#f5f2ee', background: isOwn ? '#fef3c7' : undefined, fontWeight: isOwn ? 700 : undefined }}>
-                    <td className="px-3 py-2 font-semibold text-navy inline-flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full" style={{ background: color }} />
-                      {f.faculty}
-                      {isOwn && <span className="text-xs px-1.5 py-0.5 rounded font-bold" style={{ background: '#c8a45a', color: 'white' }}>SİZİN</span>}
+                  <tr key={f.faculty} className="border-b hover:bg-[#faf8f4] cursor-pointer" style={{ borderColor: '#f5f2ee', background: isOwn ? '#fef3c7' : undefined, fontWeight: isOwn ? 700 : undefined }}
+                    onClick={() => window.location.href = `/projects?faculty=${encodeURIComponent(f.faculty)}`}
+                    title="Bu fakültenin projelerini listele">
+                    <td className="px-3 py-2 font-semibold text-navy">
+                      <div className="inline-flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full" style={{ background: color }} />
+                        {f.faculty}
+                        {isOwn && <span className="text-xs px-1.5 py-0.5 rounded font-bold" style={{ background: '#c8a45a', color: 'white' }}>SİZİN</span>}
+                      </div>
                     </td>
                     <td className="px-3 py-2 text-right text-navy">{f.totalProjects}</td>
                     <td className="px-3 py-2 text-right text-emerald-600">{f.activeProjects}</td>
@@ -495,4 +548,46 @@ function ProjectListModal({ title, projects, onClose }: {
       </div>
     </div>
   );
+}
+
+/**
+ * Radar tooltip — hover'da normalized değerle beraber ham sayıları da göster.
+ */
+function RadarTooltip({ active, payload, radar }: any) {
+  if (!active || !payload?.length) return null;
+  const dim = payload[0]?.payload?.dimension;
+
+  // payload'da her entry bir fakülteyi temsil eder
+  return (
+    <div className="rounded-lg shadow-lg p-3 text-xs" style={{ background: 'white', border: '1px solid #e8e4dc', minWidth: 220 }}>
+      <p className="font-bold text-navy mb-2 pb-2 border-b" style={{ borderColor: '#f0ede8' }}>{dim}</p>
+      {payload.map((p: any) => {
+        const facData = radar.find((r: any) => r.faculty === p.name);
+        const rawLabel = getRawValueLabel(dim, facData);
+        return (
+          <div key={p.name} className="flex items-center justify-between gap-3 py-1">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
+              <span className="truncate text-navy">{p.name}</span>
+            </div>
+            <div className="text-right flex-shrink-0">
+              <span className="font-bold tabular-nums" style={{ color: p.color }}>{Math.round(p.value)}</span>
+              {rawLabel && <span className="text-muted ml-1.5">({rawLabel})</span>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function getRawValueLabel(dimension: string, fac: any): string {
+  if (!fac) return '';
+  if (dimension === 'Proje Ölçeği')   return `${fac.totalProjects} proje`;
+  if (dimension === 'Bütçe')          return formatCurrency(fac.totalBudget);
+  if (dimension === 'Başarı')         return `%${fac.successRate}`;
+  if (dimension === 'SDG Kapsamı')    return `${fac.sdgCoverage}/17`;
+  if (dimension === 'Fikri Mülkiyet') return `${fac.ipCount} IP`;
+  if (dimension === 'Etik Uyum')      return `${fac.ethicsApprovedCount} onay`;
+  return '';
 }
