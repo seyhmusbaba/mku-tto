@@ -254,8 +254,14 @@ export class BibliometricsSyncService {
       throw new Error(`TR Dizin'de "${fullName}" adına yayın bulunamadı`);
     }
 
-    const citations = pubs.reduce<number>((sum, p) => sum + ((p as any).citedBy || (p as any).citationCount || 0), 0);
-    const hIndex = this.computeHIndex(pubs.map(p => (p as any).citedBy || (p as any).citationCount || 0));
+    let citations = 0;
+    const citationList: number[] = [];
+    for (const p of pubs) {
+      const c = (p as any).citedBy || (p as any).citationCount || 0;
+      citations += c;
+      citationList.push(c);
+    }
+    const hIndex = this.computeHIndex(citationList);
 
     return {
       docs: pubs.length,

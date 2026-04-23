@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { PublicLayout } from '@/components/layout/PublicLayout';
 import { publicApi } from '@/lib/api';
 import { getInitials } from '@/lib/utils';
+import { SourceLogo } from '@/components/AvesisMetricsGrid';
 
 interface Profile {
   id: string; slug: string;
@@ -226,14 +227,14 @@ export default function ProfilePage() {
           {/* Kaynak-bazlı grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {[
-              { n: 'OpenAlex',       k: 'openalex' as const, c: '#ee3f3f', d: profile.openAlexDocCount,      cit: profile.openAlexCitedBy,      h: profile.openAlexHIndex },
-              { n: 'Scopus',         k: 'scopus' as const,   c: '#e9711c', d: profile.scopusDocCount,         cit: profile.scopusCitedBy,         h: profile.scopusHIndex },
-              { n: 'Web of Science', k: 'wos' as const,      c: '#5e33bf', d: profile.wosDocCount,            cit: profile.wosCitedBy,            h: profile.wosHIndex },
-              { n: 'TR Dizin',       k: 'trdizin' as const,  c: '#c8a45a', d: profile.trDizinDocCount,        cit: profile.trDizinCitedBy,        h: profile.trDizinHIndex },
-              { n: 'Google Scholar', k: 'scholar' as const,  c: '#4285f4', d: profile.googleScholarDocCount,  cit: profile.googleScholarCitedBy,  h: profile.googleScholarHIndex },
-              { n: 'Sobiad',         k: 'sobiad' as const,   c: '#0f2444', d: profile.sobiadDocCount,         cit: profile.sobiadCitedBy,         h: profile.sobiadHIndex },
+              { n: 'OpenAlex',       k: 'openalex' as const, d: profile.openAlexDocCount,      cit: profile.openAlexCitedBy,      h: profile.openAlexHIndex },
+              { n: 'Scopus',         k: 'scopus' as const,   d: profile.scopusDocCount,         cit: profile.scopusCitedBy,         h: profile.scopusHIndex },
+              { n: 'Web of Science', k: 'wos' as const,      d: profile.wosDocCount,            cit: profile.wosCitedBy,            h: profile.wosHIndex },
+              { n: 'TR Dizin',       k: 'trdizin' as const,  d: profile.trDizinDocCount,        cit: profile.trDizinCitedBy,        h: profile.trDizinHIndex },
+              { n: 'Google Scholar', k: 'scholar' as const,  d: profile.googleScholarDocCount,  cit: profile.googleScholarCitedBy,  h: profile.googleScholarHIndex },
+              { n: 'Sobiad',         k: 'sobiad' as const,   d: profile.sobiadDocCount,         cit: profile.sobiadCitedBy,         h: profile.sobiadHIndex },
             ].filter(x => (x.d && x.d > 0) || (x.cit && x.cit > 0) || (x.h && x.h > 0)).map(x => (
-              <PublicSourceCard key={x.n} name={x.n} sourceKey={x.k} color={x.c} docs={x.d} cites={x.cit} hIndex={x.h} />
+              <PublicSourceCard key={x.n} name={x.n} sourceKey={x.k} docs={x.d} cites={x.cit} hIndex={x.h} />
             ))}
           </div>
 
@@ -579,20 +580,16 @@ function PublicSummaryCell({ label, value }: { label: string; value?: number | n
 }
 
 function PublicSourceCard({
-  name, sourceKey, color, docs, cites, hIndex,
+  name, sourceKey, docs, cites, hIndex,
 }: {
   name: string; sourceKey: 'openalex' | 'scopus' | 'wos' | 'trdizin' | 'scholar' | 'sobiad';
-  color: string;
   docs?: number; cites?: number; hIndex?: number;
 }) {
   const fmt = (n?: number) => (typeof n === 'number' && n > 0) ? n.toLocaleString('tr-TR') : '—';
   return (
     <div className="border p-4 bg-white" style={{ borderColor: 'rgba(15, 36, 68, 0.12)', borderRadius: 1 }}>
       <div className="flex items-center gap-3 mb-3 pb-3 border-b" style={{ borderColor: 'rgba(15, 36, 68, 0.08)' }}>
-        <div className="w-10 h-10 flex items-center justify-center flex-shrink-0"
-          style={{ background: color, borderRadius: 1 }}>
-          <PublicSourceLogo source={sourceKey} />
-        </div>
+        <SourceLogo source={sourceKey} size={40} />
         <p className="text-sm font-semibold" style={{ color: '#0f2444' }}>{name}</p>
       </div>
       <div className="grid grid-cols-3 gap-2">
@@ -611,64 +608,6 @@ function PublicSourceCard({
       </div>
     </div>
   );
-}
-
-function PublicSourceLogo({ source }: { source: 'openalex' | 'scopus' | 'wos' | 'trdizin' | 'scholar' | 'sobiad' }) {
-  const size = 22;
-  const c = '#ffffff';
-  switch (source) {
-    case 'openalex':
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="9" stroke={c} strokeWidth="2" />
-          <circle cx="12" cy="12" r="3" fill={c} />
-          <circle cx="5" cy="9" r="1.5" fill={c} />
-          <circle cx="19" cy="9" r="1.5" fill={c} />
-          <circle cx="8" cy="18" r="1.5" fill={c} />
-          <circle cx="16" cy="18" r="1.5" fill={c} />
-          <path d="M5 9 L12 12 L19 9 M8 18 L12 12 L16 18" stroke={c} strokeWidth="1.2" />
-        </svg>
-      );
-    case 'scopus':
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <path d="M17 7.5c-1.5-1.5-3.5-2-5.5-2-3 0-5 1.5-5 3.5 0 2 2 3 4.5 3.5l1 .2c2.5.5 4.5 1.5 4.5 4 0 2.3-2 4-5.5 4-2.5 0-4.5-.8-6-2.5"
-            stroke={c} strokeWidth="2" strokeLinecap="round" fill="none" />
-        </svg>
-      );
-    case 'wos':
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="9" stroke={c} strokeWidth="2" />
-          <ellipse cx="12" cy="12" rx="4" ry="9" stroke={c} strokeWidth="1.5" />
-          <line x1="3" y1="12" x2="21" y2="12" stroke={c} strokeWidth="1.5" />
-        </svg>
-      );
-    case 'scholar':
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill={c}>
-          <path d="M12 3L1 9l11 6 9-4.9V17h2V9L12 3z" />
-          <path d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z" />
-        </svg>
-      );
-    case 'trdizin':
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <path d="M4 4.5A2.5 2.5 0 016.5 2h11A2.5 2.5 0 0120 4.5v15a2.5 2.5 0 01-2.5 2.5h-11A2.5 2.5 0 014 19.5v-15z"
-            stroke={c} strokeWidth="1.8" fill="none" />
-          <text x="12" y="15" textAnchor="middle" fill={c} fontSize="8" fontWeight="bold" fontFamily="sans-serif">TR</text>
-        </svg>
-      );
-    case 'sobiad':
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <path d="M4 6c2-1 5-1 8 0v14c-3-1-6-1-8 0V6z"
-            stroke={c} strokeWidth="1.8" fill="none" strokeLinejoin="round" />
-          <path d="M12 6c3-1 6-1 8 0v14c-2-1-5-1-8 0V6z"
-            stroke={c} strokeWidth="1.8" fill="none" strokeLinejoin="round" />
-        </svg>
-      );
-  }
 }
 
 function ExtLink({ label, href, color }: { label: string; href: string; color: string }) {

@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 
 export type SourceKey = 'openalex' | 'scopus' | 'wos' | 'trdizin' | 'scholar' | 'sobiad';
 
@@ -81,17 +82,11 @@ export function AvesisMetricsGrid({
 
 function SourceCard({ source: s, fmt }: { source: MetricSource; fmt: (n?: number | null) => string }) {
   const noData = !(s.docs || s.citations || s.hIndex);
-  const meta = SOURCE_META[s.key];
 
   return (
     <div className="border rounded-lg p-4 bg-white" style={{ borderColor: '#e8e4dc' }}>
       <div className="flex items-center gap-3 mb-3 pb-3 border-b" style={{ borderColor: '#f0ede8' }}>
-        <div
-          className="w-10 h-10 rounded flex items-center justify-center flex-shrink-0"
-          style={{ background: meta.bg }}
-        >
-          <SourceLogo source={s.key} />
-        </div>
+        <SourceLogo source={s.key} />
         <p className="text-sm font-semibold text-navy leading-tight">{s.name}</p>
       </div>
       <div className="grid grid-cols-3 gap-2">
@@ -122,89 +117,108 @@ function SourceCard({ source: s, fmt }: { source: MetricSource; fmt: (n?: number
 }
 
 // ─────────────────────────────────────────────────────────────
-// Her kaynağın logosu — kendi markalarının karakteristik görseli
+// Gerçek marka logoları — favicon servisinden çekiliyor, başarısız
+// olursa SVG fallback devreye giriyor.
 // ─────────────────────────────────────────────────────────────
 
-const SOURCE_META: Record<SourceKey, { bg: string }> = {
-  openalex: { bg: '#ee3f3f' },     // OpenAlex kırmızı
-  scopus:   { bg: '#e9711c' },     // Scopus turuncu
-  wos:      { bg: '#5e33bf' },     // Web of Science mor
-  scholar:  { bg: '#4285f4' },     // Google Scholar mavi
-  trdizin:  { bg: '#c8a45a' },     // Altın (Türkçe akademik)
-  sobiad:   { bg: '#0f2444' },     // Lacivert
+const SOURCE_CONFIG: Record<SourceKey, { domain: string; fallbackBg: string }> = {
+  openalex: { domain: 'openalex.org',            fallbackBg: '#ee3f3f' },
+  scopus:   { domain: 'scopus.com',              fallbackBg: '#e9711c' },
+  wos:      { domain: 'webofscience.com',        fallbackBg: '#5e33bf' },
+  scholar:  { domain: 'scholar.google.com',      fallbackBg: '#4285f4' },
+  trdizin:  { domain: 'trdizin.gov.tr',          fallbackBg: '#c8a45a' },
+  sobiad:   { domain: 'sobiad.com',              fallbackBg: '#0f2444' },
 };
 
-function SourceLogo({ source }: { source: SourceKey }) {
-  const size = 22;
-  const strokeColor = '#ffffff';
+export function SourceLogo({ source, size = 40 }: { source: SourceKey; size?: number }) {
+  const [imgError, setImgError] = useState(false);
+  const config = SOURCE_CONFIG[source];
+  // Google's favicon service — 128px boyutunda döner, yüksek kalite
+  const faviconUrl = `https://www.google.com/s2/favicons?domain=${config.domain}&sz=128`;
 
+  if (imgError) {
+    // Favicon yüklenemediyse SVG fallback (renkli arka planla)
+    return (
+      <div
+        className="flex items-center justify-center flex-shrink-0 rounded"
+        style={{ width: size, height: size, background: config.fallbackBg }}
+      >
+        <FallbackSvg source={source} />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex items-center justify-center flex-shrink-0 rounded bg-white border"
+      style={{ width: size, height: size, borderColor: '#e8e4dc' }}
+    >
+      <img
+        src={faviconUrl}
+        alt=""
+        width={size - 12}
+        height={size - 12}
+        onError={() => setImgError(true)}
+        className="object-contain"
+        style={{ imageRendering: 'crisp-edges' }}
+      />
+    </div>
+  );
+}
+
+function FallbackSvg({ source }: { source: SourceKey }) {
+  const size = 22;
+  const c = '#ffffff';
   switch (source) {
     case 'openalex':
-      // Olfactory/network hexagon — OpenAlex kimliğini çağrıştırır
       return (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="9" stroke={strokeColor} strokeWidth="2" />
-          <circle cx="12" cy="12" r="3" fill={strokeColor} />
-          <circle cx="5" cy="9" r="1.5" fill={strokeColor} />
-          <circle cx="19" cy="9" r="1.5" fill={strokeColor} />
-          <circle cx="8" cy="18" r="1.5" fill={strokeColor} />
-          <circle cx="16" cy="18" r="1.5" fill={strokeColor} />
-          <path d="M5 9 L12 12 L19 9 M8 18 L12 12 L16 18" stroke={strokeColor} strokeWidth="1.2" />
+          <circle cx="12" cy="12" r="9" stroke={c} strokeWidth="2" />
+          <circle cx="12" cy="12" r="3" fill={c} />
+          <circle cx="5" cy="9" r="1.5" fill={c} />
+          <circle cx="19" cy="9" r="1.5" fill={c} />
+          <circle cx="8" cy="18" r="1.5" fill={c} />
+          <circle cx="16" cy="18" r="1.5" fill={c} />
+          <path d="M5 9 L12 12 L19 9 M8 18 L12 12 L16 18" stroke={c} strokeWidth="1.2" />
         </svg>
       );
     case 'scopus':
-      // Stilize büyük S
       return (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <path
-            d="M17 7.5c-1.5-1.5-3.5-2-5.5-2-3 0-5 1.5-5 3.5 0 2 2 3 4.5 3.5l1 .2c2.5.5 4.5 1.5 4.5 4 0 2.3-2 4-5.5 4-2.5 0-4.5-.8-6-2.5"
-            stroke={strokeColor}
-            strokeWidth="2"
-            strokeLinecap="round"
-            fill="none"
-          />
+          <path d="M17 7.5c-1.5-1.5-3.5-2-5.5-2-3 0-5 1.5-5 3.5 0 2 2 3 4.5 3.5l1 .2c2.5.5 4.5 1.5 4.5 4 0 2.3-2 4-5.5 4-2.5 0-4.5-.8-6-2.5"
+            stroke={c} strokeWidth="2" strokeLinecap="round" fill="none" />
         </svg>
       );
     case 'wos':
-      // Dünya / globe
       return (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="9" stroke={strokeColor} strokeWidth="2" />
-          <ellipse cx="12" cy="12" rx="4" ry="9" stroke={strokeColor} strokeWidth="1.5" />
-          <line x1="3" y1="12" x2="21" y2="12" stroke={strokeColor} strokeWidth="1.5" />
+          <circle cx="12" cy="12" r="9" stroke={c} strokeWidth="2" />
+          <ellipse cx="12" cy="12" rx="4" ry="9" stroke={c} strokeWidth="1.5" />
+          <line x1="3" y1="12" x2="21" y2="12" stroke={c} strokeWidth="1.5" />
         </svg>
       );
     case 'scholar':
-      // Graduation cap (klasik Google Scholar sembolü)
       return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill={strokeColor}>
+        <svg width={size} height={size} viewBox="0 0 24 24" fill={c}>
           <path d="M12 3L1 9l11 6 9-4.9V17h2V9L12 3z" />
           <path d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z" />
         </svg>
       );
     case 'trdizin':
-      // Kitap ikonu + TR referansı
       return (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <path
-            d="M4 4.5A2.5 2.5 0 016.5 2h11A2.5 2.5 0 0120 4.5v15a2.5 2.5 0 01-2.5 2.5h-11A2.5 2.5 0 014 19.5v-15z"
-            stroke={strokeColor} strokeWidth="1.8" fill="none"
-          />
-          <text x="12" y="15" textAnchor="middle" fill={strokeColor} fontSize="8" fontWeight="bold" fontFamily="sans-serif">TR</text>
+          <path d="M4 4.5A2.5 2.5 0 016.5 2h11A2.5 2.5 0 0120 4.5v15a2.5 2.5 0 01-2.5 2.5h-11A2.5 2.5 0 014 19.5v-15z"
+            stroke={c} strokeWidth="1.8" fill="none" />
+          <text x="12" y="15" textAnchor="middle" fill={c} fontSize="8" fontWeight="bold" fontFamily="sans-serif">TR</text>
         </svg>
       );
     case 'sobiad':
-      // Kitap sayfası ikonu
       return (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <path
-            d="M4 6c2-1 5-1 8 0v14c-3-1-6-1-8 0V6z"
-            stroke={strokeColor} strokeWidth="1.8" fill="none" strokeLinejoin="round"
-          />
-          <path
-            d="M12 6c3-1 6-1 8 0v14c-2-1-5-1-8 0V6z"
-            stroke={strokeColor} strokeWidth="1.8" fill="none" strokeLinejoin="round"
-          />
+          <path d="M4 6c2-1 5-1 8 0v14c-3-1-6-1-8 0V6z"
+            stroke={c} strokeWidth="1.8" fill="none" strokeLinejoin="round" />
+          <path d="M12 6c3-1 6-1 8 0v14c-2-1-5-1-8 0V6z"
+            stroke={c} strokeWidth="1.8" fill="none" strokeLinejoin="round" />
         </svg>
       );
   }
