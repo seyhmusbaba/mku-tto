@@ -72,7 +72,7 @@ export class AiController {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: process.env.AI_MODEL || 'claude-3-haiku-20240307', max_tokens: dto.maxTokens || 1000, system: dto.system, messages: [{ role: 'user', content: dto.userContent }] }),
+        body: JSON.stringify({ model: process.env.AI_MODEL || 'claude-haiku-4-5-20251001', max_tokens: dto.maxTokens || 1000, system: dto.system, messages: [{ role: 'user', content: dto.userContent }] }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -194,7 +194,7 @@ SADECE JSON döndür (markdown yok, kod bloğu yok):
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
         body: JSON.stringify({
-          model: process.env.AI_MODEL || 'claude-3-haiku-20240307',
+          model: process.env.AI_MODEL || 'claude-haiku-4-5-20251001',
           max_tokens: 1500,
           messages: [{ role: 'user', content: prompt }],
         }),
@@ -280,7 +280,7 @@ SADECE JSON döndür:
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: process.env.AI_MODEL || 'claude-3-haiku-20240307', max_tokens: 800, messages: [{ role: 'user', content: prompt }] }),
+        body: JSON.stringify({ model: process.env.AI_MODEL || 'claude-haiku-4-5-20251001', max_tokens: 800, messages: [{ role: 'user', content: prompt }] }),
         signal: AbortSignal.timeout(25000),
       });
       if (!res.ok) return this.basicDocumentCheck(body);
@@ -429,7 +429,7 @@ SADECE JSON döndür, başka hiçbir şey yazma:
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: process.env.AI_MODEL || 'claude-3-haiku-20240307', max_tokens: 300, messages: [{ role: 'user', content: prompt }] }),
+        body: JSON.stringify({ model: process.env.AI_MODEL || 'claude-haiku-4-5-20251001', max_tokens: 300, messages: [{ role: 'user', content: prompt }] }),
         signal: AbortSignal.timeout(20000),
       });
       if (!res.ok) return { suggestions: [] };

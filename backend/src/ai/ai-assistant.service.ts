@@ -50,7 +50,7 @@ export class AiAssistantService {
     // Model seçimi — env'den override edilebilir. Default: en ucuz Haiku.
     // PORTA Asistan ucuz ve hızlı Haiku ile hallediliyor; kalite isterseniz
     // AI_MODEL=claude-3-5-sonnet-latest gibi env ile değiştirebilirsiniz.
-    const model = process.env.AI_MODEL || 'claude-3-haiku-20240307';
+    const model = process.env.AI_MODEL || 'claude-haiku-4-5-20251001';
 
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
