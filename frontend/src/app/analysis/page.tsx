@@ -276,20 +276,31 @@ export default function AnalysisPage() {
                     </span>
                   </div>
                 )}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
                   {([
                     { label: 'Toplam Proje', val: overview.total, icon: 'folder' as AIconName, color: '#1a3a6b',
-                      tip: 'Filtreye uyan tüm projeler (tüm durumlar dahil). Tıkla → proje listesini gör',
+                      tip: 'Filtreye uyan tüm projeler. Tıkla → proje listesini gör',
                       href: `/projects${filterYear ? `?dateFrom=${filterYear}-01-01&dateTo=${filterYear}-12-31` : ''}${filterFaculty ? (filterYear ? '&' : '?') + `faculty=${encodeURIComponent(filterFaculty)}` : ''}${filterType ? (filterYear || filterFaculty ? '&' : '?') + `type=${filterType}` : ''}`,
                     },
                     { label: 'Toplam Bütçe', val: formatCurrency(overview.totalBudget), icon: 'dollar' as AIconName, color: '#c8a45a',
                       tip: 'Projelerde belirtilen toplam bütçe' },
-                    { label: 'Tamamlanma Oranı', val: `%${overview.successRate}`, icon: 'check' as AIconName, color: '#059669',
-                      tip: `Sonucu belli olan projelerde oran: ${overview.completed} tamamlandı / ${overview.decided} karara bağlandı. Beklemedeki veya iptal edilen projeler değerlendirme dışı.`,
-                      href: `/projects?status=completed${filterFaculty ? `&faculty=${encodeURIComponent(filterFaculty)}` : ''}${filterType ? `&type=${filterType}` : ''}`,
-                    },
                     { label: 'Ort. Bütçe', val: formatCurrency(overview.avgBudget), icon: 'chart' as AIconName, color: '#7c3aed',
                       tip: 'Toplam bütçe / proje sayısı' },
+                    { label: 'Aktiflik', val: `%${overview.activeRate ?? 0}`, sub: `${overview.activeProjects} aktif`,
+                      icon: 'bolt' as AIconName, color: '#059669',
+                      tip: `${overview.activeProjects} / ${overview.total} proje aktif durumda (devam eden).`,
+                      href: `/projects?status=active${filterFaculty ? `&faculty=${encodeURIComponent(filterFaculty)}` : ''}${filterType ? `&type=${filterType}` : ''}`,
+                    },
+                    { label: 'Tamamlanma', val: `%${overview.completedRate ?? 0}`, sub: `${overview.completedProjects} bitti`,
+                      icon: 'check' as AIconName, color: '#2563eb',
+                      tip: `${overview.completedProjects} / ${overview.total} proje tamamlandı.`,
+                      href: `/projects?status=completed${filterFaculty ? `&faculty=${encodeURIComponent(filterFaculty)}` : ''}${filterType ? `&type=${filterType}` : ''}`,
+                    },
+                    { label: 'Başvuru Sürecinde', val: `%${overview.pendingRate ?? 0}`, sub: `${overview.pendingProjects} beklemede`,
+                      icon: 'clock' as AIconName, color: '#d97706',
+                      tip: `${overview.pendingProjects} / ${overview.total} proje henüz karar aşamasında (başvuru / beklemede).`,
+                      href: `/projects?status=pending${filterFaculty ? `&faculty=${encodeURIComponent(filterFaculty)}` : ''}${filterType ? `&type=${filterType}` : ''}`,
+                    },
                   ]).map(item => {
                     const Wrap: any = (item as any).href ? 'a' : 'div';
                     const wrapProps: any = (item as any).href
@@ -303,6 +314,9 @@ export default function AnalysisPage() {
                       </span>
                       <div className="font-display text-2xl font-bold" style={{ color: item.color }}>{item.val}</div>
                       <div className="text-xs text-muted mt-1">{item.label}</div>
+                      {(item as any).sub && (
+                        <div className="text-[10px] font-semibold mt-0.5" style={{ color: item.color }}>{(item as any).sub}</div>
+                      )}
                       {(item as any).href && (
                         <div className="text-[10px] text-muted mt-1 italic">Tıkla →</div>
                       )}
@@ -373,9 +387,9 @@ export default function AnalysisPage() {
                         <div className="flex gap-4 text-xs">
                           {[
                             { label: 'Toplam', val: f.total, color: '#1a3a6b' },
-                            { label: 'Aktif', val: f.active, color: '#059669' },
-                            { label: 'Tamamlandı', val: f.completed, color: '#2563eb' },
-                            { label: 'Başarı', val: `%${f.successRate}`, color: '#c8a45a' },
+                            { label: 'Aktiflik', val: `%${f.activeRate ?? 0}`, color: '#059669' },
+                            { label: 'Tamamlanma', val: `%${f.completedRate ?? 0}`, color: '#2563eb' },
+                            { label: 'Başvuru Sürecinde', val: `%${f.pendingRate ?? 0}`, color: '#d97706' },
                             { label: 'Ort. Bütçe', val: formatCurrency(f.avgBudget), color: '#7c3aed' },
                           ].map(item => (
                             <div key={item.label} className="text-center">
@@ -385,8 +399,11 @@ export default function AnalysisPage() {
                           ))}
                         </div>
                       </div>
-                      <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: '#f0ede8' }}>
-                        <div className="h-1.5 rounded-full" style={{ width: `${f.successRate}%`, background: '#059669' }} />
+                      {/* 3 renkli stacked bar — aktif/tamamlanma/başvuru sürecinde */}
+                      <div className="mt-2 h-2 rounded-full overflow-hidden flex" style={{ background: '#f0ede8' }}>
+                        <div style={{ width: `${f.activeRate ?? 0}%`, background: '#059669' }} title={`Aktif: %${f.activeRate ?? 0}`} />
+                        <div style={{ width: `${f.completedRate ?? 0}%`, background: '#2563eb' }} title={`Tamamlanan: %${f.completedRate ?? 0}`} />
+                        <div style={{ width: `${f.pendingRate ?? 0}%`, background: '#d97706' }} title={`Başvuru: %${f.pendingRate ?? 0}`} />
                       </div>
                     </div>
                   ))}
@@ -521,15 +538,14 @@ export default function AnalysisPage() {
                           onClick={() => setDrilldown({ filter: { fundingSource: f.source }, title: `Fon kaynağı: ${f.source}` })}>
                           <div className="flex items-center justify-between mb-2">
                             <span className="font-semibold text-sm text-navy truncate">{f.source}</span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold"
-                              style={{ background: f.successRate >= 50 ? '#dcfce7' : '#fef3c7', color: f.successRate >= 50 ? '#15803d' : '#92400e' }}>
-                              %{f.successRate}
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-[#f0ede8] text-[#0f2444]">
+                              {f.total} proje
                             </span>
                           </div>
                           <div className="grid grid-cols-3 gap-1 text-center text-[11px] mb-2">
-                            <div><p className="font-bold text-navy">{f.total}</p><p className="text-muted">Proje</p></div>
-                            <div><p className="font-bold" style={{ color: '#059669' }}>{f.completed}</p><p className="text-muted">Bitti</p></div>
-                            <div><p className="font-bold" style={{ color: '#c8a45a' }}>{f.active}</p><p className="text-muted">Aktif</p></div>
+                            <div><p className="font-bold" style={{ color: '#059669' }}>%{f.activeRate ?? 0}</p><p className="text-muted">Aktiflik</p></div>
+                            <div><p className="font-bold" style={{ color: '#2563eb' }}>%{f.completedRate ?? 0}</p><p className="text-muted">Tamamlanma</p></div>
+                            <div><p className="font-bold" style={{ color: '#d97706' }}>%{f.pendingRate ?? 0}</p><p className="text-muted">Başvuru</p></div>
                           </div>
                           <div className="pt-2 border-t text-[11px]" style={{ borderColor: SOURCE_COLORS[i % SOURCE_COLORS.length] + '30' }}>
                             <p className="flex items-center justify-between text-muted">
@@ -552,10 +568,14 @@ export default function AnalysisPage() {
                       onClick={() => setDrilldown({ filter: { type: f.type }, title: `Proje türü: ${f.type}` })}>
                       <div className="flex items-center justify-between mb-3">
                         <span className="font-semibold text-navy">{f.type?.toUpperCase()}</span>
-                        <span className="text-xs px-2 py-1 rounded-full font-bold"
-                          style={{ background: f.successRate >= 50 ? '#d1fae5' : '#fef3c7', color: f.successRate >= 50 ? '#059669' : '#d97706' }}>
-                          %{f.successRate} tamamlanma
+                        <span className="text-xs px-2 py-1 rounded-full font-bold bg-[#f0ede8] text-[#0f2444]">
+                          {f.total} proje
                         </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-center text-xs mb-3">
+                        <div><p className="font-bold text-lg" style={{ color: '#059669' }}>%{f.activeRate ?? 0}</p><p className="text-muted">Aktiflik</p></div>
+                        <div><p className="font-bold text-lg" style={{ color: '#2563eb' }}>%{f.completedRate ?? 0}</p><p className="text-muted">Tamamlanma</p></div>
+                        <div><p className="font-bold text-lg" style={{ color: '#d97706' }}>%{f.pendingRate ?? 0}</p><p className="text-muted">Başvuru</p></div>
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-center text-xs">
                         <div><p className="font-bold text-navy text-lg">{f.total}</p><p className="text-muted">Toplam</p></div>

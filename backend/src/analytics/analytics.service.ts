@@ -126,14 +126,15 @@ export class AnalyticsService {
 
     const totalBudget = projects.reduce((s, p) => s + (p.budget || 0), 0);
     const activeBudget = projects.filter(p => p.status === 'active').reduce((s, p) => s + (p.budget || 0), 0);
-    // Başarı oranı: sonucu belli olan projeler (tamamlandı + iptal) üzerinden
     const completed = projects.filter(p => p.status === 'completed').length;
     const active = projects.filter(p => p.status === 'active').length;
     const cancelled = projects.filter(p => p.status === 'cancelled').length;
     const pending = projects.filter(p => ['application','pending'].includes(p.status)).length;
     const suspended = projects.filter(p => p.status === 'suspended').length;
-    const decided = completed + cancelled;
-    const successRate = decided > 0 ? Math.round((completed / decided) * 100) : 0;
+    // 3 ana oran — toplam proje sayısı üzerinden (anlamlı ve tutarlı)
+    const activeRate = total > 0 ? Math.round((active / total) * 100) : 0;
+    const completedRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const pendingRate = total > 0 ? Math.round((pending / total) * 100) : 0;
     const avgBudget = total > 0 ? Math.round(totalBudget / total) : 0;
 
     // Proje türüne göre dağılım
@@ -147,14 +148,16 @@ export class AnalyticsService {
       .sort((a, b) => b.count - a.count);
 
     return {
-      total, byStatus, byType, totalBudget, activeBudget, successRate, avgBudget,
-      // Durum bazlı sayılar — frontend'in doğrudan kullanabileceği isimler
+      total, byStatus, byType, totalBudget, activeBudget, avgBudget,
+      // 3 ana oran
+      activeRate, completedRate, pendingRate,
+      // Durum bazlı sayılar
       activeProjects: active,
       completedProjects: completed,
       cancelledProjects: cancelled,
       pendingProjects: pending,
       suspendedProjects: suspended,
-      completed, decided,
+      completed,
       restricted: scope.kind !== 'global',
       scope: scope.kind,
       scopeValue: scope.kind === 'faculty' ? scope.faculty : scope.kind === 'department' ? scope.department : null,
@@ -188,13 +191,17 @@ export class AnalyticsService {
     }
     this.applyProjectFilters(qb, 'p', q);
 
-    const raw = await qb.groupBy('p.faculty').orderBy('total', 'DESC').getRawMany();
+    const raw = await qb.groupBy('p.faculty')
+      .addSelect(`SUM(CASE WHEN p.status IN ('application','pending') THEN 1 ELSE 0 END)`, 'pending')
+      .orderBy('total', 'DESC').getRawMany();
     return raw.map(r => {
-      const decided = (+r.completed) + (+r.cancelled);
+      const total = +r.total;
       return {
-        faculty: r.faculty, total: +r.total, completed: +r.completed, active: +r.active,
-        cancelled: +r.cancelled,
-        successRate: decided > 0 ? Math.round((+r.completed / decided) * 100) : 0,
+        faculty: r.faculty, total, completed: +r.completed, active: +r.active,
+        cancelled: +r.cancelled, pending: +(r.pending || 0),
+        activeRate:    total > 0 ? Math.round((+r.active / total) * 100) : 0,
+        completedRate: total > 0 ? Math.round((+r.completed / total) * 100) : 0,
+        pendingRate:   total > 0 ? Math.round(((+(r.pending || 0)) / total) * 100) : 0,
         avgBudget: Math.round(+r.avgBudget || 0), totalBudget: Math.round(+r.totalBudget || 0),
       };
     });
@@ -278,11 +285,13 @@ export class AnalyticsService {
 
     const raw = await qb.groupBy('p.type').orderBy('total', 'DESC').getRawMany();
     return raw.map(r => {
-      const decided = (+r.completed) + (+r.cancelled);
+      const total = +r.total;
       return {
-        type: r.type, total: +r.total, completed: +r.completed, active: +r.active,
+        type: r.type, total, completed: +r.completed, active: +r.active,
         pending: +r.pending, cancelled: +r.cancelled,
-        successRate: decided > 0 ? Math.round((+r.completed / decided) * 100) : 0,
+        activeRate:    total > 0 ? Math.round((+r.active / total) * 100) : 0,
+        completedRate: total > 0 ? Math.round((+r.completed / total) * 100) : 0,
+        pendingRate:   total > 0 ? Math.round((+r.pending / total) * 100) : 0,
         avgBudget: Math.round(+r.avgBudget || 0), totalBudget: Math.round(+r.totalBudget || 0),
       };
     });
@@ -357,16 +366,15 @@ export class AnalyticsService {
     }
 
     return Array.from(normalized.values())
-      .map(x => {
-        const decided = x.completed + x.cancelled;
-        return {
-          ...x,
-          successRate: decided > 0 ? Math.round((x.completed / decided) * 100) : 0,
-          avgBudget: Math.round(x.avgBudget || 0),
-          totalBudget: Math.round(x.totalBudget),
-          maxBudget: Math.round(x.maxBudget),
-        };
-      })
+      .map(x => ({
+        ...x,
+        activeRate:    x.total > 0 ? Math.round((x.active / x.total) * 100) : 0,
+        completedRate: x.total > 0 ? Math.round((x.completed / x.total) * 100) : 0,
+        pendingRate:   x.total > 0 ? Math.round((x.pending / x.total) * 100) : 0,
+        avgBudget: Math.round(x.avgBudget || 0),
+        totalBudget: Math.round(x.totalBudget),
+        maxBudget: Math.round(x.maxBudget),
+      }))
       .sort((a, b) => b.total - a.total);
   }
 

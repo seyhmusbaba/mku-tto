@@ -86,7 +86,7 @@ export function InstitutionalPanel({ highlightFaculty }: { highlightFaculty?: st
     const dims: Array<{ key: keyof NonNullable<(typeof radar)[number]['normalized']>; label: string }> = [
       { key: 'projectScale', label: 'Proje Ölçeği' },
       { key: 'budgetScale',  label: 'Bütçe' },
-      { key: 'successScore', label: 'Başarı' },
+      { key: 'successScore', label: 'Tamamlanma' },
       { key: 'sdgScore',     label: 'SDG Kapsamı' },
       { key: 'ipScore',      label: 'Fikri Mülkiyet' },
       { key: 'ethicsScore',  label: 'Etik Uyum' },
@@ -160,7 +160,7 @@ export function InstitutionalPanel({ highlightFaculty }: { highlightFaculty?: st
           <h3 className="font-display text-base font-semibold text-navy inline-flex items-center gap-2">
             <Icon name="radar" className="w-4 h-4" />
             Fakülte Karşılaştırma Radarı
-            <InfoTip text="Her fakülte 6 boyutta değerlendirilir: Proje Ölçeği (kaç proje), Bütçe, Başarı (tamamlanma oranı), SDG Kapsamı (farklı hedeflere değen), Fikri Mülkiyet (patent/tescil), Etik Uyum (onaylanan etik dosya sayısı). Değerler en yüksek fakülteye göre 0-100 normalize edilir." />
+            <InfoTip text="Her fakülte 6 boyutta değerlendirilir: Proje Ölçeği (kaç proje), Bütçe, Tamamlanma (bitirilen projelerin oranı), SDG Kapsamı (farklı hedeflere değen), Fikri Mülkiyet (patent/tescil), Etik Uyum (onaylanan etik dosya sayısı). Değerler en yüksek fakülteye göre 0-100 normalize edilir." />
           </h3>
           <span className="text-xs text-muted">{radar.length} fakülte</span>
         </div>
@@ -238,8 +238,8 @@ export function InstitutionalPanel({ highlightFaculty }: { highlightFaculty?: st
                       <p className="text-muted">Aktif</p>
                     </div>
                     <div>
-                      <p className="font-bold text-lg" style={{ color: '#c8a45a' }}>%{f.successRate}</p>
-                      <p className="text-muted">Başarı</p>
+                      <p className="font-bold text-lg" style={{ color: '#2563eb' }}>{f.completedProjects}</p>
+                      <p className="text-muted">Tamamlanan</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-center text-[11px] mt-2 pt-2 border-t" style={{ borderColor: color + '20' }}>
@@ -270,7 +270,7 @@ export function InstitutionalPanel({ highlightFaculty }: { highlightFaculty?: st
                 <th className="text-right px-3 py-2 font-semibold text-muted">Proje</th>
                 <th className="text-right px-3 py-2 font-semibold text-muted">Aktif</th>
                 <th className="text-right px-3 py-2 font-semibold text-muted">Tamamlanan</th>
-                <th className="text-right px-3 py-2 font-semibold text-muted">Başarı</th>
+                <th className="text-right px-3 py-2 font-semibold text-muted">Tamamlanma %</th>
                 <th className="text-right px-3 py-2 font-semibold text-muted">Toplam Bütçe</th>
                 <th className="text-right px-3 py-2 font-semibold text-muted">SDG</th>
                 <th className="text-right px-3 py-2 font-semibold text-muted">IP</th>
@@ -296,7 +296,9 @@ export function InstitutionalPanel({ highlightFaculty }: { highlightFaculty?: st
                     <td className="px-3 py-2 text-right text-navy">{f.totalProjects}</td>
                     <td className="px-3 py-2 text-right text-emerald-600">{f.activeProjects}</td>
                     <td className="px-3 py-2 text-right text-blue-600">{f.completedProjects}</td>
-                    <td className="px-3 py-2 text-right font-bold">%{f.successRate}</td>
+                    <td className="px-3 py-2 text-right font-bold">
+                      {f.totalProjects > 0 ? `%${Math.round((f.completedProjects / f.totalProjects) * 100)}` : '—'}
+                    </td>
                     <td className="px-3 py-2 text-right font-semibold">{formatCurrency(f.totalBudget)}</td>
                     <td className="px-3 py-2 text-right">{f.sdgCoverage} / 17</td>
                     <td className="px-3 py-2 text-right">{f.ipCount}</td>
@@ -585,7 +587,7 @@ function getRawValueLabel(dimension: string, fac: any): string {
   if (!fac) return '';
   if (dimension === 'Proje Ölçeği')   return `${fac.totalProjects} proje`;
   if (dimension === 'Bütçe')          return formatCurrency(fac.totalBudget);
-  if (dimension === 'Başarı')         return `%${fac.successRate}`;
+  if (dimension === 'Tamamlanma')     return `${fac.completedProjects} / ${fac.totalProjects}`;
   if (dimension === 'SDG Kapsamı')    return `${fac.sdgCoverage}/17`;
   if (dimension === 'Fikri Mülkiyet') return `${fac.ipCount} IP`;
   if (dimension === 'Etik Uyum')      return `${fac.ethicsApprovedCount} onay`;
