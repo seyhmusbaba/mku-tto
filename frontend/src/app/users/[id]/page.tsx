@@ -348,7 +348,7 @@ export default function UserProfilePage() {
 
             {/* Bibliyometrik metrikler — opsiyonel manuel override */}
             <div className="card p-5 space-y-3 md:col-span-2">
-              <SectionTitle icon="chart-bar">Bibliyometrik Metrikler</SectionTitle>
+              <SectionTitle icon="beaker">Bibliyometrik Metrikler</SectionTitle>
               <div className="rounded-lg border p-3 flex items-start gap-2.5" style={{ borderColor: '#dbeafe', background: '#eff6ff' }}>
                 <svg className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
