@@ -73,17 +73,27 @@ export class AiAssistantService {
         const err = await res.json().catch(() => ({}));
         const anthropicMsg = (err as any)?.error?.message || '';
         const errType = (err as any)?.error?.type || '';
-        let userMsg = 'Asistan servisi şu an yanıt veremiyor.';
-        if (/credit|balance|budget|quota|limit/i.test(anthropicMsg + errType)) {
-          userMsg = 'Anthropic API hesabında kredi/bütçe yetersiz. Lütfen Anthropic Console → Billing sayfasından bakiyeyi kontrol edin veya yeni bir API anahtarı oluşturun.';
-        } else if (/authentication|unauthorized|api_key|invalid/i.test(anthropicMsg + errType)) {
-          userMsg = 'ANTHROPIC_API_KEY geçersiz veya eksik. Railway → Backend → Variables bölümünden kontrol edin.';
-        } else if (/model|not_found|does_not_exist/i.test(anthropicMsg + errType)) {
-          userMsg = `Model "${model}" bulunamadı. AI_MODEL env'ini "claude-3-haiku-20240307" olarak ayarlayın.`;
-        } else if (/rate|too many|overload/i.test(anthropicMsg + errType)) {
-          userMsg = 'İstek hızı aşıldı, lütfen birkaç saniye sonra tekrar deneyin.';
+        const combined = `${errType}: ${anthropicMsg}`.trim();
+
+        // Konsola ham hatayı log'la — debugging için
+        console.error('[AI Assistant] Anthropic API hatası:', JSON.stringify(err), 'HTTP', res.status, 'model:', model);
+
+        // errType'a göre spesifik mesaj üret — exact match, regex değil
+        let userMsg = '';
+        if (errType === 'not_found_error') {
+          userMsg = `Model "${model}" API anahtarınızla erişilemiyor. Anthropic hesabınızda bu modele henüz erişim aktif olmayabilir — Console → Settings → "Get API access" adımını tamamlayın ya da bakiye ekleyin.`;
+        } else if (errType === 'authentication_error') {
+          userMsg = 'ANTHROPIC_API_KEY geçersiz. Railway → Backend → Variables bölümünden key\'i kontrol edin.';
+        } else if (errType === 'permission_error') {
+          userMsg = 'API anahtarının bu modele erişim izni yok. Anthropic Console → API Keys → key\'in scope\'unu kontrol edin.';
+        } else if (errType === 'rate_limit_error' || errType === 'overloaded_error') {
+          userMsg = 'Anthropic API şu an yoğun, birkaç saniye sonra tekrar deneyin.';
+        } else if (/credit|balance|billing|quota/i.test(anthropicMsg)) {
+          userMsg = 'Anthropic hesabında kredi yetersiz. Console → Plans & Billing → "Add credits" ile bakiye ekleyin (veya $5 ücretsiz başlangıç kredisi için "Claim free credits" adımını tamamlayın).';
         } else if (anthropicMsg) {
-          userMsg = 'Anthropic API: ' + anthropicMsg;
+          userMsg = `Anthropic: ${combined} (HTTP ${res.status}, model: ${model})`;
+        } else {
+          userMsg = `Anthropic API hatası — HTTP ${res.status}, model: ${model}. Ham yanıt: ${JSON.stringify(err).slice(0, 200)}`;
         }
         throw new HttpException(userMsg, HttpStatus.BAD_GATEWAY);
       }
