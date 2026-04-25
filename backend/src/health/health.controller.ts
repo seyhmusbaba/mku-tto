@@ -6,7 +6,7 @@ import { Project } from '../database/entities/project.entity';
 import { User } from '../database/entities/user.entity';
 
 /**
- * /api/health — uygulamanın canlılık kontrolü.
+ * /api/health - uygulamanın canlılık kontrolü.
  * Auth-gerektirmez, sadece DB bağlantısını ve kritik repo'ları doğrular.
  * Railway veya harici monitoring ile kullanılabilir.
  */
@@ -23,7 +23,7 @@ export class HealthController {
     const start = Date.now();
     const checks: Record<string, any> = {};
 
-    // DB — basit count sorgusu
+    // DB - basit count sorgusu
     try {
       const [projectCount, userCount] = await Promise.all([
         this.projectRepo.count(),
@@ -34,7 +34,7 @@ export class HealthController {
       checks.database = { ok: false, error: e.message };
     }
 
-    // Env — kritik değişkenler
+    // Env - kritik değişkenler
     checks.env = {
       jwtSecret: !!process.env.JWT_SECRET,
       databaseUrl: !!process.env.DATABASE_URL,

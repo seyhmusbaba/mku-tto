@@ -214,7 +214,7 @@ export const bibliometricsSyncApi = {
   debugWos: (userId: string) => api.get(`/bibliometrics-sync/debug-wos/${userId}`),
 };
 
-// ── Vitrin portalı (public — auth yok)
+// ── Vitrin portalı (public - auth yok)
 export const publicApi = {
   institution:        ()                => api.get('/public/institution'),
   stats:              ()                => api.get('/public/stats'),

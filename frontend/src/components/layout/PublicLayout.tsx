@@ -10,7 +10,7 @@ interface Props {
 }
 
 /**
- * Editorial akademik portal layout — serif başlıklar, krem-lacivert-altın
+ * Editorial akademik portal layout - serif başlıklar, krem-lacivert-altın
  * paleti, dergi/gazete hissiyatı. Magazin stili header/footer.
  */
 export function PublicLayout({ children, showSearch = true }: Props) {
@@ -54,10 +54,10 @@ export function PublicLayout({ children, showSearch = true }: Props) {
         </div>
       </div>
 
-      {/* ═════ Main header — masthead ═════ */}
+      {/* ═════ Main header - masthead ═════ */}
       <header className="sticky top-0 z-30 border-b" style={{ background: '#fefaf2', borderColor: 'rgba(15, 36, 68, 0.12)' }}>
         <div className="max-w-[1280px] mx-auto">
-          {/* Masthead row — büyük logo */}
+          {/* Masthead row - büyük logo */}
           <div className="px-6 pt-5 pb-4 flex items-center justify-between gap-6">
             <Link href="/p" className="flex items-center gap-4 min-w-0 flex-shrink-0 group">
               {institution.logoUrl ? (
@@ -102,7 +102,7 @@ export function PublicLayout({ children, showSearch = true }: Props) {
             )}
           </div>
 
-          {/* Navigation bar — serif tabs */}
+          {/* Navigation bar - serif tabs */}
           <nav className="px-6 border-t flex items-center gap-1" style={{ borderColor: 'rgba(15, 36, 68, 0.08)' }}>
             {[
               { href: '/p', label: 'Ana Sayfa' },
@@ -132,7 +132,7 @@ export function PublicLayout({ children, showSearch = true }: Props) {
         {children}
       </main>
 
-      {/* ═════ Footer — dergi kolofonu ═════ */}
+      {/* ═════ Footer - dergi kolofonu ═════ */}
       <footer className="mt-24" style={{ background: '#0a1628', color: 'rgba(255,255,255,0.7)' }}>
         <div className="max-w-[1280px] mx-auto px-6 py-14">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-10">

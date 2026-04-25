@@ -122,7 +122,7 @@ export function ProjectComplianceCheck({ title, description, projectText, type, 
               <span className="text-lg">{LEVEL[result.level]?.icon}</span>
               <div>
                 <p className="text-sm font-bold" style={{ color: LEVEL[result.level]?.color }}>
-                  {LEVEL[result.level]?.label} — {result.score}/100
+                  {LEVEL[result.level]?.label} - {result.score}/100
                 </p>
                 <p className="text-xs" style={{ color: LEVEL[result.level]?.color }}>{result.summary}</p>
               </div>

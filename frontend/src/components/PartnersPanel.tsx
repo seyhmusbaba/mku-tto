@@ -83,8 +83,8 @@ export function PartnersPanel({ projectId, canEdit }: Props) {
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: 'Toplam Ortak',     val: partners.length.toString(), color: '#1a3a6b' },
-            { label: 'Katkı Bütçesi',    val: totalBudget ? formatCurrency(totalBudget) : '—', color: '#059669' },
-            { label: 'Ülke Sayısı',      val: countries.length ? countries.length.toString() : '—', color: '#d97706' },
+            { label: 'Katkı Bütçesi',    val: totalBudget ? formatCurrency(totalBudget) : '-', color: '#059669' },
+            { label: 'Ülke Sayısı',      val: countries.length ? countries.length.toString() : '-', color: '#d97706' },
           ].map(item => (
             <div key={item.label} className="card p-3 text-center">
               <p className="font-display text-xl font-bold" style={{ color: item.color }}>{item.val}</p>
@@ -108,7 +108,7 @@ export function PartnersPanel({ projectId, canEdit }: Props) {
         <div className="space-y-3">
           {partners.map(p => {
             const ti = typeInfo(p.type || 'other');
-            const roleLabel = PARTNER_ROLES.find(r => r.key === p.role)?.label || p.role || '—';
+            const roleLabel = PARTNER_ROLES.find(r => r.key === p.role)?.label || p.role || '-';
             return (
               <div key={p.id} className="card p-4">
                 <div className="flex items-start gap-3">
@@ -148,7 +148,7 @@ export function PartnersPanel({ projectId, canEdit }: Props) {
         </div>
       )}
 
-      {/* MODAL — fixed overlay, ortalanmış */}
+      {/* MODAL - fixed overlay, ortalanmış */}
       {modal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"

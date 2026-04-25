@@ -4,7 +4,7 @@ import { useParams } from 'next/navigation';
 import axios from 'axios';
 
 /**
- * Araştırmacı Akademik Scorecard — yazdırılabilir (PDF için) tam sayfa dokümant.
+ * Araştırmacı Akademik Scorecard - yazdırılabilir (PDF için) tam sayfa dokümant.
  * AVESIS'in "Akademik CV" karşılığı; üzerine bibliyometrik agregalar eklenmiştir.
  *
  * Token transferi: parent /users/[id]/page.tsx, scorecard'ı yeni sekmede açar ve
@@ -52,7 +52,7 @@ export default function ResearcherScorecardPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  // Veri yüklenince otomatik print diyaloğunu aç (kısa gecikme — DOM hazır olsun)
+  // Veri yüklenince otomatik print diyaloğunu aç (kısa gecikme - DOM hazır olsun)
   useEffect(() => {
     if (data && !loading) {
       const t = setTimeout(() => window.print(), 600);
@@ -77,7 +77,7 @@ export default function ResearcherScorecardPage() {
 
   return (
     <div style={style.page}>
-      {/* Yazdırma kontrol barı — @media print ile gizlenir */}
+      {/* Yazdırma kontrol barı - @media print ile gizlenir */}
       <div className="no-print" style={style.toolbar}>
         <button onClick={() => window.print()} style={style.btnPrimary}>PDF olarak kaydet</button>
         <button onClick={() => window.close()} style={style.btnSecondary}>Kapat</button>
@@ -230,7 +230,7 @@ export default function ResearcherScorecardPage() {
                 {p.authors?.length > 5 ? ' et al.' : ''}
               </p>
               <p style={style.pubMeta}>
-                <em>{p.journal || '—'}</em>{p.year ? `, ${p.year}` : ''}
+                <em>{p.journal || '-'}</em>{p.year ? `, ${p.year}` : ''}
                 {p.quality?.sjrQuartile && (
                   <span style={{ ...style.pubBadge, background: QUARTILE_COLORS[p.quality.sjrQuartile], color: 'white' }}>
                     {p.quality.sjrQuartile}

@@ -47,7 +47,7 @@ export class ScopusService {
     if (cached) return cached;
 
     try {
-      // Author Retrieval API — h-index, citation-count, document-count direkt gelir
+      // Author Retrieval API - h-index, citation-count, document-count direkt gelir
       // (ücretsiz Scopus API'de çalışır: /content/author/author_id/{id})
       const authorUrl = `${this.BASE}/content/author/author_id/${scopusAuthorId}?view=METRICS`;
       const aRes = await fetch(authorUrl, { headers: this.headers(), signal: AbortSignal.timeout(20000) });
@@ -70,7 +70,7 @@ export class ScopusService {
         }
       }
 
-      // Fallback: eski yöntem (arama endpoint'i) — Author Retrieval izin vermiyorsa
+      // Fallback: eski yöntem (arama endpoint'i) - Author Retrieval izin vermiyorsa
       const url = `${this.BASE}/content/search/scopus?query=AU-ID(${scopusAuthorId})&count=25&sort=-citedby-count&field=dc:title,prism:coverDate,citedby-count,dc:identifier`;
       const res = await fetch(url, { headers: this.headers(), signal: AbortSignal.timeout(20000) });
       if (!res.ok && !directMetrics) return null;
@@ -252,10 +252,10 @@ export class ScopusService {
           .forEach(([word]) => textWords.push(word));
       }
 
-      // Sorgu oluştur — en az 2 farklı yöntem dene, en iyisini seç
+      // Sorgu oluştur - en az 2 farklı yöntem dene, en iyisini seç
       let query = '';
       if (userKeywords.length >= 2) {
-        // Kullanıcı anahtar kelimeleri — en güvenilir
+        // Kullanıcı anahtar kelimeleri - en güvenilir
         query = userKeywords.slice(0, 4).map(k => `KEY("${k}")`).join(' AND ');
       } else if (titleWords.length >= 3) {
         // Başlık kelimeleri
@@ -267,7 +267,7 @@ export class ScopusService {
         // Metin kelimeleri
         query = `TITLE-ABS-KEY(${textWords.slice(0, 3).join(' AND ')})`;
       } else {
-        // Son çare — başlıktan kısa terimler
+        // Son çare - başlıktan kısa terimler
         query = `TITLE("${opts.title.substring(0, 70)}")`;
       }
 

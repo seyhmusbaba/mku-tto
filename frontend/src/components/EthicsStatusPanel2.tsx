@@ -12,7 +12,7 @@ const CFG: Record<string, { label: string; color: string; bg: string; border: st
 };
 
 const ICON: Record<string, string> = {
-  pending: '⏳', approved: '✓', rejected: '✗', not_required: '—',
+  pending: '⏳', approved: '✓', rejected: '✗', not_required: '-',
 };
 
 const PRIVACY_TEXT = `GİZLİLİK VE TARAFSIZLIK SÖZLEŞMESİ
@@ -85,7 +85,7 @@ export function EthicsStatusPanel2({ projectId, onDecision }: { projectId: strin
   if (!review) return null;
 
   const c = CFG[review.status] || CFG.pending;
-  const icon = ICON[review.status] || '—';
+  const icon = ICON[review.status] || '-';
 
   return (
     <>
@@ -181,7 +181,7 @@ export function EthicsStatusPanel2({ projectId, onDecision }: { projectId: strin
                 ))}
             </div>
             {decideForm.decision === 'approved' && (
-              <input className="input text-xs" placeholder="Onay No (opsiyonel — orn. ETK-2025-001)"
+              <input className="input text-xs" placeholder="Onay No (opsiyonel - orn. ETK-2025-001)"
                 value={decideForm.approvalNumber}
                 onChange={e => setDecideForm(f => ({ ...f, approvalNumber: e.target.value }))} />
             )}

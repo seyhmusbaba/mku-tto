@@ -64,17 +64,17 @@ export default function UserProfilePage() {
   const [syncErrors, setSyncErrors] = useState<Record<string, string>>({});
   const [biblioEnabled, setBiblioEnabled] = useState<boolean>(showBibliometrics());
 
-  // Bibliyometrik görünümler toggle'ı dinle — admin değiştirince anında yansı
+  // Bibliyometrik görünümler toggle'ı dinle - admin değiştirince anında yansı
   useEffect(() => {
     loadSettings().then(() => setBiblioEnabled(showBibliometrics()));
     return subscribeSettings(() => setBiblioEnabled(showBibliometrics()));
   }, []);
 
-  // Otomatik bibliyometrik senkronizasyon — OpenAlex + Scopus + TR Dizin + WoS
+  // Otomatik bibliyometrik senkronizasyon - OpenAlex + Scopus + TR Dizin + WoS
   const handleSync = async () => {
     setSyncing(true);
     setSyncErrors({});
-    const t = toast.loading('Kaynaklar taranıyor — OpenAlex, Scopus, WoS, TR Dizin…');
+    const t = toast.loading('Kaynaklar taranıyor - OpenAlex, Scopus, WoS, TR Dizin…');
     try {
       const res = await bibliometricsSyncApi.syncUser(id);
       const r = res.data;
@@ -260,7 +260,7 @@ export default function UserProfilePage() {
                   window.open(`/users/${id}/scorecard`, '_blank');
                 }}
                 className="btn-secondary text-sm inline-flex items-center gap-1.5"
-                title="Çok kaynaklı bibliyometrik CV — PDF olarak yazdırılabilir"
+                title="Çok kaynaklı bibliyometrik CV - PDF olarak yazdırılabilir"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -380,7 +380,7 @@ export default function UserProfilePage() {
               </div>
             </div>
 
-            {/* Bibliyometrik metrikler — opsiyonel manuel override */}
+            {/* Bibliyometrik metrikler - opsiyonel manuel override */}
             {biblioEnabled && (
             <div className="card p-5 space-y-3 md:col-span-2">
               <SectionTitle icon="beaker">Bibliyometrik Metrikler</SectionTitle>
@@ -391,7 +391,7 @@ export default function UserProfilePage() {
                 <div className="text-xs text-blue-900 leading-relaxed">
                   <strong>Otomatik çekim var:</strong> ORCID + Scopus Author ID + WoS ResearcherID tanımladıysanız, kaydet sonrası profil sayfasındaki
                   <strong className="whitespace-nowrap"> "Otomatik Senkronize Et"</strong> butonu rakamları OpenAlex, Scopus, Web of Science ve TR Dizin'den otomatik çeker.
-                  Aşağıdaki alanlar sadece manuel düzeltme/override içindir — boş bırakın, sync halleder.
+                  Aşağıdaki alanlar sadece manuel düzeltme/override içindir - boş bırakın, sync halleder.
                 </div>
               </div>
 
@@ -753,7 +753,7 @@ export default function UserProfilePage() {
                 )}
               </div>
 
-              {/* SAĞ KOL — 2 sütun */}
+              {/* SAĞ KOL - 2 sütun */}
               <div className="xl:col-span-2 space-y-6">
                 {/* AVESİS tarzı kaynak-bazlı bibliyometrik metrikler */}
                 {biblioEnabled && (
@@ -792,7 +792,7 @@ export default function UserProfilePage() {
                                 const r = await bibliometricsSyncApi.debugWos(id);
                                 const data = r.data;
                                 console.log('[WoS DEBUG]', data);
-                                const msg = `WoS Raw Response:\n\nStatus: ${data.statusCode}\nTotal Hits: ${data.totalHits}\nFirst Hit Keys: ${data.firstHitKeys?.join(', ')}\n\nKonsolu açın (F12) — tam JSON orada.`;
+                                const msg = `WoS Raw Response:\n\nStatus: ${data.statusCode}\nTotal Hits: ${data.totalHits}\nFirst Hit Keys: ${data.firstHitKeys?.join(', ')}\n\nKonsolu açın (F12) - tam JSON orada.`;
                                 alert(msg);
                               } catch (e: any) {
                                 alert('Debug hatası: ' + (e?.response?.data?.message || e?.message));

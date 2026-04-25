@@ -1,7 +1,7 @@
 'use client';
 
 const IP_STATUS_LABELS: Record<string, { label: string; color: string; bg: string; icon: string }> = {
-  none:       { label: 'Fikri Mülkiyet Yok',   color: '#6b7280', bg: '#f9fafb', icon: '—' },
+  none:       { label: 'Fikri Mülkiyet Yok',   color: '#6b7280', bg: '#f9fafb', icon: '-' },
   pending:    { label: 'Başvuru Aşamasında',    color: '#d97706', bg: '#fffbeb', icon: '⏳' },
   registered: { label: 'Tescilli',              color: '#059669', bg: '#f0fdf4', icon: '✅' },
   published:  { label: 'Yayımlandı',            color: '#2563eb', bg: '#eff6ff', icon: '📢' },
@@ -84,7 +84,7 @@ export function ProjectIpEthicsPanel({ project }: { project: any }) {
               <div className="p-3 rounded-xl mb-3" style={{ background: cfg.bg }}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-bold" style={{ color: cfg.color }}>{cfg.label} — {project.aiComplianceScore}/100</p>
+                    <p className="text-sm font-bold" style={{ color: cfg.color }}>{cfg.label} - {project.aiComplianceScore}/100</p>
                     <p className="text-xs mt-0.5" style={{ color: cfg.color }}>{cr.summary}</p>
                   </div>
                   <div className="flex gap-3 text-center ml-3">

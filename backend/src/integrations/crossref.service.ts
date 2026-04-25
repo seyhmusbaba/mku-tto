@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { HttpCache, RateLimiter, fetchJson } from './http-cache';
 
 /**
- * Crossref — DOI metadata ve atıf olayları.
+ * Crossref - DOI metadata ve atıf olayları.
  * Ücretsiz. Sadece User-Agent header'ında email istiyor (polite pool).
  * Docs: https://api.crossref.org
  *

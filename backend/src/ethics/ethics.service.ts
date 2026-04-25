@@ -20,7 +20,7 @@ export class EthicsService {
     projectText: string; type: string;
     faculty?: string; department?: string;
   }) {
-    // Yüksek riskli fakülte/bölüm tespiti — bu alanlardaki projeler için
+    // Yüksek riskli fakülte/bölüm tespiti - bu alanlardaki projeler için
     // AI ne derse desin default ethics required = true.
     // Çünkü tıp/sağlık/sosyal bilimlerde neredeyse tüm çalışmalar etik kurul gerektirir.
     const HIGH_RISK_FACULTY_KEYWORDS = [
@@ -54,7 +54,7 @@ export class EthicsService {
       '7. Tıp / Sağlık Bilimleri / Veteriner / Diş Hekimliği / Eczacılık / Hemşirelik /\n' +
       '   Psikoloji / Sosyoloji / Spor / Rehabilitasyon / Fizyoterapi fakültesindeyse\n' +
       '   → neredeyse her durumda etik kurul gerekir.\n\n' +
-      'KURAL — TEREDDÜTTE KALIRSAN required=true DÖN. Etik kurul gereklidir\n' +
+      'KURAL - TEREDDÜTTE KALIRSAN required=true DÖN. Etik kurul gereklidir\n' +
       'demek, gereksizdir demekten her zaman daha güvenlidir.\n\n' +
       'SADECE bu JSON formatinda yanit ver:\n' +
       '{"required":true,"riskScore":75,"reasons":["neden1","neden2"],"recommendation":"aciklama"}';
@@ -81,7 +81,7 @@ export class EthicsService {
       const required = !!parsed.required || isHighRiskFaculty;
       const reasons = parsed.reasons || [];
       if (isHighRiskFaculty && !parsed.required) {
-        reasons.push(`${data.faculty || data.department} — bu alanda araştırma etiği kurul onayı neredeyse her durumda gereklidir`);
+        reasons.push(`${data.faculty || data.department} - bu alanda araştırma etiği kurul onayı neredeyse her durumda gereklidir`);
       }
       return {
         required,
@@ -96,7 +96,7 @@ export class EthicsService {
 
   private ruleBasedAnalysis(data: any, isHighRiskFaculty = false) {
     const text = [data.title, data.description, data.projectText].join(' ').toLocaleLowerCase('tr-TR');
-    // Normalize Türkçe karakterler — "İnsan" "insan" ikisi de yakalansın
+    // Normalize Türkçe karakterler - "İnsan" "insan" ikisi de yakalansın
     const normalized = text
       .replace(/ı/g, 'i').replace(/İ/g, 'i')
       .replace(/ş/g, 's').replace(/Ş/g, 's')
@@ -118,7 +118,7 @@ export class EthicsService {
     checks.forEach(([kws, label]) => { if (kws.some(k => normalized.includes(k))) found.push(label); });
 
     if (isHighRiskFaculty) {
-      found.unshift(`${data.faculty || data.department} — bu fakülte/bölümde araştırma etiği zorunludur`);
+      found.unshift(`${data.faculty || data.department} - bu fakülte/bölümde araştırma etiği zorunludur`);
     }
 
     const score = Math.min(100, (isHighRiskFaculty ? 40 : 0) + found.length * 18);
@@ -131,14 +131,14 @@ export class EthicsService {
         ? 'Etik kurul onayı gereklidir.'
         : score > 0
         ? 'Etik değerlendirme önerilir.'
-        : 'Standart kurallar yeterli — ancak şüpheniz varsa kurula danışın.',
+        : 'Standart kurallar yeterli - ancak şüpheniz varsa kurula danışın.',
     };
   }
 
   /**
    * Bir proje için etik kurul incelemesi başlat.
    *
-   * POLİTİKA (kullanıcı kararı): AI analizi devre dışı — her yeni proje
+   * POLİTİKA (kullanıcı kararı): AI analizi devre dışı - her yeni proje
    * OTOMATİK olarak etik kurul onayına gider. AI "gerekli değil" diyemez.
    *
    * Project.ethicsRequired her zaman true, EthicsReview.status her zaman 'pending'.
@@ -173,7 +173,7 @@ export class EthicsService {
       review = await this.reviewRepo.save(newReview);
     }
 
-    // ethicsRequired her zaman true — AI override etmiyor
+    // ethicsRequired her zaman true - AI override etmiyor
     await this.projectRepo.update(projectId, { ethicsRequired: true } as any);
 
     // Etik kurul üyelerine bildirim
@@ -186,7 +186,7 @@ export class EthicsService {
         await this.notificationsService.create({
           userId: m.id,
           title: 'Etik İnceleme Bekleniyor',
-          message: project.title + ' — kurul incelemesine hazır',
+          message: project.title + ' - kurul incelemesine hazır',
           type: 'warning',
           link: '/ethics',
         }).catch(() => {});

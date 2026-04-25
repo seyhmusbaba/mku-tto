@@ -30,7 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         authApi.getProfile()
           .then(res => { setUser(res.data); localStorage.setItem('tto_user', JSON.stringify(res.data)); })
           .catch(() => {
-            // Token geçersiz — sessizce temizle, yönlendirme yok
+            // Token geçersiz - sessizce temizle, yönlendirme yok
             setToken(null);
             setUser(null);
             localStorage.removeItem('tto_token');

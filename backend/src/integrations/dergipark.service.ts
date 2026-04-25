@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { HttpCache, RateLimiter } from './http-cache';
 
 /**
- * DergiPark — Türkiye'nin en büyük akademik dergi platformu.
+ * DergiPark - Türkiye'nin en büyük akademik dergi platformu.
  * OAI-PMH protokolüyle metadata hasat edilebilir (endüstri standardı).
  *
  * Docs: https://dergipark.org.tr/help/api
@@ -33,7 +33,7 @@ export interface DergiparkRecord {
 export class DergiparkService {
   private readonly logger = new Logger(DergiparkService.name);
   private readonly cache = new HttpCache('dergipark');
-  private readonly limiter = new RateLimiter(2, 1000); // 2/s — nazikçe
+  private readonly limiter = new RateLimiter(2, 1000); // 2/s - nazikçe
 
   isConfigured(): boolean {
     return process.env.DERGIPARK_DISABLED !== 'true';
@@ -41,7 +41,7 @@ export class DergiparkService {
 
   /**
    * Bir ORCID veya yazar adıyla DergiPark kayıtlarını getir.
-   * Not: OAI-PMH başlı başına yazar bazlı filtre desteklemez — indirip filtre uyguluyoruz.
+   * Not: OAI-PMH başlı başına yazar bazlı filtre desteklemez - indirip filtre uyguluyoruz.
    * Pratikte DergiPark'ın JSON arama endpoint'i daha hızlı.
    */
   async searchByAuthor(authorName: string, limit = 20): Promise<DergiparkRecord[]> {
@@ -123,7 +123,7 @@ export class DergiparkService {
   }
 
   private parseOaiDc(xml: string): DergiparkRecord[] {
-    // Basit XML parse — `<record>...</record>` bloklarını yakala
+    // Basit XML parse - `<record>...</record>` bloklarını yakala
     const records: DergiparkRecord[] = [];
     const recordPattern = /<record>[\s\S]*?<\/record>/g;
     const recordMatches = xml.match(recordPattern) || [];

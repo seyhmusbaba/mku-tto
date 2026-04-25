@@ -39,14 +39,14 @@ export function FundingMatchPanel({ keywords, tags, projectType, title }: Props)
     finally { setLoading(false); }
   };
 
-  // Scopus yapılandırılmadıysa veya hata olduysa — açıklayıcı mesaj göster
+  // Scopus yapılandırılmadıysa veya hata olduysa - açıklayıcı mesaj göster
   if (scopusOff) {
     return (
       <div className="text-xs p-3 rounded-xl flex items-start gap-2"
         style={{ background: '#fef3c7', border: '1px solid #fde68a', color: '#92400e' }}>
         <span>⚠</span>
         <div>
-          <strong>Scopus entegrasyonu yapılandırılmamış.</strong> Hibe eşleştirme için Scopus API anahtarı gerekli — admin Railway → Backend → Variables ekranından <code>SCOPUS_API_KEY</code> ekleyince bu özellik aktif olur.
+          <strong>Scopus entegrasyonu yapılandırılmamış.</strong> Hibe eşleştirme için Scopus API anahtarı gerekli - admin Railway → Backend → Variables ekranından <code>SCOPUS_API_KEY</code> ekleyince bu özellik aktif olur.
         </div>
       </div>
     );

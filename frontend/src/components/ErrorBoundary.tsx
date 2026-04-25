@@ -5,7 +5,7 @@ interface State { hasError: boolean; error?: Error; }
 interface Props { fallback?: React.ReactNode; children: React.ReactNode; label?: string; }
 
 /**
- * React Error Boundary — alt bileşenlerden biri patlayınca tüm sayfa
+ * React Error Boundary - alt bileşenlerden biri patlayınca tüm sayfa
  * çökmesin. Kullanıcıya yerel bir hata mesajı + yeniden dene butonu
  * gösterir.
  *
@@ -22,7 +22,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    // Prod'da sadece konsola — isterseniz Sentry vs buraya eklenir
+    // Prod'da sadece konsola - isterseniz Sentry vs buraya eklenir
     if (typeof console !== 'undefined') {
       console.error(`[ErrorBoundary${this.props.label ? ' ' + this.props.label : ''}]`, error, info);
     }

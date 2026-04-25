@@ -357,7 +357,7 @@ export default function ProjectDetailPage() {
         {tab === 'overview' && (
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <div className="xl:col-span-2 space-y-5">
-              {/* Proje Metni — üstte, açıklamadan önce */}
+              {/* Proje Metni - üstte, açıklamadan önce */}
               {(project as any).projectText && (
                 <div className="card p-5" style={{ border: '2px solid #e0e7ff', background: '#fafbff' }}>
                   <h3 className="font-display text-sm font-semibold text-navy mb-3 flex items-center gap-2">
@@ -399,7 +399,7 @@ export default function ProjectDetailPage() {
                 ))}
               </div>
 
-              {/* Görev kartları — yürütücü + üyeler */}
+              {/* Görev kartları - yürütücü + üyeler */}
               {((project.members?.length || 0) > 0 || project.owner) && (() => {
                 const ROLE_STYLES: Record<string, { color: string; bg: string; icon: IconName }> = {
                   researcher:  { color: '#1a3a6b', bg: '#eff6ff', icon: 'beaker' },
@@ -533,7 +533,7 @@ export default function ProjectDetailPage() {
                   ['Başlangıç', formatDate(project.startDate)],
                   ['Bitiş', formatDate(project.endDate)],
                   ['Oluşturulma', formatDate(project.createdAt)],
-                ].filter(([, v]) => v && v !== '—').map(([k, v]) => (
+                ].filter(([, v]) => v && v !== '-').map(([k, v]) => (
                   <div key={k} className="flex justify-between text-xs border-b pb-2 last:border-0" style={{ borderColor: '#f5f2ee' }}>
                     <span className="text-muted">{k}</span>
                     <span className="font-medium text-navy text-right ml-4">{v}</span>
@@ -759,7 +759,7 @@ export default function ProjectDetailPage() {
                               </div>
                               <span className="text-xs text-muted">{doc.uploadedBy.firstName} {doc.uploadedBy.lastName}</span>
                             </div>
-                          ) : <span className="text-xs text-muted">—</span>}
+                          ) : <span className="text-xs text-muted">-</span>}
                         </td>
                         <td className="px-5 py-3 text-xs text-muted">{formatDate(doc.createdAt)}</td>
                         <td className="px-5 py-3">
@@ -786,7 +786,7 @@ export default function ProjectDetailPage() {
         {tab === 'reports' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <div className="text-sm text-muted">{reports.length} rapor · Son güncelleme: {reports[0] ? formatDate(reports[0].createdAt) : '—'}</div>
+              <div className="text-sm text-muted">{reports.length} rapor · Son güncelleme: {reports[0] ? formatDate(reports[0].createdAt) : '-'}</div>
               <div className="flex items-center gap-2">
                 <ReportTemplateDownloader projectTitle={project.title} />
                 {(canEdit || myMembership) && (
@@ -820,7 +820,7 @@ export default function ProjectDetailPage() {
                   { label: 'Toplam Rapor', value: reports.length, color: '#1a3a6b' },
                   { label: 'Son İlerleme', value: `%${latestProgress}`, color: latestProgress >= 75 ? '#059669' : latestProgress >= 50 ? '#d97706' : '#1a3a6b' },
                   { label: 'Raporlayan', value: Array.from(new Set(reports.map(r => r.author?.id))).length, color: '#c8a45a' },
-                  { label: 'İlk Rapor', value: reports.length > 0 ? new Date(reports[reports.length - 1].createdAt).toLocaleDateString('tr-TR', { month: 'short', year: 'numeric' }) : '—', color: '#7c3aed' },
+                  { label: 'İlk Rapor', value: reports.length > 0 ? new Date(reports[reports.length - 1].createdAt).toLocaleDateString('tr-TR', { month: 'short', year: 'numeric' }) : '-', color: '#7c3aed' },
                 ].map(s => (
                   <div key={s.label} className="card py-4 text-center">
                     <p className="font-display text-xl font-bold" style={{ color: s.color }}>{s.value}</p>
@@ -830,7 +830,7 @@ export default function ProjectDetailPage() {
               </div>
             )}
 
-            {/* Report list — zengin görüntüleme */}
+            {/* Report list - zengin görüntüleme */}
             <div className="space-y-4">
               {reports.map((r, idx) => {
                 const rt = reportTypes.find(x => x.key === r.type);
@@ -1099,7 +1099,7 @@ export default function ProjectDetailPage() {
                 })}
               </div>
 
-              {/* Başlık — her türde */}
+              {/* Başlık - her türde */}
               <div>
                 <label className="label">Başlık *</label>
                 <input required className="input" placeholder={
@@ -1358,7 +1358,7 @@ export default function ProjectDetailPage() {
                 </div>
               </>)}
 
-              {/* İlerleme barı — sadece progress, milestone, final */}
+              {/* İlerleme barı - sadece progress, milestone, final */}
               {showProgress && (
                 <div>
                   <div className="flex justify-between mb-2">
@@ -1464,7 +1464,7 @@ export default function ProjectDetailPage() {
                           {new Date(log.createdAt).toLocaleString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
-                      {/* Detay — tek alan değişikliği */}
+                      {/* Detay - tek alan değişikliği */}
                       {detail.from !== undefined && detail.to !== undefined && (
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#fef2f2', color: '#dc2626' }}>{String(detail.from)}</span>
@@ -1472,7 +1472,7 @@ export default function ProjectDetailPage() {
                           <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#f0fdf4', color: '#059669' }}>{String(detail.to)}</span>
                         </div>
                       )}
-                      {/* Detay — çok alan değişikliği (update logu) */}
+                      {/* Detay - çok alan değişikliği (update logu) */}
                       {detail.from === undefined && typeof detail === 'object' && Object.keys(detail).length > 0 && (
                         <div className="mt-1.5 space-y-1">
                           {Object.entries(detail).slice(0, 5).map(([field, change]: [string, any]) => {
@@ -1487,9 +1487,9 @@ export default function ProjectDetailPage() {
                             return (
                               <div key={field} className="flex items-center gap-1.5 flex-wrap">
                                 <span className="text-xs text-muted font-medium">{FIELD_LABELS[field] || field}:</span>
-                                <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#fef2f2', color: '#dc2626' }}>{String(change.from ?? '—')}</span>
+                                <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#fef2f2', color: '#dc2626' }}>{String(change.from ?? '-')}</span>
                                 <span className="text-xs text-muted">→</span>
-                                <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#f0fdf4', color: '#059669' }}>{String(change.to ?? '—')}</span>
+                                <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#f0fdf4', color: '#059669' }}>{String(change.to ?? '-')}</span>
                               </div>
                             );
                           })}

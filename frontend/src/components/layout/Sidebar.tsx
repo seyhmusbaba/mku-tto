@@ -41,7 +41,7 @@ const navGroups: NavGroup[] = [
   }
 ];
 
-// Sidebar logo/isim cache — flash önlemek için module-level
+// Sidebar logo/isim cache - flash önlemek için module-level
 
 
 export function Sidebar() {
@@ -116,7 +116,7 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* User — avatar göster */}
+      {/* User - avatar göster */}
       <div className="px-3 pb-4 border-t border-white/10 pt-4">
         <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{background:'rgba(255,255,255,0.05)'}}>
           <Link href={`/users/${user?.id}`} className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity">

@@ -318,7 +318,7 @@ export class CompetitionsService {
   }
 
   /**
-   * Yeni yarışma bildirimi — kategori bazlı hedefleme.
+   * Yeni yarışma bildirimi - kategori bazlı hedefleme.
    *
    * Kategori → hedef fakülte eşleşmesi:
    *  - inovasyon      → Mühendislik, Teknoloji, Bilişim, Fen, Mimarlık
@@ -376,7 +376,7 @@ export class CompetitionsService {
 
   /**
    * Deadline 7 / 3 / 1 gün kala kullanıcılara hatırlatma bildirimi gönder.
-   * Scheduler her gün sabah çağırır — her yarışma için max 3 bildirim (7, 3, 1 gün).
+   * Scheduler her gün sabah çağırır - her yarışma için max 3 bildirim (7, 3, 1 gün).
    */
   async sendDeadlineReminders(): Promise<number> {
     const all = await this.repo.find({ where: { isActive: true, status: 'active' } as any });
@@ -421,7 +421,7 @@ export class CompetitionsService {
     if (!favs.length) return [];
     const compIds = favs.map(f => f.competitionId);
     const comps = await this.repo.findByIds(compIds);
-    // Favori sırasına göre döndür — en son eklenen önce
+    // Favori sırasına göre döndür - en son eklenen önce
     favs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     const compMap = Object.fromEntries(comps.map(c => [c.id, c]));
     return favs.map(f => compMap[f.competitionId]).filter(Boolean);
@@ -437,7 +437,7 @@ export class CompetitionsService {
   }
 
   /**
-   * Toggle — varsa sil, yoksa ekle. idempotent.
+   * Toggle - varsa sil, yoksa ekle. idempotent.
    */
   async toggleFavorite(userId: string, competitionId: string): Promise<{ favorited: boolean }> {
     const existing = await this.favRepo.findOne({ where: { userId, competitionId } });

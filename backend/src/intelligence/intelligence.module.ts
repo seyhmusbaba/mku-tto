@@ -7,7 +7,7 @@ import { IntelligenceService } from './intelligence.service';
 import { IntegrationsModule } from '../integrations/integrations.module';
 
 /**
- * Project Intelligence — proje oluşturma/düzenleme ekranındaki karar
+ * Project Intelligence - proje oluşturma/düzenleme ekranındaki karar
  * destek paneli için 10 widget endpoint'i barındırır. Integrations modülünün
  * altındaki servislerin üstünde orchestrator rolü oynar.
  */

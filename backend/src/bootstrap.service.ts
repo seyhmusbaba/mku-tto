@@ -12,7 +12,7 @@ import { DEMO_PROJECTS } from './database/demo-projects';
 const REQUIRED_PERMISSIONS = [
   { name: 'ethics:read',   module: 'ethics', action: 'read',   description: 'Etik kurul başvurularını görüntüle' },
   { name: 'ethics:manage', module: 'ethics', action: 'manage', description: 'Etik kurul kararı ver (onayla/reddet)' },
-  // Bibliyometri analiz yetkileri — admin Roller & Yetkiler'den istediği role tanımlar
+  // Bibliyometri analiz yetkileri - admin Roller & Yetkiler'den istediği role tanımlar
   { name: 'analytics:institutional',   module: 'analytics', action: 'view', description: 'Kurumsal Analiz (HMKÜ) bibliyometri görüntüleme' },
   { name: 'analytics:faculty-compare', module: 'analytics', action: 'view', description: 'Fakülte Karşılaştırma bibliyometri görüntüleme' },
   { name: 'analytics:dept-compare',    module: 'analytics', action: 'view', description: 'Bölüm Karşılaştırma bibliyometri görüntüleme' },
@@ -67,7 +67,7 @@ export class BootstrapService implements OnApplicationBootstrap {
         savedPerms.push(perm);
       }
 
-      // 2. Her rol için varsayılan yetkileri ekle — idempotent, sadece eksikleri ekler
+      // 2. Her rol için varsayılan yetkileri ekle - idempotent, sadece eksikleri ekler
       for (const [roleName, permNames] of Object.entries(DEFAULT_ROLE_PERMS)) {
         const role = await this.roleRepo.findOne({
           where: { name: roleName },
@@ -94,7 +94,7 @@ export class BootstrapService implements OnApplicationBootstrap {
         const allPerms = await this.permRepo.find({ where: { name: In(RECTOR_PERMS) } });
         rector = this.roleRepo.create({
           name: 'Rektör',
-          description: 'Üniversite rektörü — tüm projeleri ve etik kurulu yönetir',
+          description: 'Üniversite rektörü - tüm projeleri ve etik kurulu yönetir',
           isSystem: true,
           permissions: allPerms,
         });
@@ -114,7 +114,7 @@ export class BootstrapService implements OnApplicationBootstrap {
     // 5c. Vitrin portalı için boş publicSlug alanlarını otomatik doldur
     await this.backfillPublicSlugs();
 
-    // 6. Demo projeleri seed — KALDIRILDI (kullanıcı isteği)
+    // 6. Demo projeleri seed - KALDIRILDI (kullanıcı isteği)
     // Bootstrap'ta otomatik demo ekleme yapılmıyor. Mevcut demo projeleri silmek için:
     //   DELETE /api/admin/demo-projects (Süper Admin yetkisi gerekir)
     // veya Sistem Ayarları → Bakım sekmesinden "Tüm Demo Projeleri Sil" butonu.
@@ -122,12 +122,12 @@ export class BootstrapService implements OnApplicationBootstrap {
 
   /**
    * Yeni sistem ayarı eklendiğinde (yeni kurum adı, rektör adı vb.)
-   * mevcut DB'de olmayan anahtarları oluştur. Var olanlara dokunma —
+   * mevcut DB'de olmayan anahtarları oluştur. Var olanlara dokunma -
    * admin tarafından değiştirilen değerler korunmalı.
    */
   /**
    * Yarışma/çağrı modülü için varsayılan güvenilir kaynakları oluştur.
-   * Sadece eksik olanlar eklenir — admin eklediklerini korur.
+   * Sadece eksik olanlar eklenir - admin eklediklerini korur.
    * Scheduler her 6 saatte bir bu kaynakları otomatik tarar.
    */
   private async seedDefaultCompetitionSources() {
@@ -238,13 +238,13 @@ export class BootstrapService implements OnApplicationBootstrap {
   }
 
   /**
-   * Demo projeleri sisteme ekler — mevcut olanları atlar. Her başlangıçta
+   * Demo projeleri sisteme ekler - mevcut olanları atlar. Her başlangıçta
    * çalışır, sadece ilk kezinde gerçek iş yapar. SEED_DEMO_PROJECTS=false ile
    * tamamen kapatılabilir.
    */
   private async seedDemoProjects() {
     try {
-      // Admin kullanıcıyı bul — default owner olarak kullanacağız
+      // Admin kullanıcıyı bul - default owner olarak kullanacağız
       const admin = await this.userRepo.findOne({ where: { email: 'admin@mku.edu.tr' } });
       const allUsers = await this.userRepo.find();
       const byEmail: Record<string, User> = {};
@@ -252,7 +252,7 @@ export class BootstrapService implements OnApplicationBootstrap {
 
       const defaultOwner = admin?.id || allUsers[0]?.id;
       if (!defaultOwner) {
-        this.logger.warn('[Demo Seed] Sistemde kullanıcı yok — demo projeler atlandı');
+        this.logger.warn('[Demo Seed] Sistemde kullanıcı yok - demo projeler atlandı');
         return;
       }
 

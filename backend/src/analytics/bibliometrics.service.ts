@@ -7,7 +7,7 @@ import { OpenAlexService } from '../integrations/openalex.service';
 import { ScimagoService } from '../integrations/scimago.service';
 
 /**
- * Bibliyometri servisi — akademik çıktıları tüm kaynaklardan birleştirip
+ * Bibliyometri servisi - akademik çıktıları tüm kaynaklardan birleştirip
  * AVESIS-sınıfı analitik için uygun agregalar üretir.
  *
  * - Araştırmacı scorecard (tek kullanıcı)
@@ -28,7 +28,7 @@ export interface ResearcherBibliometrics {
   summary: ReturnType<PublicationsService['summarize']>;
   sourceCoverage: Record<string, number>;   // Her kaynaktan kaç yayın geldi
   topCited: UnifiedPublication[];            // En çok atıf alan 5 yayın
-  publications?: UnifiedPublication[];       // İsteğe bağlı — full list
+  publications?: UnifiedPublication[];       // İsteğe bağlı - full list
 }
 
 export interface FacultyBibliometrics {
@@ -73,11 +73,11 @@ export class BibliometricsService {
       pubs = await this.publications.getAuthorPublicationsByOrcid(user.orcidId, 200);
     }
 
-    // ORCID yoksa veya ORCID'den hiç yayın gelmediyse — isim bazlı fallback
+    // ORCID yoksa veya ORCID'den hiç yayın gelmediyse - isim bazlı fallback
     // (TR Dizin + OpenAlex hem Türkçe hem uluslararası yakalar)
     if (pubs.length === 0) {
       const fullName = `${user.firstName} ${user.lastName}`.trim();
-      // Kurum hint: sadece "Mustafa Kemal" ver — OpenAlex full affiliation ister
+      // Kurum hint: sadece "Mustafa Kemal" ver - OpenAlex full affiliation ister
       const instHint = 'Mustafa Kemal';
       try {
         pubs = await this.publications.getAuthorPublicationsByName(fullName, instHint, 200);
@@ -116,7 +116,7 @@ export class BibliometricsService {
   }
 
   /**
-   * Fakülte düzeyinde bibliometri — tüm araştırmacıların yayınları dedupe edilir.
+   * Fakülte düzeyinde bibliometri - tüm araştırmacıların yayınları dedupe edilir.
    */
   async getFaculty(faculty: string, topResearcherCount = 10): Promise<FacultyBibliometrics | null> {
     if (!faculty) return null;
@@ -125,12 +125,12 @@ export class BibliometricsService {
 
     const withIdentifiers = researchers.filter(r => r.orcidId || (r as any).scopusAuthorId || (r as any).wosResearcherId);
 
-    // Her araştırmacıdan paralel olarak yayın çek (makul limit — hepsi değil, en aktif 50)
+    // Her araştırmacıdan paralel olarak yayın çek (makul limit - hepsi değil, en aktif 50)
     const limit = Math.min(withIdentifiers.length, 50);
     const sample = withIdentifiers.slice(0, limit);
 
     const perResearcher: Array<{ user: User; pubs: UnifiedPublication[] }> = [];
-    // Batch halinde — 5'erli paralel, rate-limit dostu
+    // Batch halinde - 5'erli paralel, rate-limit dostu
     for (let i = 0; i < sample.length; i += 5) {
       const batch = sample.slice(i, i + 5);
       const results = await Promise.all(
@@ -163,7 +163,7 @@ export class BibliometricsService {
     const allPubs = Array.from(allMap.values());
     const summary = this.publications.summarize(allPubs);
 
-    // Top araştırmacılar — h-index bazlı
+    // Top araştırmacılar - h-index bazlı
     const topResearchers = perResearcher
       .map(({ user, pubs }) => {
         const s = this.publications.summarize(pubs);
@@ -199,7 +199,7 @@ export class BibliometricsService {
   }
 
   /**
-   * Kurumsal bibliometri — OpenAlex institution ID üzerinden.
+   * Kurumsal bibliometri - OpenAlex institution ID üzerinden.
    *
    * İki-aşamalı hesap:
    *  1. Kurumsal TOPLAMLAR (works_count, cited_by_count, h_index, i10_index)
@@ -215,24 +215,24 @@ export class BibliometricsService {
     institutionId: string,
     yearOrRange?: number | { from?: number; to?: number },
   ): Promise<any> {
-    // 1. Kurumsal TOPLAMLAR — OpenAlex institution endpoint'inden direkt
+    // 1. Kurumsal TOPLAMLAR - OpenAlex institution endpoint'inden direkt
     //    Bu değerler MUTLAKA doğru olmalı; bu nedenle retry + log ile
     //    başarısızlık durumlarını takip edebiliriz.
     let instSummary = await this.openalex.getInstitutionSummary(institutionId).catch(() => null);
     if (!instSummary) {
-      this.logger.warn(`[Institutional] getInstitutionSummary(${institutionId}) ilk denemede başarısız — tekrar deneniyor`);
+      this.logger.warn(`[Institutional] getInstitutionSummary(${institutionId}) ilk denemede başarısız - tekrar deneniyor`);
       // 1 saniye bekle ve bir kez daha dene
       await new Promise(r => setTimeout(r, 1000));
       instSummary = await this.openalex.getInstitutionSummary(institutionId).catch(() => null);
     }
     if (!instSummary) {
-      this.logger.error(`[Institutional] OpenAlex institution summary alınamadı (${institutionId}) — sample tabanlı fallback kullanılacak. Bu durumda total yayın sayısı yanlış olabilir!`);
+      this.logger.error(`[Institutional] OpenAlex institution summary alınamadı (${institutionId}) - sample tabanlı fallback kullanılacak. Bu durumda total yayın sayısı yanlış olabilir!`);
     } else {
       this.logger.log(`[Institutional] OpenAlex'ten ${instSummary.displayName}: ${instSummary.worksCount} yayın, ${instSummary.citedByCount} atıf, h=${instSummary.hIndex}`);
     }
 
-    // 2. SAMPLE — detay tablolar için en çok atıf alan yayınlar (dönem filtreli olabilir)
-    // Sample büyüklüğü 500'den 1000'e çıkarıldı — daha temsili, sample bias'ı azalır
+    // 2. SAMPLE - detay tablolar için en çok atıf alan yayınlar (dönem filtreli olabilir)
+    // Sample büyüklüğü 500'den 1000'e çıkarıldı - daha temsili, sample bias'ı azalır
     const pubs = await this.publications.getInstitutionPublications(institutionId, yearOrRange, 1000);
     const sampleSummary = this.publications.summarize(pubs);
 
@@ -246,10 +246,10 @@ export class BibliometricsService {
     } else if (yearOrRange && (yearOrRange.from || yearOrRange.to)) {
       filterFromYear = yearOrRange.from;
       filterToYear = yearOrRange.to;
-      periodLabel = `${filterFromYear || '—'} — ${filterToYear || '—'}`;
+      periodLabel = `${filterFromYear || '-'} - ${filterToYear || '-'}`;
     }
 
-    // Kurumsal gerçek byYear — tüm yıllar için works + citations + OA
+    // Kurumsal gerçek byYear - tüm yıllar için works + citations + OA
     let byYearReal: Array<{ year: number; count: number; citations: number; oaCount: number }> = [];
     let realTotalOaCount = 0;
     let realTotalWorksForOa = 0;
@@ -271,7 +271,7 @@ export class BibliometricsService {
       }
     }
 
-    // Kurumsal gerçek OA oranı — counts_by_year'dan
+    // Kurumsal gerçek OA oranı - counts_by_year'dan
     const realOaRatio = realTotalWorksForOa > 0
       ? Math.round((realTotalOaCount / realTotalWorksForOa) * 100)
       : null;
@@ -304,18 +304,18 @@ export class BibliometricsService {
       isPeriodFiltered: !!(filterFromYear || filterToYear),
 
       // KURUMSAL GERÇEK TOPLAMLAR
-      // Dönem filtresi varsa — byYear verisinden o dönemin toplamı
-      // Yoksa — OpenAlex institution endpoint'inden tüm zamanlar
+      // Dönem filtresi varsa - byYear verisinden o dönemin toplamı
+      // Yoksa - OpenAlex institution endpoint'inden tüm zamanlar
       total: periodTotal !== undefined ? periodTotal : (instSummary?.worksCount ?? sampleSummary.total),
       totalCitations: periodCitations !== undefined ? periodCitations : (instSummary?.citedByCount ?? sampleSummary.totalCitations),
-      // h-index dönem hesabı zor — kurumsal veri global, sample'dan dönemsel h-index hesaplanır
+      // h-index dönem hesabı zor - kurumsal veri global, sample'dan dönemsel h-index hesaplanır
       hIndex: periodTotal !== undefined ? sampleSummary.hIndex : (instSummary?.hIndex ?? sampleSummary.hIndex),
       i10Index: periodTotal !== undefined ? sampleSummary.i10Index : (instSummary?.i10Index ?? sampleSummary.i10Index),
       twoYearMeanCitedness: instSummary?.twoYearMeanCitedness,
       byYear: byYearReal.length > 0 ? byYearReal : sampleSummary.byYear,
 
-      // SAMPLE BAZLI — net olarak 'sample' prefix ile
-      // Kalite dağılımı sample'dan — 500 top-cited içinde Q1-Q4 oranı
+      // SAMPLE BAZLI - net olarak 'sample' prefix ile
+      // Kalite dağılımı sample'dan - 500 top-cited içinde Q1-Q4 oranı
       quartileDistribution: sampleSummary.quartileDistribution,
       sdgDistribution: sampleSummary.sdgDistribution,
 
@@ -337,10 +337,10 @@ export class BibliometricsService {
       sampleOpenAccessCount: sampleSummary.openAccessCount,
       sampleOpenAccessRatio: sampleSummary.openAccessRatio,
 
-      // FWCI ve Top Percentile — SAMPLE BAZLI — dürüst etiket
-      // Artık en fazla 1000 yayın sample (öncesinde 500'dü) — daha temsili
+      // FWCI ve Top Percentile - SAMPLE BAZLI - dürüst etiket
+      // Artık en fazla 1000 yayın sample (öncesinde 500'dü) - daha temsili
       sampleSize: pubs.length,
-      sampleNote: `Aşağıdaki FWCI, Top 1%, Top 10%, dergi kalite, uluslararası ortaklık, ülke dağılımı ve üniversite işbirliği metrikleri kurumun en çok atıf alan ${pubs.length} yayını üzerinden hesaplanmıştır — tüm kurumsal yayın havuzu değil (kurum geneli ~11K+ yayın).`,
+      sampleNote: `Aşağıdaki FWCI, Top 1%, Top 10%, dergi kalite, uluslararası ortaklık, ülke dağılımı ve üniversite işbirliği metrikleri kurumun en çok atıf alan ${pubs.length} yayını üzerinden hesaplanmıştır - tüm kurumsal yayın havuzu değil (kurum geneli ~11K+ yayın).`,
       avgFwci: sampleSummary.avgFwci,
       medianFwci: sampleSummary.medianFwci,
       fwciCoverage: sampleSummary.fwciCoverage,
@@ -357,7 +357,7 @@ export class BibliometricsService {
       typeDistribution: sampleSummary.typeDistribution,
       universityCollaboration: sampleSummary.universityCollaboration,
 
-      // Yayın listesi — sample
+      // Yayın listesi - sample
       publications: pubs.map(p => {
         const countries = Array.from(new Set(
           (p.authors || []).flatMap(a => (a.countries || []).map(c => c.toUpperCase()))
@@ -510,7 +510,7 @@ export class BibliometricsService {
 
     return {
       faculties: results,
-      note: `${results.length} fakülte karşılaştırıldı. Her fakülteden en çok 5 araştırmacı örneklenmiştir — fakülte başına yayın sayıları bu örneklemi yansıtır, tam kapsam değildir.`,
+      note: `${results.length} fakülte karşılaştırıldı. Her fakülteden en çok 5 araştırmacı örneklenmiştir - fakülte başına yayın sayıları bu örneklemi yansıtır, tam kapsam değildir.`,
     };
   }
 
@@ -625,7 +625,7 @@ export class BibliometricsService {
   }
 
   /**
-   * Peer benchmark — MKÜ'yü çevresindeki peer üniversitelerle karşılaştırır.
+   * Peer benchmark - MKÜ'yü çevresindeki peer üniversitelerle karşılaştırır.
    * OpenAlex institution summary endpoint'i tek istekte kurum metriklerini verir.
    *
    * Peer seti: bölgesel (Hatay), yakın ölçekli (orta büyüklükte devlet üniversiteleri).
@@ -647,7 +647,7 @@ export class BibliometricsService {
     }>;
     note: string;
   }> {
-    // Peer set — önce ENV, sonra varsayılan
+    // Peer set - önce ENV, sonra varsayılan
     const peerEnv = process.env.PEER_OPENALEX_IDS;
     let peerIds: string[] = [];
     let peerNames: string[] = [];
@@ -655,7 +655,7 @@ export class BibliometricsService {
     if (peerEnv) {
       peerIds = peerEnv.split(',').map(s => s.trim()).filter(Boolean);
     } else {
-      // Varsayılan peer seti — bölgesel ve benzer ölçekli TR devlet üniversiteleri
+      // Varsayılan peer seti - bölgesel ve benzer ölçekli TR devlet üniversiteleri
       peerNames = [
         'Mustafa Kemal University',          // MKÜ'nün kendisi
         'Cukurova University',               // Bölgesel (Adana)
@@ -682,7 +682,7 @@ export class BibliometricsService {
     }
 
     const mkuId = await this.findMkuInstitutionId();
-    // MKÜ ilk olsun — ama zaten listedeyse eklemeyelim
+    // MKÜ ilk olsun - ama zaten listedeyse eklemeyelim
     const allIds = mkuId && !peerIds.includes(mkuId) ? [mkuId, ...peerIds] : peerIds;
 
     // Her peer için summary çek (paralel)
@@ -715,13 +715,13 @@ export class BibliometricsService {
     return {
       peers,
       note: peers.length === 0
-        ? 'Peer kurum bulunamadı — PEER_OPENALEX_IDS env ile manuel tanımlayabilirsiniz.'
+        ? 'Peer kurum bulunamadı - PEER_OPENALEX_IDS env ile manuel tanımlayabilirsiniz.'
         : `${peers.length} kurum karşılaştırıldı. OpenAlex institution summary kaynaklı.`,
     };
   }
 
   /**
-   * Kullanıcının fakültesini DB'den çek — department-comparison için Dekan fallback.
+   * Kullanıcının fakültesini DB'den çek - department-comparison için Dekan fallback.
    */
   async getUserFaculty(userId: string): Promise<string | null> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
@@ -732,14 +732,14 @@ export class BibliometricsService {
    * MKÜ için OpenAlex ID'sini bul.
    * Öncelik:
    *  1. MKU_OPENALEX_ID env değişkeni
-   *  2. Bilinen sabit ID (I46000314 — Hatay Mustafa Kemal Üniversitesi)
+   *  2. Bilinen sabit ID (I46000314 - Hatay Mustafa Kemal Üniversitesi)
    *  3. OpenAlex'te isim araması
    */
   async findMkuInstitutionId(): Promise<string | null> {
     const envId = process.env.MKU_OPENALEX_ID;
     if (envId) return envId;
 
-    // Bilinen kurum ID'si — OpenAlex doğrulaması yapmadan döndür
+    // Bilinen kurum ID'si - OpenAlex doğrulaması yapmadan döndür
     // (Bandırma Mustafa Kemal vs diğer isim çakışmalarını önler)
     const KNOWN_MKU_ID = 'I46000314';
     return KNOWN_MKU_ID;

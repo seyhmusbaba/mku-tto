@@ -60,7 +60,7 @@ async function main() {
       const lines = text.split(/\r?\n/).filter(Boolean);
       console.log(`  Başarılı: ${(text.length / 1024 / 1024).toFixed(1)} MB, ~${lines.length} satır`);
 
-      // Orijinal CSV'yi trimle — sadece bibliyometri için gerekli kolonlar
+      // Orijinal CSV'yi trimle - sadece bibliyometri için gerekli kolonlar
       const trimmed = trimCsv(text);
       console.log(`  Trimlenmiş boyut: ${(trimmed.length / 1024 / 1024).toFixed(1)} MB`);
 

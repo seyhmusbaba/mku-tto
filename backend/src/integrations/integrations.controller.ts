@@ -32,7 +32,7 @@ export class IntegrationsController {
     private readonly publications: PublicationsService,
   ) {}
 
-  // NOT: Status endpoint'i ayrı bir controller'da (IntegrationsStatusController) — public.
+  // NOT: Status endpoint'i ayrı bir controller'da (IntegrationsStatusController) - public.
 
   // ── SCIMAGO ───────────────────────────────────────────────────────────
   @Get('scimago/issn')
@@ -144,7 +144,7 @@ export class IntegrationsController {
     return this.wos.searchByAffiliation(name, limit ? +limit : 100);
   }
 
-  // ── PATENT (EPO OPS — TR patentleri dahil) ────────────────────────────
+  // ── PATENT (EPO OPS - TR patentleri dahil) ────────────────────────────
   @Get('patent/publication')
   async patentPub(@Query('number') num: string) {
     if (!this.patent.isConfigured()) {

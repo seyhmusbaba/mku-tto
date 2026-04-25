@@ -15,7 +15,7 @@ import { TrDizinService } from './trdizin.service';
 import { GoogleScholarService } from './google-scholar.service';
 
 /**
- * Entegrasyonlar modülü — akademik veri kaynaklarıyla köprü.
+ * Entegrasyonlar modülü - akademik veri kaynaklarıyla köprü.
  *
  * Şu an aktif:
  *  - Crossref (ücretsiz, DOI metadata + atıf olayları)

@@ -122,7 +122,7 @@ export class OpenAccessService {
   }
 
   /**
-   * Bir dergi DOAJ'da listeli mi — kısa teyit.
+   * Bir dergi DOAJ'da listeli mi - kısa teyit.
    */
   async isJournalOpenAccess(issn: string): Promise<boolean> {
     const info = await this.getDoajJournal(issn);

@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { HttpCache, RateLimiter, fetchJson } from './http-cache';
 
 /**
- * AB araştırma projeleri entegrasyonu — OpenAIRE üzerinden.
+ * AB araştırma projeleri entegrasyonu - OpenAIRE üzerinden.
  *
  * Neden OpenAIRE?
  *   CORDIS'in public JSON API'si yok; web sitesi HTML dönüyor. OpenAIRE,
@@ -39,7 +39,7 @@ export interface CordisProject {
   topics?: string[];
   objective?: string;
   url?: string;                   // OpenAIRE veya CORDIS link
-  openaireId?: string;            // OpenAIRE internal ID — fallback link için
+  openaireId?: string;            // OpenAIRE internal ID - fallback link için
 }
 
 @Injectable()
@@ -49,7 +49,7 @@ export class CordisService {
   private readonly limiter = new RateLimiter(5, 1000);
   private readonly baseUrl = 'https://api.openaire.eu/search/projects';
 
-  // Son sorgunun raw cevabı — diagnostic endpoint için (küçük bir örnek)
+  // Son sorgunun raw cevabı - diagnostic endpoint için (küçük bir örnek)
   private lastRawSample: any = null;
   private lastRawUrl: string = '';
 
@@ -58,7 +58,7 @@ export class CordisService {
   }
 
   /**
-   * Diagnostic — son sorgunun ne döndüğünü raporla. Servis çalışıyor mu,
+   * Diagnostic - son sorgunun ne döndüğünü raporla. Servis çalışıyor mu,
    * parametreler doğru mu, veri dönüyor mu tarayıcıdan görülsün.
    */
   getDiagnostic() {
@@ -120,7 +120,7 @@ export class CordisService {
    * Strateji:
    *   1. participantAcronyms ile doğrudan API sorgusu (hızlı, kesin)
    *      - MKÜ için: MKU (8 proje), HMKU, MKULL vb. denemeleri
-   *   2. Sonra client-side fallback — TR havuzundan isim eşleşmesi (kapsam için)
+   *   2. Sonra client-side fallback - TR havuzundan isim eşleşmesi (kapsam için)
    *
    * Önceki implementation sadece 100 TR projesini çekip client-side filter yapıyordu
    * → 9632 TR projesinin büyük çoğunluğunu kaçırıyordu.
@@ -159,7 +159,7 @@ export class CordisService {
         }
       }
 
-      // 2. Client-side fallback — TR havuzunda kurum adı eşleşmesi
+      // 2. Client-side fallback - TR havuzunda kurum adı eşleşmesi
       // (acronym ile bulunamayan ama partner adında geçen projeler için)
       try {
         const turkeyProjects = await this.searchProjectsByCountry('TR', 100);
@@ -208,7 +208,7 @@ export class CordisService {
   }
 
   /**
-   * Anahtar kelime araması — keywords parametresi ile.
+   * Anahtar kelime araması - keywords parametresi ile.
    */
   async searchProjects(query: string, limit = 25): Promise<CordisProject[]> {
     if (!this.isConfigured() || !query) return [];
@@ -252,7 +252,7 @@ export class CordisService {
 
   private mapOpenAireProject(r: any): CordisProject | null {
     try {
-      // OpenAIRE project nesnesi farklı yerlerde olabilir — defensive lookup
+      // OpenAIRE project nesnesi farklı yerlerde olabilir - defensive lookup
       const entity = r?.metadata?.['oaf:entity'] || r?.['oaf:entity'];
       const meta = entity?.['oaf:project'];
       if (!meta) return null;
@@ -267,14 +267,14 @@ export class CordisService {
       const totalCost = this.asNumber(this.unwrap(meta.totalcost));
       const ecMaxContribution = this.asNumber(this.unwrap(meta.fundedamount));
 
-      // Framework — fundingtree string'inden çıkar
+      // Framework - fundingtree string'inden çıkar
       const frameworkName = this.extractFramework(meta.fundingtree);
 
-      // OpenAIRE internal ID — header'da genellikle
+      // OpenAIRE internal ID - header'da genellikle
       const header = r?.header;
       const openaireId = this.unwrap(header?.['dri:objIdentifier']) || this.unwrap(r?.objIdentifier) || '';
 
-      // Partnerler — 'rels' altında 'hasParticipant' sınıfında
+      // Partnerler - 'rels' altında 'hasParticipant' sınıfında
       const partners: CordisProject['partners'] = [];
       let coordinator: CordisProject['coordinator'] = undefined;
 
@@ -314,7 +314,7 @@ export class CordisService {
 
       const objective = this.unwrap(meta.summary);
 
-      // URL — CORDIS koduna bakıyoruz; yoksa OpenAIRE project page
+      // URL - CORDIS koduna bakıyoruz; yoksa OpenAIRE project page
       const cordisUrl = code && /^\d+$/.test(String(code))
         ? `https://cordis.europa.eu/project/id/${code}`
         : undefined;

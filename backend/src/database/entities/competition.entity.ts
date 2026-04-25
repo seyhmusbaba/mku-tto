@@ -27,7 +27,7 @@ export class Competition {
   startDate: string;
 
   @Column({ nullable: true })
-  budget: string; // destek miktarı (metin — "500.000 ₺'ye kadar")
+  budget: string; // destek miktarı (metin - "500.000 ₺'ye kadar")
 
   @Column({ nullable: true })
   category: string; // araştırma, inovasyon, girişim, uluslararası

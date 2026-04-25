@@ -21,7 +21,7 @@ export class BibliometricsSyncController {
 
   /**
    * Debug: WoS'tan bir kullanıcının raw response'unu döner.
-   * Mapping sorunlarını çözmek için — admin tek kullanımlık.
+   * Mapping sorunlarını çözmek için - admin tek kullanımlık.
    */
   @Get('debug-wos/:userId')
   async debugWos(@Param('userId') userId: string, @Request() req: any) {

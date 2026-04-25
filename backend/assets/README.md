@@ -9,7 +9,7 @@ bu dosyadan beslenir.
 
 ### Neden burada?
 
-SCImago (`scimagojr.com`) Cloudflare arkasında — Railway gibi bulut
+SCImago (`scimagojr.com`) Cloudflare arkasında - Railway gibi bulut
 provider'larının IP'lerine HTTP 403 dönüyor. Bu yüzden CSV'yi yerel
 bilgisayarınızda bir kez indirip repo'ya commit ediyoruz, Railway dosya
 sisteminden okuyor.
@@ -33,5 +33,5 @@ Script CSV'yi indirip sadece gerekli kolonları tutar (~30 MB).
 Eğer başka bir kaynaktan alınan mirror URL'si varsa, Railway backend
 servisinin Variables kısmına şu env'i ekleyebilirsiniz:
 
-- `SCIMAGO_LOCAL_PATH` — özel yerel dosya yolu
-- `SCIMAGO_CSV_URL` — virgülle ayrılmış mirror URL'leri (fallback)
+- `SCIMAGO_LOCAL_PATH` - özel yerel dosya yolu
+- `SCIMAGO_CSV_URL` - virgülle ayrılmış mirror URL'leri (fallback)

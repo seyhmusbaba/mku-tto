@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Canlı ortam smoke test — kritik public endpoint'lerin 200 döndüğünü teyit eder.
+ * Canlı ortam smoke test - kritik public endpoint'lerin 200 döndüğünü teyit eder.
  * Jest kurmadan basit pragmatic kontrol.
  *
  * KULLANIM:

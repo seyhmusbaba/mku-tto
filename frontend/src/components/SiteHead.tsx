@@ -16,7 +16,7 @@ export function SiteHead() {
       }
     };
 
-    // localStorage'dan anında uygula — flash yok
+    // localStorage'dan anında uygula - flash yok
     apply(getSettings());
     // API'den güncel veriyi çek
     loadSettings().then(apply);

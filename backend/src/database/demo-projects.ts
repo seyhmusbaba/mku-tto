@@ -1,5 +1,5 @@
 /**
- * Ortak demo proje tanımları — hem seed.ts (standalone script) hem de
+ * Ortak demo proje tanımları - hem seed.ts (standalone script) hem de
  * admin "seed-demo" endpoint'i (Railway shell yokken production seed için) kullanır.
  */
 
@@ -55,7 +55,7 @@ export const DEMO_PROJECTS: DemoProjectDef[] = [
   },
   {
     title: 'Zeytin Yağı Kalite Analiz Sistemi',
-    description: 'NIR spektroskopisi + kemometri ile zeytin yağı kalite kontrol cihazı — Hatay zeytinyağı üreticileri için.',
+    description: 'NIR spektroskopisi + kemometri ile zeytin yağı kalite kontrol cihazı - Hatay zeytinyağı üreticileri için.',
     type: 'industry', status: 'pending', faculty: 'Mühendislik Fakültesi', department: 'Gıda Mühendisliği',
     budget: 200000, fundingSource: 'Sanayi İşbirliği', startDate: '2025-01-01', endDate: '2026-06-01',
     tags: ['sanayi', 'gıda'], keywords: ['NIR spectroscopy', 'olive oil', 'chemometrics'],
@@ -153,7 +153,7 @@ export const DEMO_PROJECTS: DemoProjectDef[] = [
 
   // ═══ EĞİTİM FAKÜLTESİ ═══
   {
-    title: 'STEM Eğitimi Etkisi — Bölgesel Ölçüm',
+    title: 'STEM Eğitimi Etkisi - Bölgesel Ölçüm',
     description: 'Hatay\'daki 40 ortaokulda STEM müfredatının kız öğrenci üniversite tercihlerine etkisinin 4 yıllık longitudinal çalışması.',
     type: 'bap', status: 'active', faculty: 'Eğitim Fakültesi', department: 'İlköğretim',
     budget: 165000, fundingSource: 'BAP', startDate: '2023-09-01', endDate: '2027-09-01',
@@ -162,7 +162,7 @@ export const DEMO_PROJECTS: DemoProjectDef[] = [
   },
   {
     title: 'Uzaktan Eğitimde Öğrenci Bağlılığı Analizi',
-    description: 'LMS loglarından ve göz takibinden öğrenme bağlılığı modeli — deprem sonrası online eğitimin etkileri.',
+    description: 'LMS loglarından ve göz takibinden öğrenme bağlılığı modeli - deprem sonrası online eğitimin etkileri.',
     type: 'tubitak', status: 'completed', faculty: 'Eğitim Fakültesi', department: 'Eğitim Bilimleri',
     budget: 155000, fundingSource: 'TÜBİTAK 1001', startDate: '2022-08-01', endDate: '2024-08-01',
     tags: ['dijital eğitim', 'analitik'], keywords: ['learning analytics', 'engagement', 'remote education'],
@@ -198,7 +198,7 @@ export const DEMO_PROJECTS: DemoProjectDef[] = [
   },
   {
     title: 'Sürdürülebilir Akuaponik Üretim Sistemi',
-    description: 'Kapalı devre akuaponik tesisi — çipura ve fesleğen entegre üretim modeli.',
+    description: 'Kapalı devre akuaponik tesisi - çipura ve fesleğen entegre üretim modeli.',
     type: 'bap', status: 'active', faculty: 'Su Ürünleri Fakültesi', department: 'Su Ürünleri',
     budget: 140000, fundingSource: 'BAP', startDate: '2024-08-01', endDate: '2026-08-01',
     tags: ['akuaponik', 'sürdürülebilirlik'], keywords: ['aquaponics', 'sustainable agriculture', 'recirculating system'],
@@ -217,7 +217,7 @@ export const DEMO_PROJECTS: DemoProjectDef[] = [
   },
   {
     title: 'Zeytin Tozlanmasında Arıcılık Etkileri',
-    description: 'Hatay zeytinliklerinde arıcılık ile verim ilişkisi — pollen transferi çalışması.',
+    description: 'Hatay zeytinliklerinde arıcılık ile verim ilişkisi - pollen transferi çalışması.',
     type: 'tubitak', status: 'completed', faculty: 'Ziraat Fakültesi', department: 'Zootekni',
     budget: 175000, fundingSource: 'TÜBİTAK 1001', startDate: '2021-03-01', endDate: '2024-03-01',
     tags: ['arıcılık', 'zeytin'], keywords: ['pollination', 'beekeeping', 'olive yield'],
@@ -243,7 +243,7 @@ export const DEMO_PROJECTS: DemoProjectDef[] = [
   },
   {
     title: 'Otomotiv Sensör Prototipleme Merkezi',
-    description: 'ADAS sensörleri için karakteristik test laboratuvarı — Hatay OSB sanayi işbirliği.',
+    description: 'ADAS sensörleri için karakteristik test laboratuvarı - Hatay OSB sanayi işbirliği.',
     type: 'industry', status: 'pending', faculty: 'Teknoloji Fakültesi', department: 'Mekatronik Mühendisliği',
     budget: 950000, fundingSource: 'Sanayi İşbirliği', startDate: '2025-01-01', endDate: '2027-06-01',
     tags: ['otomotiv', 'sensör'], keywords: ['ADAS', 'LiDAR', 'automotive sensors'],

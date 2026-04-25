@@ -29,7 +29,7 @@ const SORT_OPTIONS: Array<{ key: SortKey; dir: SortDir; label: string }> = [
   { key: 'endDate',   dir: 'ASC',  label: 'Bitiş Tarihi (Yakın)' },
 ];
 
-// Proje oluşturabilen roller — backend ile tutarlı olmalı
+// Proje oluşturabilen roller - backend ile tutarlı olmalı
 const CAN_CREATE_ROLES = ['Süper Admin', 'Akademisyen', 'Rektör', 'Dekan', 'Bölüm Başkanı'];
 
 /* ─── Icon seti ─────────────────────────────────────────── */
@@ -107,7 +107,7 @@ function ProjectsPageInner() {
   const [sortDir, setSortDir]       = useState<SortDir>(() => (searchParams.get('sortDir') as SortDir) || 'DESC');
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // Debounced arama — 350ms
+  // Debounced arama - 350ms
   const searchDebounced = useDebounced(search, 350);
 
   const [result, setResult]   = useState<PaginatedResponse<Project> | null>(null);
@@ -126,7 +126,7 @@ function ProjectsPageInner() {
     ]);
   }, []);
 
-  // Filtre değişince URL'e yaz (replace) — paylaşılabilir, F5 korunur
+  // Filtre değişince URL'e yaz (replace) - paylaşılabilir, F5 korunur
   useEffect(() => {
     const params = new URLSearchParams();
     if (searchDebounced) params.set('q', searchDebounced);
@@ -239,7 +239,7 @@ function ProjectsPageInner() {
 
         <div className="flex items-center justify-between pt-3 border-t text-xs" style={{ borderColor: '#f0ede8' }}>
           <span className="font-bold text-navy">{formatCurrency(p.budget)}</span>
-          <span className="text-muted truncate ml-2">{p.faculty?.split(' ')[0] || '—'}</span>
+          <span className="text-muted truncate ml-2">{p.faculty?.split(' ')[0] || '-'}</span>
           <span className="text-muted ml-2">{formatDate(p.createdAt)}</span>
         </div>
       </Link>
@@ -498,7 +498,7 @@ function ProjectsPageInner() {
                             {sdgGoals.length > 3 && <span className="text-xs text-muted self-center">+{sdgGoals.length - 3}</span>}
                           </div>
                         </td>
-                        <td className="px-5 py-4 text-xs text-muted whitespace-nowrap">{p.faculty?.split(' ')[0] || '—'}</td>
+                        <td className="px-5 py-4 text-xs text-muted whitespace-nowrap">{p.faculty?.split(' ')[0] || '-'}</td>
                         <td className="px-5 py-4 text-xs font-semibold text-navy whitespace-nowrap">{formatCurrency(p.budget)}</td>
                         <td className="px-5 py-4 text-xs text-muted whitespace-nowrap">{formatDate(p.createdAt)}</td>
                         <td className="px-5 py-4">
@@ -544,7 +544,7 @@ function Chip({ label, onRemove, color }: { label: string; onRemove: () => void;
   );
 }
 
-/** Görünen sonuçları CSV olarak indir — tarayıcıda oluşturulur, backend'e gitmez */
+/** Görünen sonuçları CSV olarak indir - tarayıcıda oluşturulur, backend'e gitmez */
 function exportCurrentToCsv(projects: any[], projectTypes: any[]) {
   if (!projects.length) return;
   const escape = (v: any) => {
@@ -561,7 +561,7 @@ function exportCurrentToCsv(projects: any[], projectTypes: any[]) {
     p.createdAt ? new Date(p.createdAt).toISOString().slice(0, 10) : '',
   ]);
   const csv = [headers, ...rows].map(r => r.map(escape).join(';')).join('\r\n');
-  // UTF-8 BOM — Excel'de Türkçe düzgün açılır
+  // UTF-8 BOM - Excel'de Türkçe düzgün açılır
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

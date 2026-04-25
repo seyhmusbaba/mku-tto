@@ -48,7 +48,7 @@ export class PartnersService {
 
   /**
    * Aynı kurum adında (name eşleşmesi) tüm projelerdeki partner kayıtlarını
-   * birleştir — portföy görünümü için.
+   * birleştir - portföy görünümü için.
    */
   async listByOrganization() {
     const all = await this.repo.find({ order: { createdAt: 'DESC' } });
@@ -83,7 +83,7 @@ export class PartnersService {
       if (p.lastContactDate && (!cur.lastContactDate || p.lastContactDate > cur.lastContactDate)) {
         cur.lastContactDate = p.lastContactDate;
       }
-      // İlk bulunanla doldur — en yakın/en güncel özellik
+      // İlk bulunanla doldur - en yakın/en güncel özellik
       if (!cur.tier && p.tier) cur.tier = p.tier;
       if (!cur.sector && p.sector) cur.sector = p.sector;
       if (!cur.size && p.size) cur.size = p.size;
@@ -93,7 +93,7 @@ export class PartnersService {
   }
 
   /**
-   * 30 gün içinde sözleşme yenilenmesi gereken partnerlar — dashboard uyarı için.
+   * 30 gün içinde sözleşme yenilenmesi gereken partnerlar - dashboard uyarı için.
    */
   async contractsExpiring(days = 30) {
     const all = await this.repo.createQueryBuilder('p')

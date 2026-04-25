@@ -129,7 +129,7 @@ export default function ProfilePage() {
 
   return (
     <PublicLayout showSearch={false}>
-      {/* ═════ Hero — magazin makale açılışı ═════ */}
+      {/* ═════ Hero - magazin makale açılışı ═════ */}
       <section className="border-b relative overflow-hidden" style={{ borderColor: 'rgba(15, 36, 68, 0.12)', background: '#fefaf2' }}>
         {/* Dekoratif arka plan deseni */}
         <div className="absolute inset-0 opacity-[0.025] pointer-events-none"
@@ -214,7 +214,7 @@ export default function ProfilePage() {
         </div>
       </section>
 
-      {/* ═════ Metrikler — AVESİS tarzı kaynak-bazlı (admin kapatabilir) ═════ */}
+      {/* ═════ Metrikler - AVESİS tarzı kaynak-bazlı (admin kapatabilir) ═════ */}
       {biblioEnabled && (
       <section className="border-b" style={{ borderColor: 'rgba(15, 36, 68, 0.12)', background: '#ffffff' }}>
         <div className="max-w-[1280px] mx-auto px-6 py-10">
@@ -474,7 +474,7 @@ export default function ProfilePage() {
                         </p>
                       )}
                       <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs" style={{ color: '#8a7a52' }}>
-                        {p.startDate && <span>{p.startDate}{p.endDate ? ` — ${p.endDate}` : ''}</span>}
+                        {p.startDate && <span>{p.startDate}{p.endDate ? ` - ${p.endDate}` : ''}</span>}
                         {p.fundingSource && <span className="italic">{p.fundingSource}</span>}
                         {p.faculty && <span>{p.faculty}</span>}
                       </div>
@@ -556,7 +556,7 @@ export default function ProfilePage() {
                           style={{ fontFamily: 'Playfair Display, serif', color: '#0f2444' }}>
                           {c.firstName} {c.lastName}
                         </p>
-                        <p className="text-[11px] italic truncate mt-0.5" style={{ color: '#6b7280' }}>{c.faculty || '—'}</p>
+                        <p className="text-[11px] italic truncate mt-0.5" style={{ color: '#6b7280' }}>{c.faculty || '-'}</p>
                       </div>
                       <span className="text-sm font-bold tabular-nums" style={{ color: '#a88a3f', fontFamily: 'Playfair Display, serif' }}>
                         ×{c.count}
@@ -575,8 +575,8 @@ export default function ProfilePage() {
 
 // ─────────────────────────────────────────────────────────────
 function PublicSummaryCell({ label, value }: { label: string; value?: number | null }) {
-  const fmt = (typeof value === 'number' && value > 0) ? value.toLocaleString('tr-TR') : '—';
-  const empty = fmt === '—';
+  const fmt = (typeof value === 'number' && value > 0) ? value.toLocaleString('tr-TR') : '-';
+  const empty = fmt === '-';
   return (
     <div className="px-5 py-5 bg-white border-r border-b" style={{ borderColor: 'rgba(15, 36, 68, 0.12)' }}>
       <p className="text-[10px] tracking-[0.22em] uppercase font-bold mb-2" style={{ color: '#8a7a52' }}>{label}</p>
@@ -594,7 +594,7 @@ function PublicSourceCard({
   name: string; sourceKey: 'openalex' | 'scopus' | 'wos' | 'trdizin' | 'scholar' | 'sobiad';
   docs?: number; cites?: number; hIndex?: number;
 }) {
-  const fmt = (n?: number) => (typeof n === 'number' && n > 0) ? n.toLocaleString('tr-TR') : '—';
+  const fmt = (n?: number) => (typeof n === 'number' && n > 0) ? n.toLocaleString('tr-TR') : '-';
   return (
     <div className="border p-4 bg-white" style={{ borderColor: 'rgba(15, 36, 68, 0.12)', borderRadius: 1 }}>
       <div className="flex items-center gap-3 mb-3 pb-3 border-b" style={{ borderColor: 'rgba(15, 36, 68, 0.08)' }}>
@@ -604,15 +604,15 @@ function PublicSourceCard({
       <div className="grid grid-cols-3 gap-2">
         <div>
           <p className="text-[9px] tracking-[0.2em] uppercase font-semibold mb-1" style={{ color: '#a88a3f' }}>Yayın</p>
-          <p className="text-xl font-bold tabular-nums" style={{ fontFamily: 'Playfair Display, serif', color: fmt(docs) === '—' ? '#d4d0c8' : '#0f2444' }}>{fmt(docs)}</p>
+          <p className="text-xl font-bold tabular-nums" style={{ fontFamily: 'Playfair Display, serif', color: fmt(docs) === '-' ? '#d4d0c8' : '#0f2444' }}>{fmt(docs)}</p>
         </div>
         <div>
           <p className="text-[9px] tracking-[0.2em] uppercase font-semibold mb-1" style={{ color: '#a88a3f' }}>Atıf</p>
-          <p className="text-xl font-bold tabular-nums" style={{ fontFamily: 'Playfair Display, serif', color: fmt(cites) === '—' ? '#d4d0c8' : '#0f2444' }}>{fmt(cites)}</p>
+          <p className="text-xl font-bold tabular-nums" style={{ fontFamily: 'Playfair Display, serif', color: fmt(cites) === '-' ? '#d4d0c8' : '#0f2444' }}>{fmt(cites)}</p>
         </div>
         <div>
           <p className="text-[9px] tracking-[0.2em] uppercase font-semibold mb-1" style={{ color: '#a88a3f' }}>h-index</p>
-          <p className="text-xl font-bold tabular-nums" style={{ fontFamily: 'Playfair Display, serif', color: fmt(hIndex) === '—' ? '#d4d0c8' : '#0f2444' }}>{fmt(hIndex)}</p>
+          <p className="text-xl font-bold tabular-nums" style={{ fontFamily: 'Playfair Display, serif', color: fmt(hIndex) === '-' ? '#d4d0c8' : '#0f2444' }}>{fmt(hIndex)}</p>
         </div>
       </div>
     </div>

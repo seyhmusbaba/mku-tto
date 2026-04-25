@@ -1,7 +1,7 @@
 /**
  * Entegrasyon modülleri için ortak in-memory cache.
  * Her dış servisin rate-limit'ini korumak ve performans için kısa TTL'li cache.
- * Production'da Redis'e taşınabilir — arayüz aynı kalır.
+ * Production'da Redis'e taşınabilir - arayüz aynı kalır.
  */
 
 type CacheEntry<T> = { value: T; expires: number };
@@ -93,7 +93,7 @@ export async function fetchJson(
         signal: AbortSignal.timeout(timeoutMs),
       });
       if (!res.ok) {
-        // 429 veya 5xx — retry
+        // 429 veya 5xx - retry
         if ((res.status === 429 || res.status >= 500) && i < retries) {
           await new Promise(r => setTimeout(r, retryDelayMs * (i + 1)));
           continue;

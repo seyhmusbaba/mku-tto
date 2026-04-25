@@ -202,7 +202,7 @@ SADECE aşağıdaki JSON formatında yanıt ver, başka hiçbir şey yazma:
             style={{ border: '1px solid #e8e4dc' }}>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-navy group-hover:underline line-clamp-1">{p.title}</p>
-              <p className="text-xs text-muted mt-0.5">{p.faculty || '—'} · {(p as any).owner?.firstName} {(p as any).owner?.lastName}</p>
+              <p className="text-xs text-muted mt-0.5">{p.faculty || '-'} · {(p as any).owner?.firstName} {(p as any).owner?.lastName}</p>
             </div>
             <span className={`badge text-xs flex-shrink-0 ml-2 ${PROJECT_STATUS_COLORS[p.status]}`}>
               {PROJECT_STATUS_LABELS[p.status]}

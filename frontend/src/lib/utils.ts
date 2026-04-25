@@ -52,11 +52,11 @@ export function getProjectTypeColor(key: string, types?: { key: string; color: s
 }
 
 export function formatDate(date: string | Date | null | undefined) {
-  if (!date) return '—';
+  if (!date) return '-';
   return new Date(date).toLocaleDateString('tr-TR', { day:'2-digit', month:'long', year:'numeric' });
 }
 export function formatCurrency(amount: number | null | undefined) {
-  if (!amount && amount !== 0) return '—';
+  if (!amount && amount !== 0) return '-';
   return new Intl.NumberFormat('tr-TR', { style:'currency', currency:'TRY', maximumFractionDigits:0 }).format(amount);
 }
 export function getInitials(firstName: string, lastName: string) {

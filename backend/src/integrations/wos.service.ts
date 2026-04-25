@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { HttpCache, RateLimiter, fetchJson } from './http-cache';
 
 /**
- * Web of Science — Clarivate.
+ * Web of Science - Clarivate.
  * Kurumsal üyelik gerektirir. MKÜ'nün WoS aboneliği varsa Clarivate
  * Developer Portal'dan "Web of Science Starter API" anahtarı alınır.
  * Docs: https://developer.clarivate.com/apis/wos-starter
@@ -42,7 +42,7 @@ export interface WosAuthorProfile {
 export class WosService {
   private readonly logger = new Logger(WosService.name);
   private readonly cache = new HttpCache('wos');
-  private readonly limiter = new RateLimiter(5, 1000); // 5 req/s — starter tier güvenli limit
+  private readonly limiter = new RateLimiter(5, 1000); // 5 req/s - starter tier güvenli limit
 
   private get baseUrl(): string {
     return process.env.WOS_API_BASE || 'https://api.clarivate.com/apis/wos-starter/v1';
@@ -75,7 +75,7 @@ export class WosService {
 
     try {
       await this.limiter.acquire();
-      // Birden çok query formatını dene — WoS Starter API ORCID için farklı syntaxlar
+      // Birden çok query formatını dene - WoS Starter API ORCID için farklı syntaxlar
       const isOrcid = /^\d{4}-\d{4}-\d{4}-\d{3}[0-9Xx]$/.test(researcherId);
       const queryFormats = isOrcid
         ? [`AO=(${researcherId})`, `AO="${researcherId}"`, `AU_ORCID="${researcherId}"`]
@@ -102,10 +102,10 @@ export class WosService {
         return null;
       }
 
-      // WoS Starter hızlı h-index vermiyor — tam doğru değeri için atıfla tara
+      // WoS Starter hızlı h-index vermiyor - tam doğru değeri için atıfla tara
       const hIndex = await this.computeHIndex(researcherId).catch(() => undefined);
 
-      // Toplam atıf — ayrıca hesap gerekir
+      // Toplam atıf - ayrıca hesap gerekir
       const citedBy = await this.sumCitedBy(researcherId).catch(() => 0);
 
       const profile: WosAuthorProfile = {
@@ -136,7 +136,7 @@ export class WosService {
     if (cached) return cached;
 
     try {
-      // Birden çok query formatını dene — ilk çalışanda dur
+      // Birden çok query formatını dene - ilk çalışanda dur
       const isOrcid = /^\d{4}-\d{4}-\d{4}-\d{3}[0-9Xx]$/.test(researcherId);
       const queryFormats = isOrcid
         ? [`AO=(${researcherId})`, `AO="${researcherId}"`, `AU_ORCID="${researcherId}"`]
@@ -165,7 +165,7 @@ export class WosService {
         return [];
       }
 
-      // Sayfalama — 200 yayına kadar ek sayfalar çek (50 per sayfa, max 4 sayfa)
+      // Sayfalama - 200 yayına kadar ek sayfalar çek (50 per sayfa, max 4 sayfa)
       const allHits: any[] = [...(firstPage.hits || [])];
       const total = firstPage?.metadata?.total || allHits.length;
       const wantedPages = Math.min(Math.ceil(Math.min(limit, 200) / 50), 4);
@@ -184,7 +184,7 @@ export class WosService {
       const items: WosPublication[] = allHits.map((h: any) => this.mapWosHit(h)).filter(Boolean);
       const hits = allHits;
 
-      // Debug: ilk hit'in ham yapısı — atıf field'ı neyin altında geldi?
+      // Debug: ilk hit'in ham yapısı - atıf field'ı neyin altında geldi?
       if (hits[0]) {
         const sample = hits[0];
         const citationKeys: string[] = [];
@@ -206,7 +206,7 @@ export class WosService {
   }
 
   /**
-   * DOI'den WoS kaydı ara — Scopus ile dedupe için kullanışlı.
+   * DOI'den WoS kaydı ara - Scopus ile dedupe için kullanışlı.
    */
   async getByDoi(doi: string): Promise<WosPublication | null> {
     if (!this.isConfigured() || !doi) return null;
@@ -230,7 +230,7 @@ export class WosService {
   }
 
   /**
-   * Debug — 3 farklı query formatını dener, hepsinin response'unu döner.
+   * Debug - 3 farklı query formatını dener, hepsinin response'unu döner.
    * WoS Starter API quirk'lerini çözmek için.
    */
   async debugRawResponse(identifier: string): Promise<any> {
@@ -240,7 +240,7 @@ export class WosService {
 
     const isOrcid = /^\d{4}-\d{4}-\d{4}-\d{3}[0-9Xx]$/.test(identifier);
 
-    // 3 farklı query varyasyonu dene — hangisi çalışıyor görelim
+    // 3 farklı query varyasyonu dene - hangisi çalışıyor görelim
     const attempts = isOrcid ? [
       { label: 'AO with parens',  q: `AO=(${identifier})` },
       { label: 'AO with quotes',  q: `AO="${identifier}"` },
@@ -288,7 +288,7 @@ export class WosService {
     };
   }
 
-  /** Kurumsal arama — MKÜ için agrega metrikler */
+  /** Kurumsal arama - MKÜ için agrega metrikler */
   async searchByAffiliation(affiliation: string, limit = 100): Promise<{ total: number; sample: WosPublication[] }> {
     if (!this.isConfigured()) return { total: 0, sample: [] };
     try {
@@ -348,7 +348,7 @@ export class WosService {
   private extractCitationCount(h: any): number | undefined {
     if (!h) return undefined;
 
-    // 1. WoS Starter — citations array
+    // 1. WoS Starter - citations array
     if (Array.isArray(h.citations)) {
       // WoS veritabanı öncelikli
       const wos = h.citations.find((c: any) => {
@@ -367,7 +367,7 @@ export class WosService {
     if (typeof h.tc === 'number') return h.tc;
     if (typeof h.citedBy === 'number') return h.citedBy;
 
-    // 3. WoS Lite — dynamic_data.citation_related
+    // 3. WoS Lite - dynamic_data.citation_related
     const siloTc = h?.dynamic_data?.citation_related?.tc_list?.silo_tc;
     if (Array.isArray(siloTc)) {
       const entry = siloTc.find((s: any) => s?.coll_id === 'WOS') || siloTc[0];
@@ -378,7 +378,7 @@ export class WosService {
   }
 
   /**
-   * h-index hesabı — yazarın tüm makalelerini atıf sırasıyla çek, sonra h-index çıkar.
+   * h-index hesabı - yazarın tüm makalelerini atıf sırasıyla çek, sonra h-index çıkar.
    * WoS Starter küçük tier'da pahalı; 200 kayıt üst sınır.
    */
   private async computeHIndex(researcherId: string): Promise<number | undefined> {
@@ -391,7 +391,7 @@ export class WosService {
     return h;
   }
 
-  /** Yazarın toplam atıf sayısı — getAuthorPublications üzerinden */
+  /** Yazarın toplam atıf sayısı - getAuthorPublications üzerinden */
   private async sumCitedBy(researcherId: string): Promise<number> {
     const pubs = await this.getAuthorPublications(researcherId, 200);
     return pubs.reduce((s, p) => s + (p.citedBy || 0), 0);

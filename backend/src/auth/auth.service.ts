@@ -50,7 +50,7 @@ export class AuthService {
       approvalStatus: 'pending',
     });
     const saved = await this.userRepo.save(user);
-    // Kayıt başarılı — admin onayı bekleniyor, token verilmiyor
+    // Kayıt başarılı - admin onayı bekleniyor, token verilmiyor
     return { pending: true, message: 'Kaydınız alındı. Yönetici onayından sonra giriş yapabilirsiniz.' };
   }
 

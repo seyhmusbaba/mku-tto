@@ -2,7 +2,7 @@
 import React from 'react';
 
 /**
- * Skeleton yer tutucu — veri yüklenirken spinner yerine sayfanın düzen
+ * Skeleton yer tutucu - veri yüklenirken spinner yerine sayfanın düzen
  * iskeletini göstererek algılanan hızı artırır.
  */
 

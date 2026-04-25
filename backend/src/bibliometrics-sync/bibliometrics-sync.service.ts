@@ -27,11 +27,11 @@ export interface SyncResult {
  * Tüm bibliyometrik kaynakları tek bir endpoint ile otomatik senkronlar.
  *
  * Kaynaklar:
- *  - OpenAlex (ORCID üzerinden) — bedava, bol kapsam, Scholar'a en yakın
- *  - Scopus (Scopus Author ID) — API key gerekli
- *  - TR Dizin (ad-soyad + kurum) — bedava, Türkçe odaklı
+ *  - OpenAlex (ORCID üzerinden) - bedava, bol kapsam, Scholar'a en yakın
+ *  - Scopus (Scopus Author ID) - API key gerekli
+ *  - TR Dizin (ad-soyad + kurum) - bedava, Türkçe odaklı
  *
- * Google Scholar: direkt erişim yok — OpenAlex kapsamı buraya yerleşiyor.
+ * Google Scholar: direkt erişim yok - OpenAlex kapsamı buraya yerleşiyor.
  * Kullanıcının googleScholarId'si varsa, OpenAlex rakamlarını Scholar yerine
  * placeholder olarak gösteriyoruz (veritabanında ayrı tutuyoruz).
  */
@@ -50,7 +50,7 @@ export class BibliometricsSyncService {
 
   /**
    * Bir kullanıcının tüm kaynaklardan metriklerini yenile.
-   * Her kaynak bağımsız — birinin hatası diğerini etkilemez.
+   * Her kaynak bağımsız - birinin hatası diğerini etkilemez.
    */
   async syncUser(userId: string): Promise<SyncResult> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
@@ -130,7 +130,7 @@ export class BibliometricsSyncService {
       };
     }
 
-    // ── Dedupe edilmiş toplam yayın — OpenAlex baz alınır (en geniş kapsam)
+    // ── Dedupe edilmiş toplam yayın - OpenAlex baz alınır (en geniş kapsam)
     const estimatedTotal = Math.max(
       result.sources.openalex?.docs || 0,
       result.sources.scopus?.docs || 0,
@@ -152,11 +152,11 @@ export class BibliometricsSyncService {
   private async syncOpenAlex(user: User): Promise<{ docs: number; citations: number; hIndex: number }> {
     let author: any = null;
 
-    // 1. Önce openAlexAuthorId varsa onu kullan (manuel override — en güvenilir)
+    // 1. Önce openAlexAuthorId varsa onu kullan (manuel override - en güvenilir)
     if ((user as any).openAlexAuthorId) {
       const id = (user as any).openAlexAuthorId.trim();
       if (!/^A\d{4,}$/i.test(id)) {
-        throw new Error('Geçersiz OpenAlex Author ID — A5012345678 formatında olmalı');
+        throw new Error('Geçersiz OpenAlex Author ID - A5012345678 formatında olmalı');
       }
       // Works endpoint'inden works çekip author meta'yı ilk work'ten alırız (veya direkt author API)
       const authorsApi = `https://api.openalex.org/authors/${id}`;
@@ -210,10 +210,10 @@ export class BibliometricsSyncService {
     if (!user.scopusAuthorId) {
       throw new Error('Scopus Author ID tanımlı değil');
     }
-    // Cache bypass — önce sil, sonra çağır (her manuel sync'te taze veri)
+    // Cache bypass - önce sil, sonra çağır (her manuel sync'te taze veri)
     this.scopus.clearCache(`author:${user.scopusAuthorId}`);
     const profile = await this.scopus.getAuthorProfile(user.scopusAuthorId);
-    if (!profile) throw new Error('Scopus\'ta yazar bulunamadı — API key veya ID geçersiz');
+    if (!profile) throw new Error('Scopus\'ta yazar bulunamadı - API key veya ID geçersiz');
 
     const p: any = profile;
     this.logger.log(`[Scopus] ${user.scopusAuthorId}: ${p.documentCount} yayın, ${p.citedByCount} atıf, h=${p.hIndex}`);
@@ -238,11 +238,11 @@ export class BibliometricsSyncService {
     }
 
     this.logger.log(`[WoS] Yazar aranıyor: ${identifier} (${user.wosResearcherId ? 'ResearcherID' : 'ORCID'})`);
-    // force=true: cache bypass et — her manuel sync'te tam taze veri gelsin
+    // force=true: cache bypass et - her manuel sync'te tam taze veri gelsin
     const profile = await this.wos.getAuthorProfile(identifier, true);
 
     if (!profile) {
-      throw new Error(`WoS'ta "${identifier}" ile yazar bulunamadı — API key veya ID'yi kontrol edin`);
+      throw new Error(`WoS'ta "${identifier}" ile yazar bulunamadı - API key veya ID'yi kontrol edin`);
     }
 
     this.logger.log(`[WoS] ${identifier}: ${profile.documentCount} yayın, ${profile.citedByCount} atıf, h=${profile.hIndex}`);
@@ -279,7 +279,7 @@ export class BibliometricsSyncService {
       throw new Error('İsim/soyisim çok kısa (en az 5 karakter)');
     }
 
-    // Önce kurum hint'siz ara — isim yeterince özgünse doğru sonuçlar
+    // Önce kurum hint'siz ara - isim yeterince özgünse doğru sonuçlar
     let pubs = await this.trDizin.searchByAuthorName(fullName, undefined, 100).catch(() => []);
     this.logger.log(`[TR Dizin] "${fullName}" için ${pubs.length} yayın bulundu (hint'siz)`);
 
@@ -326,7 +326,7 @@ export class BibliometricsSyncService {
   }
 
   /**
-   * Haftalık otomatik senkronizasyon — Pazar gecesi 02:00'de çalışır.
+   * Haftalık otomatik senkronizasyon - Pazar gecesi 02:00'de çalışır.
    * SYNC_BIBLIOMETRICS_WEEKLY=false env ile kapatılabilir.
    */
   @Cron(CronExpression.EVERY_WEEK)

@@ -32,7 +32,7 @@ export function ScopusProfileCard({ user, isMe }: Props) {
       });
       setLoading(false);
     } else {
-      // DB'de veri yok — sync endpoint'ini çağır (önbelleksiz, taze veri)
+      // DB'de veri yok - sync endpoint'ini çağır (önbelleksiz, taze veri)
       scopusApi.syncMyProfile()
         .then(r => {
           if (r.data?.success && r.data?.profile) {
@@ -121,7 +121,7 @@ export function ScopusProfileCard({ user, isMe }: Props) {
             <div key={m.label} className="text-center p-3 rounded-xl"
               style={{ background: m.color + '0d', border: `1px solid ${m.color}22` }}>
               <p className="text-2xl font-display font-bold" style={{ color: m.color }}>
-                {m.value?.toLocaleString('tr-TR') ?? '—'}
+                {m.value?.toLocaleString('tr-TR') ?? '-'}
               </p>
               <p className="text-xs text-muted mt-0.5">{m.label}</p>
             </div>

@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell, RadialBarChart, RadialBar } from 'recharts';
 
 /**
- * Proje Zekâsı Dashboard — proje oluşturma/düzenleme sayfalarının ALTINA
+ * Proje Zekâsı Dashboard - proje oluşturma/düzenleme sayfalarının ALTINA
  * yerleştirilen, full-width karar destek panosu.
  *
  * Mimari:
@@ -15,7 +15,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
  *  - Alt: SDG chips, konseptler, Türkiye benchmark, kontrol listesi
  *  - Sağ altta: Funding simulator (interactive) + Collaboration network
  *
- * Her widget bağımsız — biri patlarsa diğerleri çalışır.
+ * Her widget bağımsız - biri patlarsa diğerleri çalışır.
  */
 
 export interface PipProps {
@@ -133,7 +133,7 @@ export function ProjectIntelligencePanel({ title, description, keywords = [], ty
           <h3 className="font-display text-lg font-bold mb-1">Proje Zekâsı</h3>
           <p className="text-sm opacity-80 max-w-md mx-auto">
             Proje başlığı veya anahtar kelime girmeye başladığınızda
-            <strong className="text-white"> 13 akademik kaynak</strong> paralelde analiz edilir —
+            <strong className="text-white"> 13 akademik kaynak</strong> paralelde analiz edilir -
             literatür, fonlama, dergi uyumu, patent manzarası, ekip önerileri ve daha fazlası.
           </p>
         </div>
@@ -171,7 +171,7 @@ export function ProjectIntelligencePanel({ title, description, keywords = [], ty
         <ImpactGaugeModule type={dType} budget={dBudget} />
       </div>
 
-      {/* ═══ Alt grid: 2 widget — SDG + Konsept ═══ */}
+      {/* ═══ Alt grid: 2 widget - SDG + Konsept ═══ */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <SdgEvidenceModule title={dTitle || ''} description={dDesc} />
         <ConceptsModule title={dTitle || ''} description={dDesc} />
@@ -193,7 +193,7 @@ export function ProjectIntelligencePanel({ title, description, keywords = [], ty
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
- *  HERO — AI Synthesis + 4-dim Composite Score
+ *  HERO - AI Synthesis + 4-dim Composite Score
  * ═══════════════════════════════════════════════════════════════════════ */
 
 function SynthesisHero({ title, description, keywords, type, budget, faculty }: any) {
@@ -362,25 +362,61 @@ function EmptyNote({ text }: { text: string }) {
   return <p className="text-xs text-muted italic text-center py-4">{text}</p>;
 }
 
+/**
+ * Context-aware durum mesajı - kullanıcıya neden boş olduğunu açıklar.
+ * tone: 'input' (sarı, kullanıcı eylem gerekli), 'empty' (gri, gerçekten veri yok),
+ *       'error' (kırmızı, çağrı hatası), 'config' (mavi, env eksik)
+ */
+function StatusNote({ tone, title, hint }: { tone: 'input' | 'empty' | 'error' | 'config'; title: string; hint?: string }) {
+  const palette = {
+    input:  { bg: '#fffbeb', border: '#fde68a', text: '#92400e', icon: 'info'   as IconName },
+    empty:  { bg: '#f8fafc', border: '#e2e8f0', text: '#475569', icon: 'info'   as IconName },
+    error:  { bg: '#fef2f2', border: '#fca5a5', text: '#991b1b', icon: 'alert'  as IconName },
+    config: { bg: '#eff6ff', border: '#bfdbfe', text: '#1e40af', icon: 'lock'   as IconName },
+  }[tone];
+  return (
+    <div className="text-xs p-3 rounded-xl flex items-start gap-2"
+      style={{ background: palette.bg, border: `1px solid ${palette.border}`, color: palette.text }}>
+      <Icon name={palette.icon} className="w-4 h-4 flex-shrink-0 mt-0.5" />
+      <div className="flex-1">
+        <p className="font-semibold leading-snug">{title}</p>
+        {hint && <p className="mt-0.5 text-[11px] opacity-90 leading-snug">{hint}</p>}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Küresel Benzer ─── */
 function GlobalSimilarModule({ title, description }: { title: string; description?: string }) {
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+
+  const inputReady = !!(title && title.length >= 8);
 
   useEffect(() => {
-    if (!title || title.length < 8) return;
-    setLoading(true);
+    if (!inputReady) { setData(null); return; }
+    setLoading(true); setError(false);
     api.get('/intelligence/global-similar', { params: { title, description } })
       .then(r => setData(r.data))
-      .catch(() => setData(null))
+      .catch(() => { setData(null); setError(true); })
       .finally(() => setLoading(false));
-  }, [title, description]);
+  }, [title, description, inputReady]);
 
   return (
     <ModuleCard icon="globe" title="Küresel Literatür Haritası"
-      subtitle="Dünyada aynı konuda yapılmış yayınlar"
+      subtitle="OpenAlex - dünyada aynı konuda yapılmış yayınlar"
       badge={data?.total ? `${data.total}` : undefined}>
-      {loading ? <Loader /> : !data || data.total === 0 ? <EmptyNote text="Bu konuda global literatür eşleşmesi yok" /> : (
+      {!inputReady ? (
+        <StatusNote tone="input" title="Proje başlığı en az 8 karakter olmalı"
+          hint="OpenAlex API başlığınızı arar - ne kadar net o kadar isabetli." />
+      ) : loading ? <Loader /> : error ? (
+        <StatusNote tone="error" title="OpenAlex çağrısı başarısız"
+          hint="İnternet bağlantısı veya servis kesintisi olabilir, birazdan tekrar deneyin." />
+      ) : !data || data.total === 0 ? (
+        <StatusNote tone="empty" title="Bu konuda global literatür eşleşmesi yok"
+          hint="Başlığı sadeleştirin veya alanın İngilizce karşılığını kullanın - örn. 'sürdürülebilir tarım' yerine 'sustainable agriculture'." />
+      ) : (
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="p-2 rounded-lg" style={{ background: '#eff6ff' }}>
@@ -392,7 +428,7 @@ function GlobalSimilarModule({ title, description }: { title: string; descriptio
               <p className="text-[10px] text-muted">Ort. Atıf</p>
             </div>
             <div className="p-2 rounded-lg" style={{ background: '#f0fdf4' }}>
-              <p className="font-display text-xl font-bold" style={{ color: '#059669' }}>{data.peakYear || '—'}</p>
+              <p className="font-display text-xl font-bold" style={{ color: '#059669' }}>{data.peakYear || '-'}</p>
               <p className="text-[10px] text-muted">Zirve Yıl</p>
             </div>
           </div>
@@ -403,7 +439,7 @@ function GlobalSimilarModule({ title, description }: { title: string; descriptio
               <div key={i} className="text-xs p-2 rounded-lg border" style={{ borderColor: '#f0ede8' }}>
                 <p className="font-semibold text-navy line-clamp-2 leading-snug">{w.title}</p>
                 <div className="flex items-center justify-between mt-1">
-                  <span className="text-[10px] text-muted">{w.year} · {w.journal?.slice(0, 30) || '—'}</span>
+                  <span className="text-[10px] text-muted">{w.year} · {w.journal?.slice(0, 30) || '-'}</span>
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#c8a45a33', color: '#92651a' }}>
                     {w.citedBy} atıf
                   </span>
@@ -421,23 +457,35 @@ function GlobalSimilarModule({ title, description }: { title: string; descriptio
 function EuOpportunitiesModule({ keywords }: { keywords: string[] }) {
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+
+  const inputReady = keywords.length > 0;
 
   useEffect(() => {
-    if (keywords.length === 0) return;
-    setLoading(true);
+    if (!inputReady) { setData(null); return; }
+    setLoading(true); setError(false);
     api.get('/intelligence/eu-opportunities', { params: { keywords: keywords.join(',') } })
       .then(r => setData(r.data))
-      .catch(() => setData(null))
+      .catch(() => { setData(null); setError(true); })
       .finally(() => setLoading(false));
-  }, [keywords.join(',')]);
+  }, [keywords.join(','), inputReady]);
 
   const frameworkData = data?.frameworks ? Object.entries(data.frameworks).map(([k, v]: any) => ({ name: k, value: v })) : [];
 
   return (
     <ModuleCard icon="euro" title="AB Fon Manzarası"
-      subtitle="Horizon / H2020 / FP7 emsal projeleri"
+      subtitle="CORDIS - Horizon / H2020 / FP7 emsal projeleri"
       badge={data?.total ? `${data.total}` : undefined}>
-      {loading ? <Loader /> : !data || data.total === 0 ? <EmptyNote text="Bu konuda AB fonlu proje bulunamadı" /> : (
+      {!inputReady ? (
+        <StatusNote tone="input" title="Anahtar kelime ekleyin"
+          hint="CORDIS aramaları virgülle ayrılmış İngilizce terimlerle daha iyi sonuç verir - örn. 'biofuel, microalgae, photobioreactor'." />
+      ) : loading ? <Loader /> : error ? (
+        <StatusNote tone="error" title="CORDIS servisine ulaşılamadı"
+          hint="AB sunucusu yavaş yanıt veriyor olabilir, birazdan tekrar deneyin." />
+      ) : !data || data.total === 0 ? (
+        <StatusNote tone="empty" title="Bu konuda AB fonlu proje bulunamadı"
+          hint="Anahtar kelimelerinizin İngilizce karşılığını veya daha geniş bir terim deneyin." />
+      ) : (
         <div className="space-y-3">
           {data.avgBudget > 0 && (
             <div className="p-3 rounded-xl text-center" style={{ background: 'linear-gradient(135deg, #0891b2 0%, #0284c7 100%)', color: 'white' }}>
@@ -481,15 +529,18 @@ function EuOpportunitiesModule({ keywords }: { keywords: string[] }) {
 function TargetJournalsModule({ keywords, title }: { keywords: string[]; title?: string }) {
   const [data, setData] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+
+  const inputReady = !!(title && title.length >= 8) || keywords.length > 0;
 
   useEffect(() => {
-    if (!title && keywords.length === 0) return;
-    setLoading(true);
+    if (!inputReady) { setData(null); return; }
+    setLoading(true); setError(false);
     api.get('/intelligence/target-journals', { params: { keywords: keywords.join(','), title } })
       .then(r => setData(r.data || []))
-      .catch(() => setData([]))
+      .catch(() => { setData([]); setError(true); })
       .finally(() => setLoading(false));
-  }, [keywords.join(','), title]);
+  }, [keywords.join(','), title, inputReady]);
 
   const withQ = (data || []).filter(j => j.sjrQuartile);
   const qCounts = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
@@ -499,7 +550,16 @@ function TargetJournalsModule({ keywords, title }: { keywords: string[]; title?:
     <ModuleCard icon="book" title="Hedef Dergi Radarı"
       subtitle="SCImago Q-sınıflı + konu uyumlu"
       badge={data?.length ? `${data.length}` : undefined}>
-      {loading ? <Loader /> : !data || data.length === 0 ? <EmptyNote text="Eşleşen dergi bulunamadı" /> : (
+      {!inputReady ? (
+        <StatusNote tone="input" title="Başlık (en az 8 karakter) veya anahtar kelime ekleyin"
+          hint="Dergi önerisi için OpenAlex konsept çıkarımı yapılır - net bir başlık yeter." />
+      ) : loading ? <Loader /> : error ? (
+        <StatusNote tone="error" title="Dergi servisine ulaşılamadı"
+          hint="OpenAlex / SCImago kaynağı yanıt vermiyor olabilir." />
+      ) : !data || data.length === 0 ? (
+        <StatusNote tone="empty" title="Konu uyumlu dergi bulunamadı"
+          hint="Başlığı sadeleştirin veya anahtar kelimelerin İngilizce karşılıklarını ekleyin." />
+      ) : (
         <div className="space-y-3">
           {withQ.length > 0 && (
             <div className="grid grid-cols-4 gap-1.5">
@@ -561,7 +621,7 @@ function PatentLandscapeModule({ keywords }: { keywords: string[] }) {
 
   return (
     <ModuleCard icon="shield" title="Patent Manzarası"
-      subtitle="EPO OPS — prior art ve rekabet analizi"
+      subtitle="EPO OPS - prior art ve rekabet analizi"
       badge={data?.configured ? `TR:${data.trCount} · EP:${data.epCount}` : undefined}>
       {loading ? <Loader /> : !data ? <EmptyNote text="Veri yüklenemedi" /> :
        !data.configured ? (
@@ -608,15 +668,18 @@ function PatentLandscapeModule({ keywords }: { keywords: string[] }) {
 function PotentialTeamModule({ keywords, faculty }: { keywords: string[]; faculty?: string }) {
   const [data, setData] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+
+  const inputReady = keywords.length > 0;
 
   useEffect(() => {
-    if (keywords.length === 0) return;
-    setLoading(true);
+    if (!inputReady) { setData(null); return; }
+    setLoading(true); setError(false);
     api.get('/intelligence/potential-team', { params: { keywords: keywords.join(','), faculty } })
       .then(r => setData(r.data || []))
-      .catch(() => setData([]))
+      .catch(() => { setData([]); setError(true); })
       .finally(() => setLoading(false));
-  }, [keywords.join(','), faculty]);
+  }, [keywords.join(','), faculty, inputReady]);
 
   const internal = (data || []).filter(d => d.source === 'internal');
   const external = (data || []).filter(d => d.source === 'external');
@@ -625,7 +688,16 @@ function PotentialTeamModule({ keywords, faculty }: { keywords: string[]; facult
     <ModuleCard icon="users" title="Ekip Önerileri"
       subtitle="Alanında uzman MKÜ + dış araştırmacılar"
       badge={data?.length ? `${data.length}` : undefined}>
-      {loading ? <Loader /> : !data || data.length === 0 ? <EmptyNote text="Öneri bulunamadı" /> : (
+      {!inputReady ? (
+        <StatusNote tone="input" title="Anahtar kelime ekleyin"
+          hint="MKÜ akademisyenleri ve OpenAlex'teki dış araştırmacılar konu uyumuna göre listelenir." />
+      ) : loading ? <Loader /> : error ? (
+        <StatusNote tone="error" title="Eşleştirme servisi yanıt vermedi"
+          hint="OpenAlex sorgusu zaman aşımına uğramış olabilir." />
+      ) : !data || data.length === 0 ? (
+        <StatusNote tone="empty" title="Eşleşen araştırmacı bulunamadı"
+          hint="MKÜ akademisyenlerinin ORCID/Scopus eşleşmesi olmayabilir veya konu çok dar - daha genel bir terim deneyin." />
+      ) : (
         <div className="space-y-3">
           {internal.length > 0 && (
             <div>
@@ -641,7 +713,7 @@ function PotentialTeamModule({ keywords, faculty }: { keywords: string[]; facult
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-navy truncate">{p.name}</p>
                       <p className="text-[10px] text-muted truncate">
-                        {p.faculty || '—'}
+                        {p.faculty || '-'}
                         {p.hIndex ? ` · h: ${p.hIndex}` : ''}
                       </p>
                     </div>
@@ -668,7 +740,7 @@ function PotentialTeamModule({ keywords, faculty }: { keywords: string[]; facult
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-navy truncate">{p.name}</p>
-                      <p className="text-[10px] text-muted truncate">{p.institution || '—'}</p>
+                      <p className="text-[10px] text-muted truncate">{p.institution || '-'}</p>
                     </div>
                     <span className="text-[10px] text-muted">
                       {p.publicationCount} yay.
@@ -702,7 +774,13 @@ function ImpactGaugeModule({ type, budget }: { type?: string; budget?: number })
     <ModuleCard icon="rocket" title="Etki Tahmini"
       subtitle="MKÜ geçmiş benzer projelerinden"
       badge={data?.sampleSize ? `n=${data.sampleSize}` : undefined}>
-      {loading ? <Loader /> : !data || data.sampleSize === 0 ? <EmptyNote text="Emsal veri yok (proje türü seçin)" /> : (
+      {!type ? (
+        <StatusNote tone="input" title="Proje türü seçin"
+          hint="Tamamlanma tahmini için 'Tür' alanı zorunlu - aynı türdeki MKÜ projelerinin geçmiş performansından hesaplanır." />
+      ) : loading ? <Loader /> : !data || data.sampleSize === 0 ? (
+        <StatusNote tone="empty" title="Bu türde emsal veri yok"
+          hint="Sistemde bu türde tamamlanmış proje bulunmuyor. Birkaç proje sonra tahmin etkinleşir." />
+      ) : (
         <div className="space-y-3">
           {/* Big gauge */}
           <div className="relative flex flex-col items-center py-3">
@@ -744,21 +822,33 @@ function ImpactGaugeModule({ type, budget }: { type?: string; budget?: number })
 function SdgEvidenceModule({ title, description }: { title: string; description?: string }) {
   const [data, setData] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+
+  const inputReady = !!(title && title.length >= 8);
 
   useEffect(() => {
-    if (!title || title.length < 8) return;
-    setLoading(true);
+    if (!inputReady) { setData(null); return; }
+    setLoading(true); setError(false);
     api.get('/intelligence/sdg-evidence', { params: { title, description } })
       .then(r => setData(r.data || []))
-      .catch(() => setData([]))
+      .catch(() => { setData([]); setError(true); })
       .finally(() => setLoading(false));
-  }, [title, description]);
+  }, [title, description, inputReady]);
 
   return (
     <ModuleCard icon="leaf" title="SDG Katkı Analizi"
       subtitle="OpenAlex ile otomatik SDG eşlemesi + emsal"
       badge={data?.length ? `${data.length} SDG` : undefined}>
-      {loading ? <Loader /> : !data || data.length === 0 ? <EmptyNote text="SDG eşleşmesi yok" /> : (
+      {!inputReady ? (
+        <StatusNote tone="input" title="Proje başlığı en az 8 karakter olmalı"
+          hint="OpenAlex SDG sınıflandırması başlık + özetten otomatik çıkarılır." />
+      ) : loading ? <Loader /> : error ? (
+        <StatusNote tone="error" title="SDG servisine ulaşılamadı"
+          hint="OpenAlex yanıt vermiyor olabilir, birazdan tekrar deneyin." />
+      ) : !data || data.length === 0 ? (
+        <StatusNote tone="empty" title="SDG eşleşmesi bulunamadı"
+          hint="Bu konu BM Sürdürülebilir Kalkınma Hedefleri ile doğrudan örtüşmüyor olabilir - özet alanına BM SDG anahtar kelimeleri ekleyin (örn. eşitlik, iklim, su)." />
+      ) : (
         <div className="space-y-1.5">
           {data.slice(0, 6).map((s, i) => {
             const num = parseInt(s.sdgId?.match(/\d+/)?.[0] || '0');
@@ -790,21 +880,33 @@ function SdgEvidenceModule({ title, description }: { title: string; description?
 function ConceptsModule({ title, description }: { title: string; description?: string }) {
   const [data, setData] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+
+  const inputReady = !!(title && title.length >= 8);
 
   useEffect(() => {
-    if (!title || title.length < 8) return;
-    setLoading(true);
+    if (!inputReady) { setData(null); return; }
+    setLoading(true); setError(false);
     api.get('/intelligence/concepts', { params: { title, description } })
       .then(r => setData(r.data || []))
-      .catch(() => setData([]))
+      .catch(() => { setData([]); setError(true); })
       .finally(() => setLoading(false));
-  }, [title, description]);
+  }, [title, description, inputReady]);
 
   return (
     <ModuleCard icon="tag" title="Otomatik Konu Taksonomisi"
       subtitle="OpenAlex hiyerarşik kavram eşleşmesi"
       badge={data?.length ? `${data.length}` : undefined}>
-      {loading ? <Loader /> : !data || data.length === 0 ? <EmptyNote text="Konsept çıkarılamadı" /> : (
+      {!inputReady ? (
+        <StatusNote tone="input" title="Proje başlığı en az 8 karakter olmalı"
+          hint="Başlık + özet alanlarından OpenAlex konu hiyerarşisi otomatik çıkarılır." />
+      ) : loading ? <Loader /> : error ? (
+        <StatusNote tone="error" title="Konsept çıkarımı başarısız"
+          hint="OpenAlex servisi yanıt vermiyor olabilir." />
+      ) : !data || data.length === 0 ? (
+        <StatusNote tone="empty" title="Konu çıkarılamadı"
+          hint="Başlık çok kısa veya genel olabilir - özet alanına 2-3 cümle daha ekleyin." />
+      ) : (
         <div className="flex flex-wrap gap-1.5">
           {data.slice(0, 15).map((c, i) => (
             <span key={i} className="text-xs px-2.5 py-1 rounded-full font-semibold"
@@ -844,8 +946,11 @@ function FundingSimulatorModule({ type, faculty, initialBudget }: { type?: strin
 
   return (
     <ModuleCard icon="simulator" title="Fonlama Simülatörü"
-      subtitle="Bütçe ve süreyi değiştir — başarı olasılığı canlı güncellenir">
-      {!type ? <EmptyNote text="Proje türü seçin" /> : (
+      subtitle="Bütçe ve süreyi değiştir - başarı olasılığı canlı güncellenir">
+      {!type ? (
+        <StatusNote tone="input" title="Proje türü seçin"
+          hint="Başarı olasılığı hesaplaması için 'Tür' alanı zorunlu - aynı türdeki MKÜ projelerinden öğrenir." />
+      ) : (
         <div className="space-y-3">
           {/* Sliders */}
           <div className="space-y-3">
@@ -874,7 +979,13 @@ function FundingSimulatorModule({ type, faculty, initialBudget }: { type?: strin
           </div>
 
           {/* Result */}
-          {loading ? <Loader /> : !data ? <EmptyNote text="Veri yok" /> : data.sampleSize === 0 ? <EmptyNote text="Emsal yok" /> : (
+          {loading ? <Loader /> : !data ? (
+            <StatusNote tone="error" title="Simülatör verisi alınamadı"
+              hint="Backend yanıtı boş - birazdan tekrar deneyin." />
+          ) : data.sampleSize === 0 ? (
+            <StatusNote tone="empty" title="Bu türde emsal proje yok"
+              hint={`Sistemde bu proje türü${faculty ? ` (${faculty})` : ''} için tarihsel veri yok - ilk emsal sizden gelecek. Birkaç proje sonra simülatör daha akıllı çalışır.`} />
+          ) : (
             <div className="space-y-2">
               <div className="p-3 rounded-xl text-center" style={{ background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', color: 'white' }}>
                 <p className="text-[10px] uppercase opacity-80">Başarı Olasılığı</p>
@@ -934,20 +1045,24 @@ function CollaborationNetworkModule({ keywords, title }: { keywords?: string[]; 
   }, [user?.id, keywords?.join(','), title]);
 
   const getNodeColor = (type: string) => {
-    if (type === 'both') return '#c8a45a';              // altın — hem tanıdık hem alanında
-    if (type === 'existing-coauthor') return '#7c3aed';  // mor — tanıdık
-    return '#94a3b8';                                     // gri — sadece konu uzmanı
+    if (type === 'both') return '#c8a45a';              // altın - hem tanıdık hem alanında
+    if (type === 'existing-coauthor') return '#7c3aed';  // mor - tanıdık
+    return '#94a3b8';                                     // gri - sadece konu uzmanı
   };
 
   const centerIsTopic = data?.center?.type === 'topic';
   const centerLabel = data?.center?.label || 'Sen';
 
   return (
-    <ModuleCard icon="network" title={centerIsTopic ? 'Konu Ağı — Potansiyel Ortaklar' : 'Ortak Yazar Ağı'}
+    <ModuleCard icon="network" title={centerIsTopic ? 'Konu Ağı - Potansiyel Ortaklar' : 'Ortak Yazar Ağı'}
       subtitle={centerIsTopic ? 'Bu konuda aktif araştırmacılar + mevcut ortaklarınız vurgulu' : 'OpenAlex üzerinden yayın ortaklarınız'}
       badge={data?.nodes?.length ? `${data.nodes.length}` : undefined}>
-      {loading ? <Loader /> : !data || data.nodes?.length === 0 ? (
-        <EmptyNote text="Yeterli veri yok (ORCID tanımlı değil ya da konu çok spesifik)" />
+      {!user?.id ? (
+        <StatusNote tone="input" title="Giriş yapmış kullanıcı gerekli"
+          hint="Ağ analizi sizin ORCID kayıtlarınız üzerinden çalışır." />
+      ) : loading ? <Loader /> : !data || data.nodes?.length === 0 ? (
+        <StatusNote tone="empty" title="Ağ oluşturulamadı"
+          hint="Profilinizde ORCID tanımlı olmalı veya proje konusu daha geniş olmalı. Profilim → ORCID alanını doldurun." />
       ) : (
         <div className="space-y-3">
           {/* Legend */}
@@ -975,7 +1090,7 @@ function CollaborationNetworkModule({ keywords, title }: { keywords?: string[]; 
           {/* Radial SVG */}
           <div className="relative w-full" style={{ aspectRatio: '1 / 0.95' }}>
             <svg viewBox="-210 -200 420 400" className="w-full h-full">
-              {/* Edges — tip bazlı renk */}
+              {/* Edges - tip bazlı renk */}
               {data.nodes.slice(0, 18).map((n: any, i: number) => {
                 const angle = (i / Math.min(data.nodes.length, 18)) * 2 * Math.PI - Math.PI / 2;
                 const r = 130 + (i % 3) * 18;
@@ -1012,7 +1127,7 @@ function CollaborationNetworkModule({ keywords, title }: { keywords?: string[]; 
                 );
               })}
 
-              {/* Center — proje konusu veya kullanıcı */}
+              {/* Center - proje konusu veya kullanıcı */}
               <circle cx="0" cy="0" r="26" fill={centerIsTopic ? '#0f2444' : '#059669'} stroke="#c8a45a" strokeWidth="2.5" />
               <text x="0" y="-2" textAnchor="middle" fontSize={centerIsTopic ? 9 : 11} fill="white" fontWeight="bold">
                 {centerIsTopic ? 'KONU' : 'SEN'}
@@ -1025,7 +1140,7 @@ function CollaborationNetworkModule({ keywords, title }: { keywords?: string[]; 
             </svg>
           </div>
 
-          {/* Top listeleri — kategori bazlı */}
+          {/* Top listeleri - kategori bazlı */}
           <div className="space-y-2">
             {data.nodes.filter((n: any) => n.type === 'both').length > 0 && (
               <div>
@@ -1070,21 +1185,33 @@ function CollaborationNetworkModule({ keywords, title }: { keywords?: string[]; 
 function TurkeyBenchmarkModule({ keywords }: { keywords: string[] }) {
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+
+  const inputReady = keywords.length > 0;
 
   useEffect(() => {
-    if (keywords.length === 0) return;
-    setLoading(true);
+    if (!inputReady) { setData(null); return; }
+    setLoading(true); setError(false);
     api.get('/intelligence/turkey-benchmark', { params: { keywords: keywords.join(',') } })
       .then(r => setData(r.data))
-      .catch(() => setData(null))
+      .catch(() => { setData(null); setError(true); })
       .finally(() => setLoading(false));
-  }, [keywords.join(',')]);
+  }, [keywords.join(','), inputReady]);
 
   return (
     <ModuleCard icon="flag" title="Türkiye Benchmark"
       subtitle="Bu konuda Türk kurumlarının AB projeleri"
       badge={data?.total ? `${data.total}` : undefined}>
-      {loading ? <Loader /> : !data || data.total === 0 ? <EmptyNote text="Türk kurumlarında emsal yok" /> : (
+      {!inputReady ? (
+        <StatusNote tone="input" title="Anahtar kelime ekleyin"
+          hint="CORDIS'te 'TR' lokasyonlu kurumların projeleri sıralanır - en az 1 İngilizce terim verin." />
+      ) : loading ? <Loader /> : error ? (
+        <StatusNote tone="error" title="CORDIS servisi yanıt vermedi"
+          hint="AB sunucusu yavaş - birazdan tekrar deneyin." />
+      ) : !data || data.total === 0 ? (
+        <StatusNote tone="empty" title="Türk kurumlarında emsal proje bulunamadı"
+          hint="Bu konuda Türkiye'den henüz fonlanmış AB projesi yok - yeni başlayan bir alan olabilir, ilk olabilirsiniz." />
+      ) : (
         <div className="space-y-1.5">
           {data.topInstitutions.slice(0, 8).map((i: any, idx: number) => (
             <div key={idx} className="flex items-center justify-between gap-2 text-xs p-2 rounded-lg" style={{ background: idx < 3 ? '#fef3c7' : '#faf8f4' }}>
@@ -1113,7 +1240,13 @@ function ChecklistModule({ type }: { type?: string }) {
       .finally(() => setLoading(false));
   }, [type]);
 
-  if (!data) return <ModuleCard icon="list" title="Başvuru Kontrol Listesi" subtitle=""><EmptyNote text="Proje türü seçin" /></ModuleCard>;
+  if (!type) return (
+    <ModuleCard icon="list" title="Başvuru Kontrol Listesi" subtitle="">
+      <StatusNote tone="input" title="Proje türü seçin"
+        hint="Her proje türünün TÜBİTAK / BAP / AB / Sanayi başvuruları için ayrı kontrol listesi var." />
+    </ModuleCard>
+  );
+  if (!data) return <ModuleCard icon="list" title="Başvuru Kontrol Listesi" subtitle=""><Loader /></ModuleCard>;
 
   const groups = data.reduce((acc: any, it: any) => {
     acc[it.category] = acc[it.category] || [];

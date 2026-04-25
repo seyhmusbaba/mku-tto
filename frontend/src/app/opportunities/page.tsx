@@ -6,7 +6,7 @@ import { Header } from '@/components/layout/Header';
 import { api } from '@/lib/api';
 
 /**
- * Uluslararası Fırsatlar — CORDIS AB projeleri feed'i.
+ * Uluslararası Fırsatlar - CORDIS AB projeleri feed'i.
  *
  * 3 sekme:
  *  - MKÜ'nün AB projeleri (kurum adıyla CORDIS'te arama)
@@ -175,7 +175,7 @@ export default function OpportunitiesPage() {
 
   return (
     <DashboardLayout>
-      <Header title="Uluslararası Fırsatlar" subtitle="CORDIS — AB araştırma projeleri açık veri portalı" />
+      <Header title="Uluslararası Fırsatlar" subtitle="CORDIS - AB araştırma projeleri açık veri portalı" />
       <div className="p-6 xl:p-8 space-y-5">
         {/* Bilgilendirme */}
         <div className="p-4 rounded-2xl text-xs flex items-start gap-3" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af' }}>
@@ -220,7 +220,7 @@ export default function OpportunitiesPage() {
         {tab === 'search' && (
           <div className="space-y-4">
             <div className="card p-4">
-              <p className="text-xs text-muted mb-2">Anahtar kelimeyle CORDIS'te proje ara — kendi araştırma alanınızda yapılan AB projelerini keşfedin</p>
+              <p className="text-xs text-muted mb-2">Anahtar kelimeyle CORDIS'te proje ara - kendi araştırma alanınızda yapılan AB projelerini keşfedin</p>
               <div className="flex gap-2">
                 <div className="flex-1 relative">
                   <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />

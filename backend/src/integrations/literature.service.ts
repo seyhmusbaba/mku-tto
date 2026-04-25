@@ -2,10 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { HttpCache, RateLimiter, fetchJson } from './http-cache';
 
 /**
- * Literatür kaynakları — tek servis altında 3 API:
- *   - PubMed (NCBI E-utilities) — tıp/sağlık/biyoloji
- *   - arXiv                     — STEM preprint'leri
- *   - Semantic Scholar          — atıf grafı + referans analizi
+ * Literatür kaynakları - tek servis altında 3 API:
+ *   - PubMed (NCBI E-utilities) - tıp/sağlık/biyoloji
+ *   - arXiv                     - STEM preprint'leri
+ *   - Semantic Scholar          - atıf grafı + referans analizi
  *
  * Hepsi ücretsiz ve anahtarsız. PubMed email ister, Semantic Scholar
  * opsiyonel API key'le daha yüksek rate limit verir.
@@ -45,7 +45,7 @@ export class LiteratureService {
     const email = process.env.PUBMED_MAILTO || process.env.CROSSREF_MAILTO || 'noreply@example.com';
     try {
       await this.pubmedLimiter.acquire();
-      // 1) esearch — PMID'leri al
+      // 1) esearch - PMID'leri al
       const esearchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(query)}&retmax=${limit}&retmode=json&tool=mku-tto&email=${encodeURIComponent(email)}`;
       const search = await fetchJson(esearchUrl, { timeoutMs: 15000 });
       const ids: string[] = search?.esearchresult?.idlist || [];
@@ -53,7 +53,7 @@ export class LiteratureService {
         this.cache.set(cacheKey, [], 60 * 60);
         return [];
       }
-      // 2) esummary — detayları al
+      // 2) esummary - detayları al
       await this.pubmedLimiter.acquire();
       const esummaryUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=${ids.join(',')}&retmode=json&tool=mku-tto&email=${encodeURIComponent(email)}`;
       const summary = await fetchJson(esummaryUrl, { timeoutMs: 15000 });
@@ -164,7 +164,7 @@ export class LiteratureService {
   }
 
   /**
-   * Bir makalenin atıflarını/referanslarını çek — collaboration grafı için altyapı.
+   * Bir makalenin atıflarını/referanslarını çek - collaboration grafı için altyapı.
    */
   async getS2Citations(paperId: string, limit = 50): Promise<Array<{ paperId: string; title: string; year?: number; authors: string[] }>> {
     if (!paperId) return [];
@@ -193,7 +193,7 @@ export class LiteratureService {
   }
 
   /**
-   * Bir yazar için makale listesi — h-index'li yazar profili.
+   * Bir yazar için makale listesi - h-index'li yazar profili.
    */
   async getS2AuthorProfile(authorId: string): Promise<{ id: string; name: string; hIndex?: number; paperCount?: number; citationCount?: number } | null> {
     if (!authorId) return null;

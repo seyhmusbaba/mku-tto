@@ -121,7 +121,7 @@ plagiarismRisk değerleri: "low", "medium", "high"`;
     const ethicsKeywords = ['insan', 'hasta', 'hayvan', 'deneği', 'gönüllü', 'kişisel veri', 'mahremiyet'];
     for (const kw of ethicsKeywords) {
       if ((data.projectText + data.description).toLowerCase().includes(kw)) {
-        ethicsFlags.push('Proje insanları veya hassas verileri içerebilir — Etik Kurul onayı gerekebilir');
+        ethicsFlags.push('Proje insanları veya hassas verileri içerebilir - Etik Kurul onayı gerekebilir');
         break;
       }
     }

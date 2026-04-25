@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 
 /**
- * Yıllık Kurumsal Bibliyometri Raporu — yazdırılabilir PDF.
+ * Yıllık Kurumsal Bibliyometri Raporu - yazdırılabilir PDF.
  * Rektörlük, dekanlık, senato için dönem sonu kapak raporudur.
  */
 
@@ -37,7 +37,7 @@ const COUNTRY_NAMES: Record<string, string> = {
 };
 function countryName(code: string) { return COUNTRY_NAMES[code] || code; }
 function countryFlag(code: string) {
-  // Emoji flag — ISO alpha-2 code'a karşılık gelen regional indicator
+  // Emoji flag - ISO alpha-2 code'a karşılık gelen regional indicator
   if (!code || code.length !== 2) return '';
   const cp = code.toUpperCase().split('').map(c => 0x1f1e6 + (c.charCodeAt(0) - 65));
   return String.fromCodePoint(...cp);
@@ -209,7 +209,7 @@ export default function AnnualReportPage() {
     ? Math.round(((lastYear.count - prevYear.count) / prevYear.count) * 100)
     : null;
 
-  // Kurumsal yayın listesi — en çok atıf alanlar
+  // Kurumsal yayın listesi - en çok atıf alanlar
   const instPublications: any[] = institutional?.publications || [];
   const topCited = [...instPublications]
     .sort((a, b) => (b?.citedBy?.best || 0) - (a?.citedBy?.best || 0))
@@ -309,7 +309,7 @@ export default function AnnualReportPage() {
               <div><p style={s.coverFactNum}>{formatNum(institutional?.total || 0)}</p><p style={s.coverFactLbl}>Yayın</p></div>
               <div><p style={s.coverFactNum}>{formatNum(institutional?.totalCitations || 0)}</p><p style={s.coverFactLbl}>Atıf</p></div>
               <div><p style={s.coverFactNum}>{institutional?.hIndex || 0}</p><p style={s.coverFactLbl}>h-index</p></div>
-              <div><p style={s.coverFactNum}>{institutional?.twoYearMeanCitedness !== undefined ? (+institutional.twoYearMeanCitedness).toFixed(2) : '—'}</p><p style={s.coverFactLbl}>2yr Mean Cit.</p></div>
+              <div><p style={s.coverFactNum}>{institutional?.twoYearMeanCitedness !== undefined ? (+institutional.twoYearMeanCitedness).toFixed(2) : '-'}</p><p style={s.coverFactLbl}>2yr Mean Cit.</p></div>
               <div><p style={s.coverFactNum}>{sdgsCovered}/17</p><p style={s.coverFactLbl}>SDG</p></div>
             </div>
           </div>
@@ -355,7 +355,7 @@ export default function AnnualReportPage() {
               {narrative.preface.split('\n').filter(Boolean).map((para, i) => (
                 <p key={i} style={s.prefacePara}>{para}</p>
               ))}
-              <p style={s.prefaceSign}>— {institutionName} Teknoloji Transfer Ofisi · {year}</p>
+              <p style={s.prefaceSign}>- {institutionName} Teknoloji Transfer Ofisi · {year}</p>
             </div>
           </div>
         )}
@@ -380,13 +380,13 @@ export default function AnnualReportPage() {
                 Kurumsal h-index <strong>{institutional?.hIndex || 0}</strong>, i10-index <strong>{formatNum(institutional?.i10Index || 0)}</strong>'dir.
                 {institutional?.twoYearMeanCitedness !== undefined && (
                   <> Son 2 yıllık ortalama atıf oranı <strong>{(+institutional.twoYearMeanCitedness).toFixed(2)}</strong>'dir
-                  — bu değer {(+institutional.twoYearMeanCitedness) >= 1.5 ? 'global ortalamanın belirgin üstünde' : (+institutional.twoYearMeanCitedness) >= 1.0 ? 'global ortalamayla uyumlu' : 'global ortalamanın altında'}.</>
+                  - bu değer {(+institutional.twoYearMeanCitedness) >= 1.5 ? 'global ortalamanın belirgin üstünde' : (+institutional.twoYearMeanCitedness) >= 1.0 ? 'global ortalamayla uyumlu' : 'global ortalamanın altında'}.</>
                 )}
               </li>
               <li style={{ fontSize: 10, color: '#78350f' }}>
                 <em>Not: Raporun FWCI, Top 1%/10%, açık erişim ve dergi kalite göstergeleri
                 kurumun en çok atıf alan {institutional?.sampleSize || 500} yayını üzerinden
-                örneklem bazlı hesaplanmıştır — doğal olarak kurumsal ortalamanın üstündedir.</em>
+                örneklem bazlı hesaplanmıştır - doğal olarak kurumsal ortalamanın üstündedir.</em>
               </li>
               {pubGrowthPct !== null && (
                 <li>
@@ -397,7 +397,7 @@ export default function AnnualReportPage() {
               )}
               <li>
                 Uluslararası ortak yazarlı yayın oranı <strong>%{institutional?.internationalCoauthorRatio || 0}</strong>
-                — toplam <strong>{(institutional?.countryCollaboration?.length || 0)}</strong> farklı ülkeyle işbirliği kurulmuştur.
+                - toplam <strong>{(institutional?.countryCollaboration?.length || 0)}</strong> farklı ülkeyle işbirliği kurulmuştur.
               </li>
               <li>
                 Projeler <strong>{sdgsCovered}/17</strong> Sürdürülebilir Kalkınma Hedefi'ne değmekte;
@@ -427,7 +427,7 @@ export default function AnnualReportPage() {
 
           {institutional && institutional.configured !== false && (
             <>
-              <h3 style={s.h3}>Kurumsal Akademik Çıktı (OpenAlex kurum endpoint — TÜM yayınlar)</h3>
+              <h3 style={s.h3}>Kurumsal Akademik Çıktı (OpenAlex kurum endpoint - TÜM yayınlar)</h3>
               <div style={s.kpiGrid}>
                 <Kpi label="Toplam Yayın" value={formatNum(institutional.total || 0)} color="#1a3a6b" />
                 <Kpi label="Toplam Atıf" value={formatNum(institutional.totalCitations || 0)} color="#7c3aed" />
@@ -443,7 +443,7 @@ export default function AnnualReportPage() {
                   <strong>⚠ Aşağıdaki metrikler örneklem bazlıdır.</strong> Kurumumuzun en çok atıf alan
                   {' '}{institutional.sampleSize || 500} yayını üzerinden hesaplanmıştır. Bu yüzden FWCI,
                   Top 1%/10%, açık erişim oranı ve kalite dağılımı gerçek kurumsal ortalamanın üstünde
-                  görünür — sample yayınlar doğal olarak üst-tier'dandır.
+                  görünür - sample yayınlar doğal olarak üst-tier'dandır.
                 </p>
               </div>
 
@@ -451,7 +451,7 @@ export default function AnnualReportPage() {
               <div style={s.kpiGrid}>
                 <Kpi label="Sample Açık Erişim" value={`%${institutional.openAccessRatio || 0}`} sub={`${formatNum(institutional.openAccessCount || 0)} yayın`} color="#0891b2" />
                 <Kpi label="Q1 (sample)" value={formatNum(institutional.quartileDistribution?.Q1 || 0)} color="#059669" sub={`%${quartileKnown > 0 ? Math.round(((institutional.quartileDistribution?.Q1 || 0) / quartileKnown) * 100) : 0}`} />
-                <Kpi label="Örnek. Ort. FWCI" value={institutional.avgFwci !== null && institutional.avgFwci !== undefined ? institutional.avgFwci : '—'} color="#7c3aed" sub="sample üst-tier" />
+                <Kpi label="Örnek. Ort. FWCI" value={institutional.avgFwci !== null && institutional.avgFwci !== undefined ? institutional.avgFwci : '-'} color="#7c3aed" sub="sample üst-tier" />
                 <Kpi label="Örnek. Top 1%" value={formatNum(institutional.top1PctCount || 0)} color="#059669" sub={`sample ${institutional.sampleSize || 500}'de`} />
                 <Kpi label="Örnek. Top 10%" value={formatNum(institutional.top10PctCount || 0)} color="#2563eb" sub={`sample ${institutional.sampleSize || 500}'de`} />
                 <Kpi label="Uluslararası Ortaklık" value={`%${institutional.internationalCoauthorRatio || 0}`} color="#c8a45a" sub={`${formatNum(institutional.internationalCoauthorCount || 0)} sample yayın`} />
@@ -520,7 +520,7 @@ export default function AnnualReportPage() {
               öne çıkan üç fakülte detaylandırılmıştır.
             </p>
 
-            <h3 style={s.h3}>Tüm Fakülteler — Karşılaştırmalı Görünüm</h3>
+            <h3 style={s.h3}>Tüm Fakülteler - Karşılaştırmalı Görünüm</h3>
             <table style={s.table}>
               <thead>
                 <tr>
@@ -556,7 +556,7 @@ export default function AnnualReportPage() {
                   <td style={s.tdR}>{totalFacultyProjects}</td>
                   <td style={s.tdR}>{radar.reduce((x, f: any) => x + (f.activeProjects || 0), 0)}</td>
                   <td style={s.tdR}>{radar.reduce((x, f: any) => x + (f.completedProjects || 0), 0)}</td>
-                  <td style={s.tdR}>—</td>
+                  <td style={s.tdR}>-</td>
                   <td style={s.tdR}>{formatTry(radar.reduce((x, f: any) => x + (f.totalBudget || 0), 0))}</td>
                   <td style={s.tdR}>{sdgsCovered}/17</td>
                   <td style={s.tdR}>{totalIp}</td>
@@ -591,7 +591,7 @@ export default function AnnualReportPage() {
             <p style={s.p}>
               Kurumumuzun OpenAlex kaynağından çekilen yayın havuzu üzerinden hesaplanmıştır.
               <strong> FWCI</strong> (Field-Weighted Citation Impact), atıf sayısını yayının alanına ve
-              yayımlandığı yıla göre normalize eder — 1.00 global ortalamadır. 2.00 değeri,
+              yayımlandığı yıla göre normalize eder - 1.00 global ortalamadır. 2.00 değeri,
               yayının alanı ve yılı için beklenenin iki katı atıf aldığı anlamına gelir.
               <strong> Top 1%</strong> ve <strong>Top 10%</strong> yayınlar, alan-yıl normalize sıralamasında
               en yüksek yüzdelikte olanlardır.
@@ -625,9 +625,9 @@ export default function AnnualReportPage() {
               <div style={{ marginTop: 12, padding: 10, background: '#f0f9ff', borderRadius: 6, border: '1px solid #bae6fd' }}>
                 <p style={{ ...s.pSmall, color: '#1e40af', margin: 0 }}>
                   <strong>FWCI yorumu:</strong> Ortalama {institutional.avgFwci},
-                  {institutional.avgFwci >= 1.5 ? ' global ortalamanın belirgin üzerinde — güçlü akademik etki.' :
-                   institutional.avgFwci >= 1.0 ? ' global ortalamayla uyumlu — makul akademik etki.' :
-                   ' global ortalamanın altında — seçici yayın stratejisi önerilir.'}
+                  {institutional.avgFwci >= 1.5 ? ' global ortalamanın belirgin üzerinde - güçlü akademik etki.' :
+                   institutional.avgFwci >= 1.0 ? ' global ortalamayla uyumlu - makul akademik etki.' :
+                   ' global ortalamanın altında - seçici yayın stratejisi önerilir.'}
                   {' '}FWCI verisi mevcut yayın: <strong>{institutional.fwciCoverage || 0}</strong> / {institutional.total || 0}.
                 </p>
               </div>
@@ -651,7 +651,7 @@ export default function AnnualReportPage() {
                     {institutional.typeDistribution.map((t: any) => {
                       const totalSample = institutional.typeDistribution.reduce((x: number, y: any) => x + y.count, 0);
                       const pct = totalSample > 0 ? (t.count / totalSample) * 100 : 0;
-                      const avgCit = t.count > 0 ? (t.citations / t.count).toFixed(1) : '—';
+                      const avgCit = t.count > 0 ? (t.citations / t.count).toFixed(1) : '-';
                       return (
                         <tr key={t.type}>
                           <td style={s.td}>{t.label}</td>
@@ -665,7 +665,7 @@ export default function AnnualReportPage() {
                   </tbody>
                 </table>
                 <p style={s.pSmall}>
-                  <em>Yayın türü OpenAlex'in tespit ettiği kategorilere göre — makale, kitap, kitap bölümü,
+                  <em>Yayın türü OpenAlex'in tespit ettiği kategorilere göre - makale, kitap, kitap bölümü,
                   tez, ön baskı, bildiri, inceleme, rapor vs. Bu tablo en çok atıf alan {institutional.sampleSize || 500}
                   yayın sample'ı içindeki dağılımı gösterir; kurum geneli dağılımı bunun farklı olabilir.</em>
                 </p>
@@ -738,7 +738,7 @@ export default function AnnualReportPage() {
                           <td style={s.tdR}>{y.count}</td>
                           <td style={s.tdR}>{y.citations}</td>
                           <td style={s.tdR}>
-                            {pubChange === null ? '—' : <span style={{ color: pubChange >= 0 ? '#059669' : '#dc2626' }}>
+                            {pubChange === null ? '-' : <span style={{ color: pubChange >= 0 ? '#059669' : '#dc2626' }}>
                               {pubChange >= 0 ? '+' : ''}%{pubChange}
                             </span>}
                           </td>
@@ -773,13 +773,13 @@ export default function AnnualReportPage() {
                             <tr key={p.doi || i}>
                               <td style={s.td}>{i + 1}</td>
                               <td style={s.tdSmall}>{p.title}</td>
-                              <td style={s.tdSmall}>{p.journal || '—'}</td>
+                              <td style={s.tdSmall}>{p.journal || '-'}</td>
                               <td style={s.tdR}>
                                 {p.quality?.sjrQuartile ? (
                                   <span style={{ ...s.qBadge, background: QUARTILE_COLORS[p.quality.sjrQuartile] }}>
                                     {p.quality.sjrQuartile}
                                   </span>
-                                ) : '—'}
+                                ) : '-'}
                               </td>
                               <td style={{ ...s.tdR, fontWeight: 700 }}>{p.citedBy?.best || 0}</td>
                             </tr>
@@ -822,8 +822,8 @@ export default function AnnualReportPage() {
                     <td style={s.td}>{p.displayName} {p.isMku && <span style={{ color: '#c8a45a' }}>★</span>}</td>
                     <td style={s.tdR}>{formatNum(p.worksCount)}</td>
                     <td style={s.tdR}>{formatNum(p.citedByCount)}</td>
-                    <td style={s.tdR}>{p.hIndex || '—'}</td>
-                    <td style={s.tdR}>{p.twoYearMeanCitedness !== undefined ? (+p.twoYearMeanCitedness).toFixed(2) : '—'}</td>
+                    <td style={s.tdR}>{p.hIndex || '-'}</td>
+                    <td style={s.tdR}>{p.twoYearMeanCitedness !== undefined ? (+p.twoYearMeanCitedness).toFixed(2) : '-'}</td>
                     <td style={s.tdR}>{p.worksLastYear || 0}</td>
                   </tr>
                 ))}
@@ -890,7 +890,7 @@ export default function AnnualReportPage() {
                 <div key={c.code} style={{ marginTop: 14, pageBreakInside: 'avoid' }}>
                   <h3 style={s.h3}>
                     <span style={{ marginRight: 6 }}>{countryFlag(c.code)}</span>
-                    {countryName(c.code)} — En Çok Atıf Alan Ortak Yayınlar
+                    {countryName(c.code)} - En Çok Atıf Alan Ortak Yayınlar
                   </h3>
                   <table style={s.table}>
                     <thead>
@@ -907,8 +907,8 @@ export default function AnnualReportPage() {
                         <tr key={p.doi || i}>
                           <td style={s.td}>{i + 1}</td>
                           <td style={s.tdSmall}>{p.title}</td>
-                          <td style={s.tdSmall}>{p.journal || '—'}</td>
-                          <td style={s.tdR}>{p.year || '—'}</td>
+                          <td style={s.tdSmall}>{p.journal || '-'}</td>
+                          <td style={s.tdR}>{p.year || '-'}</td>
                           <td style={{ ...s.tdR, fontWeight: 700 }}>{p?.citedBy?.best || 0}</td>
                         </tr>
                       ))}
@@ -925,7 +925,7 @@ export default function AnnualReportPage() {
           <div style={s.section}>
             <h2 style={s.h2}>9. EN ÇOK ATIF ALAN YAYINLAR (TOP {topCited.length})</h2>
             <p style={s.p}>
-              Kurumumuzun bugüne kadarki en etkili çalışmaları — atıf sayısına göre sıralı.
+              Kurumumuzun bugüne kadarki en etkili çalışmaları - atıf sayısına göre sıralı.
               Her yayının yayımlandığı dergi ve Q kademesi ile birlikte listelendi.
             </p>
             <table style={s.table}>
@@ -944,14 +944,14 @@ export default function AnnualReportPage() {
                   <tr key={p.doi || i}>
                     <td style={s.td}>{i + 1}</td>
                     <td style={s.tdSmall}>{p.title}</td>
-                    <td style={s.tdSmall}>{p.journal || '—'}</td>
-                    <td style={s.tdR}>{p.year || '—'}</td>
+                    <td style={s.tdSmall}>{p.journal || '-'}</td>
+                    <td style={s.tdR}>{p.year || '-'}</td>
                     <td style={s.tdR}>
                       {p.quality?.sjrQuartile ? (
                         <span style={{ ...s.qBadge, background: QUARTILE_COLORS[p.quality.sjrQuartile] }}>
                           {p.quality.sjrQuartile}
                         </span>
-                      ) : '—'}
+                      ) : '-'}
                     </td>
                     <td style={{ ...s.tdR, fontWeight: 700 }}>{p.citedBy?.best || 0}</td>
                   </tr>
@@ -966,7 +966,7 @@ export default function AnnualReportPage() {
           <div style={s.section}>
             <h2 style={s.h2}>10. Q1 DERGİ YAYINLARI (İLK {q1Pubs.length})</h2>
             <p style={s.p}>
-              SCImago SJR sıralamasında ilk %25'te yer alan dergilerde yayımlanan çalışmalar —
+              SCImago SJR sıralamasında ilk %25'te yer alan dergilerde yayımlanan çalışmalar -
               kurumumuzun yüksek kaliteli yayın ürettiği alanları gösterir.
             </p>
             <table style={s.table}>
@@ -985,10 +985,10 @@ export default function AnnualReportPage() {
                   <tr key={p.doi || i}>
                     <td style={s.td}>{i + 1}</td>
                     <td style={s.tdSmall}>{p.title}</td>
-                    <td style={s.tdSmall}>{p.journal || '—'}</td>
-                    <td style={s.tdR}>{p.year || '—'}</td>
+                    <td style={s.tdSmall}>{p.journal || '-'}</td>
+                    <td style={s.tdR}>{p.year || '-'}</td>
                     <td style={{ ...s.tdR, fontWeight: 700 }}>{p.citedBy?.best || 0}</td>
-                    <td style={s.tdR}>{p.openAccess?.isOa ? 'Açık' : '—'}</td>
+                    <td style={s.tdR}>{p.openAccess?.isOa ? 'Açık' : '-'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1001,7 +1001,7 @@ export default function AnnualReportPage() {
           <div style={s.section}>
             <h2 style={s.h2}>11. EN ÇOK YAYIN YAPILAN DERGİLER (TOP {Math.min(topJournals.length, 15)})</h2>
             <p style={s.p}>
-              Kurum araştırmasının dergi konsantrasyonu — üst sıralardaki derginin payı, araştırma odağının
+              Kurum araştırmasının dergi konsantrasyonu - üst sıralardaki derginin payı, araştırma odağının
               ne ölçüde belirli bir akademik topluluğa bağlı olduğunu gösterir.
             </p>
             <table style={s.table}>
@@ -1089,7 +1089,7 @@ export default function AnnualReportPage() {
               </>
             )}
 
-            {/* Her SDG'ye değen projelerin detayı — en yoğun 5 SDG */}
+            {/* Her SDG'ye değen projelerin detayı - en yoğun 5 SDG */}
             {sdgHeat?.cells?.length > 0 && (() => {
               // SDG başına proje listesi
               const sdgToProjects = new Map<string, any[]>();
@@ -1114,7 +1114,7 @@ export default function AnnualReportPage() {
                   <div key={sdg} style={{ marginTop: 14, pageBreakInside: 'avoid' }}>
                     <h3 style={s.h3}>
                       <span style={{ ...s.sdgNumSmall, background: color, marginRight: 6 }}>{num}</span>
-                      SDG {num} — Projeler ({projs.length} katkı)
+                      SDG {num} - Projeler ({projs.length} katkı)
                     </h3>
                     <table style={s.table}>
                       <thead>
@@ -1129,7 +1129,7 @@ export default function AnnualReportPage() {
                           <tr key={p.id || i}>
                             <td style={s.td}>{i + 1}</td>
                             <td style={s.tdSmall}>{p.name}</td>
-                            <td style={s.tdR}>{p.status || '—'}</td>
+                            <td style={s.tdR}>{p.status || '-'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1146,7 +1146,7 @@ export default function AnnualReportPage() {
           <div style={s.section}>
             <h2 style={s.h2}>13. FAKÜLTELER ARASI İŞBİRLİKLERİ</h2>
             <p style={s.p}>
-              Aynı projede farklı fakültelerden üyeler — kurum içi disiplinlerarası işbirliğinin
+              Aynı projede farklı fakültelerden üyeler - kurum içi disiplinlerarası işbirliğinin
               en doğrudan göstergesi.
             </p>
             <table style={s.table}>
@@ -1176,7 +1176,7 @@ export default function AnnualReportPage() {
               return (
                 <div key={`pair-${idx}`} style={{ marginTop: 14, pageBreakInside: 'avoid' }}>
                   <h3 style={s.h3}>
-                    {c.facultyA} ↔ {c.facultyB} — Ortak Projeler ({c.sharedProjects})
+                    {c.facultyA} ↔ {c.facultyB} - Ortak Projeler ({c.sharedProjects})
                   </h3>
                   <table style={s.table}>
                     <thead>
@@ -1191,7 +1191,7 @@ export default function AnnualReportPage() {
                         <tr key={p.id || i}>
                           <td style={s.td}>{i + 1}</td>
                           <td style={s.tdSmall}>{p.name}</td>
-                          <td style={s.tdR}>{p.status || '—'}</td>
+                          <td style={s.tdR}>{p.status || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1205,9 +1205,9 @@ export default function AnnualReportPage() {
         {/* ═══ 14. AB PROJELERİ ═══ */}
         {cordisProjects.length > 0 && (
           <div style={s.section}>
-            <h2 style={s.h2}>14. ULUSLARARASI FONLAMA (CORDIS — AB)</h2>
+            <h2 style={s.h2}>14. ULUSLARARASI FONLAMA (CORDIS - AB)</h2>
             <p style={s.p}>
-              Kurumumuzun katıldığı AB araştırma projeleri — Horizon Europe, Horizon 2020, FP7 programları.
+              Kurumumuzun katıldığı AB araştırma projeleri - Horizon Europe, Horizon 2020, FP7 programları.
               Toplam AB katkısı: <strong>€{Number(totalEuBudget).toLocaleString('tr-TR')}</strong>.
             </p>
             <table style={s.table}>
@@ -1224,10 +1224,10 @@ export default function AnnualReportPage() {
                 {cordisProjects.slice(0, 15).map((p: any) => (
                   <tr key={p.id}>
                     <td style={s.td}>{p.framework}</td>
-                    <td style={s.td}>{p.acronym || '—'}</td>
+                    <td style={s.td}>{p.acronym || '-'}</td>
                     <td style={s.tdSmall}>{p.title}</td>
-                    <td style={s.td}>{p.coordinator?.name || '—'}</td>
-                    <td style={s.tdR}>{p.ecMaxContribution ? '€' + Number(p.ecMaxContribution).toLocaleString('tr-TR') : '—'}</td>
+                    <td style={s.td}>{p.coordinator?.name || '-'}</td>
+                    <td style={s.tdR}>{p.ecMaxContribution ? '€' + Number(p.ecMaxContribution).toLocaleString('tr-TR') : '-'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1285,7 +1285,7 @@ export default function AnnualReportPage() {
                   <tbody>
                     {funding.bySource.map((f: any) => (
                       <tr key={f.source}>
-                        <td style={s.td}>{f.source || '—'}</td>
+                        <td style={s.td}>{f.source || '-'}</td>
                         <td style={s.tdR}>{f.totalApplications || 0}</td>
                         <td style={s.tdR}>{f.accepted || 0}</td>
                         <td style={{ ...s.tdR, fontWeight: 700 }}>%{f.successRate || 0}</td>
@@ -1352,8 +1352,8 @@ export default function AnnualReportPage() {
                   <tr key={r.userId}>
                     <td style={s.td}>{i + 1}</td>
                     <td style={{ ...s.td, fontWeight: i < 3 ? 700 : 400 }}>{r.name}</td>
-                    <td style={s.td}>{r.faculty || '—'}</td>
-                    <td style={s.td}>{r.department || '—'}</td>
+                    <td style={s.td}>{r.faculty || '-'}</td>
+                    <td style={s.td}>{r.department || '-'}</td>
                     <td style={s.tdR}>{r.total}</td>
                     <td style={s.tdR}>{r.active}</td>
                     <td style={s.tdR}>{r.completed}</td>
@@ -1404,11 +1404,11 @@ export default function AnnualReportPage() {
             Atıf sayısında kaynaklar arasında en yüksek değer baz alınır.
           </p>
           <p style={s.p}>
-            <strong>FWCI:</strong> Field-Weighted Citation Impact — OpenAlex tarafından yayın alanı ve
+            <strong>FWCI:</strong> Field-Weighted Citation Impact - OpenAlex tarafından yayın alanı ve
             yayın yılına göre normalize edilen atıf değeri. 1.00 dünya ortalamasıdır.
           </p>
           <p style={s.p}>
-            <strong>Top 1% / Top 10%:</strong> OpenAlex'in cited_by_percentile_year alanından —
+            <strong>Top 1% / Top 10%:</strong> OpenAlex'in cited_by_percentile_year alanından -
             yayının alan-yıl sıralamasında üst 1% / 10%'a girip girmediği.
           </p>
           <p style={s.p}>
@@ -1420,7 +1420,7 @@ export default function AnnualReportPage() {
             üzerinden hesaplanır; aktif projeler dahil edilmez.
           </p>
           <p style={s.p}>
-            <strong>Peer benchmark:</strong> OpenAlex institution summary endpoint'i üzerinden —
+            <strong>Peer benchmark:</strong> OpenAlex institution summary endpoint'i üzerinden -
             kurumun toplam yayın, atıf, h-index ve 2yr_mean_citedness metrikleri çekilir.
             Peer set PEER_OPENALEX_IDS env ile özelleştirilebilir.
           </p>
@@ -1458,7 +1458,7 @@ export default function AnnualReportPage() {
               </li>
               <li>
                 <strong>Veri tazeliği:</strong> Veri kaynakları (OpenAlex, SCImago, CORDIS) farklı güncelleme
-                döngülerine sahiptir — raporun tarih damgası verinin çekildiği anı gösterir.
+                döngülerine sahiptir - raporun tarih damgası verinin çekildiği anı gösterir.
               </li>
             </ul>
           </div>

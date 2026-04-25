@@ -112,7 +112,7 @@ export default function SettingsPage() {
       const payload: Record<string,string> = {};
       Object.entries(settings).forEach(([k,v]) => { payload[k] = String(v||''); });
       await settingsApi.update(payload);
-      // Store cache'ini temizle — sidebar/login anında güncellensin
+      // Store cache'ini temizle - sidebar/login anında güncellensin
       await loadSettings(true);
       toast.success('Ayarlar kaydedildi');
     } catch { toast.error('Kayıt başarısız'); }
@@ -226,7 +226,7 @@ export default function SettingsPage() {
               ))}
             </div>
 
-            {/* Özellik kontrolleri — sistem genel davranışı */}
+            {/* Özellik kontrolleri - sistem genel davranışı */}
             <div className="card space-y-4">
               <h3 className="font-display text-base font-semibold text-navy pb-4 border-b" style={{borderColor:'#e8e4dc'}}>Sistem Özellikleri</h3>
               <label className="flex items-start gap-3 p-3 rounded-lg cursor-pointer hover:bg-[#faf8f4]" style={{ border: '1px solid #e8e4dc' }}>
@@ -278,7 +278,7 @@ export default function SettingsPage() {
                     {settings.logo_url ? <img src={settings.logo_url} alt="Logo" className="max-h-16 mx-auto object-contain" /> :
                     <div><div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-2" style={{background:'#f0ede8'}}>
                       <svg className="w-6 h-6 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg></div>
-                      <p className="text-xs text-muted">PNG, SVG — tıkla</p></div>}
+                      <p className="text-xs text-muted">PNG, SVG - tıkla</p></div>}
                   </div>
                   <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={e=>e.target.files?.[0]&&handleImageUpload(e.target.files[0],'logo_url')}/>
                   {settings.logo_url && (
@@ -295,7 +295,7 @@ export default function SettingsPage() {
                     {settings.favicon_url ? <img src={settings.favicon_url} alt="Favicon" className="w-10 h-10 mx-auto object-contain" /> :
                     <div><div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-2" style={{background:'#f0ede8'}}>
                       <svg className="w-6 h-6 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg></div>
-                      <p className="text-xs text-muted">ICO, PNG — tıkla</p></div>}
+                      <p className="text-xs text-muted">ICO, PNG - tıkla</p></div>}
                   </div>
                   <input ref={faviconRef} type="file" accept="image/*,.ico" className="hidden" onChange={e=>e.target.files?.[0]&&handleImageUpload(e.target.files[0],'favicon_url')}/>
                   {settings.favicon_url && (
@@ -333,7 +333,7 @@ export default function SettingsPage() {
                       <td className="px-5 py-4"><div className="w-5 h-5 rounded-full" style={{background:t.color||'#1a3a6b'}}/></td>
                       <td className="px-5 py-4"><code className="text-xs font-mono-dm text-muted bg-slate-50 px-2 py-1 rounded">{t.key}</code></td>
                       <td className="px-5 py-4"><span className="font-semibold text-sm px-3 py-1 rounded-full" style={{background:(t.color||'#1a3a6b')+'18',color:t.color||'#1a3a6b'}}>{t.label}</span></td>
-                      <td className="px-5 py-4">{t.isSystem?<span className="badge badge-gold text-xs">Sistem</span>:<span className="text-xs text-muted">—</span>}</td>
+                      <td className="px-5 py-4">{t.isSystem?<span className="badge badge-gold text-xs">Sistem</span>:<span className="text-xs text-muted">-</span>}</td>
                       <td className="px-5 py-4">
                         <div className="flex gap-2">
                           <button onClick={()=>{setEditType(t);setTypeForm({key:t.key,label:t.label,color:t.color||'#1a3a6b'});setShowTypeModal(true);}} className="btn-secondary text-xs px-3 py-1.5">Düzenle</button>
@@ -368,7 +368,7 @@ export default function SettingsPage() {
                     <tr key={f.id} className="table-row-hover border-b" style={{borderColor:'#f5f2ee'}}>
                       <td className="px-5 py-4"><div className="w-5 h-5 rounded-full" style={{background:f.color||'#1a3a6b'}}/></td>
                       <td className="px-5 py-4 font-semibold text-navy text-sm">{f.name}</td>
-                      <td className="px-5 py-4 text-xs text-muted">{f.shortName||'—'}</td>
+                      <td className="px-5 py-4 text-xs text-muted">{f.shortName||'-'}</td>
                       <td className="px-5 py-4">
                         <button onClick={async()=>{await facultiesApi.update(f.id,{isActive:f.isActive?0:1});await facultiesApi.getAll().then(r=>setFaculties(r.data));}}
                           className={`badge text-xs cursor-pointer ${f.isActive?'badge-green':'badge-gray'}`}>{f.isActive?'Aktif':'Pasif'}</button>
@@ -420,7 +420,7 @@ export default function SettingsPage() {
                         <td className="px-5 py-4 font-semibold text-navy text-sm">{f.label||f.name}</td>
                         <td className="px-5 py-4"><code className="text-xs font-mono-dm text-muted bg-slate-50 px-2 py-1 rounded">{f.key}</code></td>
                         <td className="px-5 py-4 text-xs text-muted">{FIELD_TYPES.find(t=>t[0]===f.type)?.[1]||f.type}</td>
-                        <td className="px-5 py-4">{f.required?<span className="badge badge-green text-xs">Evet</span>:<span className="text-muted text-xs">—</span>}</td>
+                        <td className="px-5 py-4">{f.required?<span className="badge badge-green text-xs">Evet</span>:<span className="text-muted text-xs">-</span>}</td>
                         <td className="px-5 py-4">
                           <button onClick={async()=>{await dynamicFieldsApi.update(f.id,{isActive:f.isActive?0:1});await dynamicFieldsApi.getAllAdmin().then(r=>setFields(r.data));}}
                             className={`badge text-xs cursor-pointer ${f.isActive?'badge-green':'badge-gray'}`}>{f.isActive?'Aktif':'Pasif'}</button>
@@ -451,7 +451,7 @@ export default function SettingsPage() {
               </p>
               <div className="p-3 rounded-xl" style={{background:'#fffbeb',border:'1px solid #fde68a'}}>
                 <p className="text-xs text-amber-800">
-                  <strong>Bilgi:</strong> Demo proje seed'i bootstrap'tan kaldırıldı —
+                  <strong>Bilgi:</strong> Demo proje seed'i bootstrap'tan kaldırıldı -
                   yeni başlangıçlarda otomatik demo eklenmez. Bu buton sadece mevcut
                   demo kayıtları temizlemek içindir (ilişkili üye/belge/rapor/etik kayıtları dahil).
                 </p>
@@ -499,9 +499,9 @@ export default function SettingsPage() {
                     <tr key={rt.id} className="table-row-hover border-b" style={{borderColor:'#f5f2ee'}}>
                       <td className="px-5 py-4"><div className="w-5 h-5 rounded-full" style={{background:rt.color||'#1a3a6b'}}/></td>
                       <td className="px-5 py-4"><span className="font-semibold text-sm px-3 py-1 rounded-full" style={{background:(rt.color||'#1a3a6b')+'18',color:rt.color||'#1a3a6b'}}>{rt.label}</span></td>
-                      <td className="px-5 py-4 text-sm text-muted">{rt.description||'—'}</td>
+                      <td className="px-5 py-4 text-sm text-muted">{rt.description||'-'}</td>
                       <td className="px-5 py-4">{rt.showProgress?<span className="badge badge-green text-xs">Göster</span>:<span className="badge badge-gray text-xs">Gösterme</span>}</td>
-                      <td className="px-5 py-4">{rt.isSystem?<span className="badge badge-gold text-xs">Sistem</span>:<span className="text-xs text-muted">—</span>}</td>
+                      <td className="px-5 py-4">{rt.isSystem?<span className="badge badge-gold text-xs">Sistem</span>:<span className="text-xs text-muted">-</span>}</td>
                       <td className="px-5 py-4">
                         <button onClick={async()=>{await reportTypesApi.update(rt.id,{isActive:rt.isActive?0:1});await reportTypesApi.getAll().then(r=>setReportTypes(r.data));}}
                           className={`badge text-xs cursor-pointer ${rt.isActive?'badge-green':'badge-gray'}`}>{rt.isActive?'Aktif':'Pasif'}</button>

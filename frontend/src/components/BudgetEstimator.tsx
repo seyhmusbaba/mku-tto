@@ -39,19 +39,19 @@ export function BudgetEstimator({ type, faculty }: Props) {
       )}
       {noData && !loading && (
         <div className="mt-2 text-xs p-2.5 rounded-lg" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af' }}>
-          <strong>📊 Geçmiş bütçe verisi yok.</strong> Bu proje türü{faculty ? ` (${faculty})` : ''} için sistemde bütçeli proje bulunmuyor — ilk bütçeyi siz belirleyin. Ortalama tahminleri görmek için sistemde aynı türde birkaç proje olması gerekiyor.
+          <strong>📊 Geçmiş bütçe verisi yok.</strong> Bu proje türü{faculty ? ` (${faculty})` : ''} için sistemde bütçeli proje bulunmuyor - ilk bütçeyi siz belirleyin. Ortalama tahminleri görmek için sistemde aynı türde birkaç proje olması gerekiyor.
         </div>
       )}
       {open && data && (
         <div className="mt-2 p-3 rounded-xl" style={{ background: '#f0fdf4', border: '1px solid #86efac' }}>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-semibold text-green-800">💰 Geçmiş Bütçe İstatistikleri{faculty ? ` — ${faculty}` : ''}</p>
+            <p className="text-xs font-semibold text-green-800">💰 Geçmiş Bütçe İstatistikleri{faculty ? ` - ${faculty}` : ''}</p>
             <button type="button" onClick={() => setOpen(false)} className="text-green-600 text-xs">✕</button>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center">
             {[['Minimum', data.min], ['Ortalama', data.avg], ['Maksimum', data.max]].map(([l, v]) => (
               <div key={l} className="bg-white rounded-lg p-2">
-                <p className="text-xs font-bold text-green-700">{v && +v > 0 ? Number(v).toLocaleString('tr-TR') + ' ₺' : '—'}</p>
+                <p className="text-xs font-bold text-green-700">{v && +v > 0 ? Number(v).toLocaleString('tr-TR') + ' ₺' : '-'}</p>
                 <p className="text-[10px] text-muted">{l}</p>
               </div>
             ))}

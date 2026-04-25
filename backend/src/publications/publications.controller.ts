@@ -21,7 +21,7 @@ export class UserPublicationsController {
 
   @Post()
   create(@Body() dto: any, @Request() req: any) {
-    // Kendi adına ekler — admin başkası adına ekleyebilir
+    // Kendi adına ekler - admin başkası adına ekleyebilir
     const userId = dto.userId && req.user.roleName === 'Süper Admin' ? dto.userId : req.user.userId;
     return this.svc.create(userId, dto);
   }

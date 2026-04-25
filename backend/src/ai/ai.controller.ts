@@ -92,7 +92,7 @@ export class AiController {
   // ── YILLIK RAPOR NARRATİVE ÜRETİMİ ──────────────────────────────
   /**
    * Rapor için profesyonel önsöz + değerlendirme paragrafları üretir.
-   * Bütün rapor verisi özet olarak geçilir — 3-4 paragraf çıktı verir.
+   * Bütün rapor verisi özet olarak geçilir - 3-4 paragraf çıktı verir.
    */
   @Post('annual-report-narrative')
   async annualReportNarrative(@Body() body: {
@@ -121,7 +121,7 @@ export class AiController {
   }) {
     const apiKey = process.env.ANTHROPIC_API_KEY;
 
-    // Fallback — API yoksa basit özet üret
+    // Fallback - API yoksa basit özet üret
     if (!apiKey) {
       return { preface: this.fallbackNarrative(body), evaluation: '', outlook: '' };
     }
@@ -151,36 +151,36 @@ ULUSLARARASI:
 
 KURUMSAL:
 - SDG kapsamı: ${body.sdgCovered || 0}/17
-- En başarılı fakülte: ${body.topFaculty || '—'}
+- En başarılı fakülte: ${body.topFaculty || '-'}
 ${body.peerRank?.peerCount ? `- Peer üniversiteler arasında yayın sırası: ${body.peerRank.position}/${body.peerRank.peerCount}` : ''}
     `.trim();
 
-    const prompt = `Sen kurumsal bibliyometri raporu için kıdemli bir analist rolündesin — üniversite rektörlüğü ve senato seviyesinde okunacak bir belge yazıyorsun. Verilen kurumun ${body.year} yılına dair raporu için 3 bölümlük profesyonel metin üret.
+    const prompt = `Sen kurumsal bibliyometri raporu için kıdemli bir analist rolündesin - üniversite rektörlüğü ve senato seviyesinde okunacak bir belge yazıyorsun. Verilen kurumun ${body.year} yılına dair raporu için 3 bölümlük profesyonel metin üret.
 
 GÖRÜNEN VERİ:
 ${dataSummary}
 
 YAZIM KURALLARI:
-• Türkçe, resmi ama mekanik değil — akıcı bir analist tonu.
+• Türkçe, resmi ama mekanik değil - akıcı bir analist tonu.
 • KESİNLİKLE "önemli bir yıl oldu", "büyük başarı" gibi klişe ifadeler yok.
 • Her iddiayı spesifik sayıyla destekle. ("FWCI 1.2 ile alan ortalamasının üstünde", "%${body.internationalCoauthorRatio} uluslararası ortaklık oranı" gibi).
-• Güçlü yönlerle zayıf yönleri dengeli tut. Örtbas yapma — veri eksikse "şu metrik için yeterli veri yok" de.
+• Güçlü yönlerle zayıf yönleri dengeli tut. Örtbas yapma - veri eksikse "şu metrik için yeterli veri yok" de.
 • FWCI 1.0 altındaysa, top 1% sıfırsa, uluslararası oran düşükse bunu açıkça yorumla ve neden olabileceğini tahmin et.
 • Spesifik karşılaştırma yap: peer üniversiteler var mı, var ise konumunu söyle.
-• Rakamları havada bırakma: "%72 başarı" değil "%72 — kararlaşan projelerin büyük çoğunluğu tamamlanıyor, ancak ${body.totalProjects ? Math.round(((body.cancelledProjects || 0) / body.totalProjects) * 100) : 0}% iptal oranı da mevcut".
+• Rakamları havada bırakma: "%72 başarı" değil "%72 - kararlaşan projelerin büyük çoğunluğu tamamlanıyor, ancak ${body.totalProjects ? Math.round(((body.cancelledProjects || 0) / body.totalProjects) * 100) : 0}% iptal oranı da mevcut".
 
 3 BÖLÜMÜN İÇERİĞİ:
 
-1. PREFACE (önsöz): ~130 kelime, 2 paragraf. Kurumsal bakış açısıyla yılın özetini anlatan bir önsöz — TTO/rektörlük imzasından çıkmış gibi hissettirsin. İlk paragrafta yılın bağlamı (hangi büyüme alanı dikkat çekti), ikincide araştırma politikasına dair kısa bir mesaj.
+1. PREFACE (önsöz): ~130 kelime, 2 paragraf. Kurumsal bakış açısıyla yılın özetini anlatan bir önsöz - TTO/rektörlük imzasından çıkmış gibi hissettirsin. İlk paragrafta yılın bağlamı (hangi büyüme alanı dikkat çekti), ikincide araştırma politikasına dair kısa bir mesaj.
 
 2. EVALUATION (analitik değerlendirme): ~200 kelime, 3 paragraf.
    - 1. paragraf: Üretkenlik ve büyüme analizi (yayın sayısı, atıf birikimi, pubGrowthPct). Pozitif VEYA negatifse neden olabileceği.
    - 2. paragraf: Kalite ve etki analizi (FWCI, Top 1%/10%, Q1 payı, OA oranı). Zayıf göstergeleri açıkça söyle.
    - 3. paragraf: Uluslararasılaşma ve portföy çeşitliliği (intl ortaklık, ülke sayısı, SDG kapsamı). Peer karşılaştırma varsa yorumla.
 
-3. OUTLOOK (gelecek): ~90 kelime, 1 paragraf. Gerçekçi somut hedefler — "çok yayın yapalım" gibi değil, "FWCI'yi 1.X seviyesine çekmek için yüksek IF'li dergilerde 2-3 stratejik yayın hedeflenebilir" gibi. Mevcut zayıf noktaları telafi edecek öneriler.
+3. OUTLOOK (gelecek): ~90 kelime, 1 paragraf. Gerçekçi somut hedefler - "çok yayın yapalım" gibi değil, "FWCI'yi 1.X seviyesine çekmek için yüksek IF'li dergilerde 2-3 stratejik yayın hedeflenebilir" gibi. Mevcut zayıf noktaları telafi edecek öneriler.
 
-TONU HATIRLA: Bu rapor dekan ve rektöre gidecek. Klişe veya reklam dili DEĞİL — kararlı analitik dil kullan.
+TONU HATIRLA: Bu rapor dekan ve rektöre gidecek. Klişe veya reklam dili DEĞİL - kararlı analitik dil kullan.
 
 SADECE JSON döndür (markdown yok, kod bloğu yok):
 {
@@ -341,18 +341,18 @@ SADECE JSON döndür:
     const ext = (file.originalname.split('.').pop() || '').toLowerCase();
     try {
       if (ext === 'txt') {
-        // Encoding tespiti — UTF-8, Latin-1, Windows-1254 (Türkçe) dene
+        // Encoding tespiti - UTF-8, Latin-1, Windows-1254 (Türkçe) dene
         let text = file.buffer.toString('utf-8');
-        // Bozuk karakter tespiti — yaygın Türkçe harf bozulması
+        // Bozuk karakter tespiti - yaygın Türkçe harf bozulması
         if (text.includes('Ã¼') || text.includes('Ã§') || text.includes('Ä±')) {
-          // UTF-8 yanlış decode — Latin-1 ile dene
+          // UTF-8 yanlış decode - Latin-1 ile dene
           text = file.buffer.toString('latin1');
         }
         return { text: text.trim() };
       }
 
       if (ext === 'pdf') {
-        // DOMMatrix polyfill — pdf-parse/pdf.js Node.js'de bazı browser API'lerini bekliyor
+        // DOMMatrix polyfill - pdf-parse/pdf.js Node.js'de bazı browser API'lerini bekliyor
         const g = global as any;
         if (!g.DOMMatrix) g.DOMMatrix = class { constructor() {} static fromFloat64Array() { return new g.DOMMatrix(); } };
         if (!g.DOMPoint)  g.DOMPoint  = class { constructor() {} };
@@ -380,7 +380,7 @@ SADECE JSON döndür:
           };
         }
 
-        // Türkçe karakter düzeltme — bazı PDF encoder'lar yanlış kodlar
+        // Türkçe karakter düzeltme - bazı PDF encoder'lar yanlış kodlar
         text = text
           .replace(/\uFFFD/g, ' ')
           .replace(/ý/g, 'ı').replace(/þ/g, 'ş').replace(/ð/g, 'ğ')

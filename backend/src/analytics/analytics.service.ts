@@ -6,7 +6,7 @@ import { User } from '../database/entities/user.entity';
 import { ProjectReport } from '../database/entities/project-report.entity';
 import { SystemSetting } from '../database/entities/system-setting.entity';
 
-// Global erişim rolleri — tüm sistemin analizine erişir
+// Global erişim rolleri - tüm sistemin analizine erişir
 const GLOBAL_ROLES = ['Süper Admin', 'Rektör'];
 
 type AnalyticsScope =
@@ -52,7 +52,7 @@ export class AnalyticsService {
   }
 
   /**
-   * Ortak proje filtresi — year/faculty/type/from/to parametrelerini QB'ye uygular.
+   * Ortak proje filtresi - year/faculty/type/from/to parametrelerini QB'ye uygular.
    * Tüm analytics endpoint'leri bu helper'dan geçerse filtre davranışı
    * sekmeler arasında tutarlı olur.
    */
@@ -69,7 +69,7 @@ export class AnalyticsService {
     return qb;
   }
 
-  // Geriye uyumluluk — eski signature kullanan yerler kalırsa false döner
+  // Geriye uyumluluk - eski signature kullanan yerler kalırsa false döner
   private async hasFullAccess(roleName: string): Promise<boolean> {
     if (GLOBAL_ROLES.includes(roleName)) return true;
     try {
@@ -114,7 +114,7 @@ export class AnalyticsService {
     const projects = await qb.getMany();
     const total = projects.length;
 
-    // Sadece gerçekten bulunan statüleri döndür — 0 olanları gizle (hayalet durumları önler)
+    // Sadece gerçekten bulunan statüleri döndür - 0 olanları gizle (hayalet durumları önler)
     const statusCounts: Record<string, number> = {};
     for (const p of projects) {
       statusCounts[p.status] = (statusCounts[p.status] || 0) + 1;
@@ -131,7 +131,7 @@ export class AnalyticsService {
     const cancelled = projects.filter(p => p.status === 'cancelled').length;
     const pending = projects.filter(p => ['application','pending'].includes(p.status)).length;
     const suspended = projects.filter(p => p.status === 'suspended').length;
-    // 3 ana oran — toplam proje sayısı üzerinden (anlamlı ve tutarlı)
+    // 3 ana oran - toplam proje sayısı üzerinden (anlamlı ve tutarlı)
     const activeRate = total > 0 ? Math.round((active / total) * 100) : 0;
     const completedRate = total > 0 ? Math.round((completed / total) * 100) : 0;
     const pendingRate = total > 0 ? Math.round((pending / total) * 100) : 0;
@@ -248,7 +248,7 @@ export class AnalyticsService {
       return {
         userId: r.ownerId,
         name: u ? `${u.title || ''} ${u.firstName} ${u.lastName}`.trim() : 'Bilinmiyor',
-        faculty: u?.faculty || '—', department: u?.department || '—',
+        faculty: u?.faculty || '-', department: u?.department || '-',
         total: +r.total, completed: +r.completed, active: +r.active,
         totalBudget: Math.round(+r.totalBudget || 0),
         score: +r.total * 10 + +r.completed * 15,
@@ -335,7 +335,7 @@ export class AnalyticsService {
       .orderBy('total', 'DESC')
       .getRawMany();
 
-    // Kaynak adı normalleştirme — "tubitak" / "TUBİTAK" / "TÜBİTAK" aynı bucket'a
+    // Kaynak adı normalleştirme - "tubitak" / "TUBİTAK" / "TÜBİTAK" aynı bucket'a
     const normalized = new Map<string, any>();
     for (const r of raw) {
       const key = this.normalizeFundingSource(r.source);
@@ -478,8 +478,8 @@ export class AnalyticsService {
       id: p.id, title: p.title, status: p.status, type: p.type,
       faculty: p.faculty, department: p.department, budget: p.budget,
       fundingSource: p.fundingSource, startDate: p.startDate, endDate: p.endDate,
-      owner: p.owner ? `${p.owner.firstName} ${p.owner.lastName}` : '—',
-      ownerEmail: p.owner?.email || '—',
+      owner: p.owner ? `${p.owner.firstName} ${p.owner.lastName}` : '-',
+      ownerEmail: p.owner?.email || '-',
       memberCount: p.members?.length || 0, reportCount: p.reports?.length || 0,
       latestProgress: p.reports?.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]?.progressPercent || 0,
       tags: p.tags?.join(', ') || '', createdAt: p.createdAt,

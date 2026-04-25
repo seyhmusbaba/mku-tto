@@ -34,7 +34,7 @@ export function SimilarResearchPanel({ title, description, keywords }: Props) {
         style={{ background: '#fef3c7', border: '1px solid #fde68a', color: '#92400e' }}>
         <span>⚠</span>
         <div>
-          <strong>Scopus entegrasyonu yapılandırılmamış.</strong> Dünya literatürü taraması için Scopus API anahtarı gerekli — admin Railway → Backend → Variables ekranından <code>SCOPUS_API_KEY</code> ekleyince bu özellik aktif olur.
+          <strong>Scopus entegrasyonu yapılandırılmamış.</strong> Dünya literatürü taraması için Scopus API anahtarı gerekli - admin Railway → Backend → Variables ekranından <code>SCOPUS_API_KEY</code> ekleyince bu özellik aktif olur.
         </div>
       </div>
     );
@@ -96,7 +96,7 @@ export function SimilarResearchPanel({ title, description, keywords }: Props) {
               </div>
             ))
           )}
-          <p className="text-[10px] text-muted text-center pt-1">Scopus veritabanı bazlı — en çok atıf alan çalışmalar listelendi</p>
+          <p className="text-[10px] text-muted text-center pt-1">Scopus veritabanı bazlı - en çok atıf alan çalışmalar listelendi</p>
         </div>
       )}
     </div>

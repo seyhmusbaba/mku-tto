@@ -35,7 +35,7 @@ export interface UnifiedPublication {
   // Authors
   authors: Array<{ name: string; orcid?: string; affiliation?: string; countries?: string[]; institutions?: string[] }>;
 
-  // Metrics (kaynakların max'ını al — bazen farklılık olur)
+  // Metrics (kaynakların max'ını al - bazen farklılık olur)
   citedBy: {
     crossref?: number;
     scopus?: number;
@@ -138,7 +138,7 @@ export class PublicationsService {
 
   /**
    * Yazar adı + kurum hint ile yayın arama (ORCID yoksa fallback).
-   * TR Dizin üzerinden Türkçe yayınları yakalar — Google Scholar açığını kapatır.
+   * TR Dizin üzerinden Türkçe yayınları yakalar - Google Scholar açığını kapatır.
    */
   async getAuthorPublicationsByName(
     fullName: string,
@@ -152,7 +152,7 @@ export class PublicationsService {
 
     const map = new Map<string, UnifiedPublication>();
 
-    // TR Dizin — Türkçe yayınlar için
+    // TR Dizin - Türkçe yayınlar için
     try {
       const trPubs = await this.trdizin.searchByAuthorName(fullName, institutionHint, limit);
       for (const p of trPubs) this.mergeTrDizin(map, p);
@@ -160,7 +160,7 @@ export class PublicationsService {
       this.logger.warn(`TR Dizin author search failed: ${e.message}`);
     }
 
-    // OpenAlex — uluslararası kapsama
+    // OpenAlex - uluslararası kapsama
     try {
       const oaAuthors = await this.openalex.searchAuthorByName(fullName, institutionHint, 3);
       if (oaAuthors.length > 0) {
@@ -212,7 +212,7 @@ export class PublicationsService {
   }
 
   /**
-   * Kurumsal bazlı yayın toplama — MKÜ'nün tüm yayınları için.
+   * Kurumsal bazlı yayın toplama - MKÜ'nün tüm yayınları için.
    * OpenAlex institution ID'si üzerinden en hızlı yol.
    */
   async getInstitutionPublications(
@@ -242,7 +242,7 @@ export class PublicationsService {
 
     const map = new Map<string, UnifiedPublication>();
 
-    // 1. OpenAlex — uluslararası kapsama (DOI'li yayınlar ağırlıklı)
+    // 1. OpenAlex - uluslararası kapsama (DOI'li yayınlar ağırlıklı)
     try {
       const works = await this.openalex.getInstitutionWorks(institutionId, yearOrRange, limit);
       for (const w of works) this.mergeOpenAlex(map, w);
@@ -250,7 +250,7 @@ export class PublicationsService {
       this.logger.warn(`OpenAlex institution works failed: ${e.message}`);
     }
 
-    // 2. TR Dizin — OpenAlex'in kaçırdığı Türkçe yayınları ekler
+    // 2. TR Dizin - OpenAlex'in kaçırdığı Türkçe yayınları ekler
     try {
       const thisYear = new Date().getFullYear();
       const trFromYear = fromYear || (thisYear - 5);
@@ -301,7 +301,7 @@ export class PublicationsService {
           name: a.name,
           orcid: a.orcid,
           affiliation: a.institutionName,
-          // TR Dizin yazarlarının kurumu Türkçe isimli — ülke verisi yok ama
+          // TR Dizin yazarlarının kurumu Türkçe isimli - ülke verisi yok ama
           // TR Dizin Türkiye indeksi olduğu için varsayılan TR
           countries: ['TR'],
         })),
@@ -493,7 +493,7 @@ export class PublicationsService {
   private async enrichAll(map: Map<string, UnifiedPublication>): Promise<void> {
     const promises: Promise<void>[] = [];
     for (const pub of map.values()) {
-      // SCImago — sırayla ISSN → title fallback
+      // SCImago - sırayla ISSN → title fallback
       if (!pub.quality) {
         promises.push((async () => {
           try {
@@ -501,7 +501,7 @@ export class PublicationsService {
               const q = await this.scimago.getQualityByIssns(pub.issn);
               if (q) { pub.quality = q; return; }
             }
-            // Fallback — dergi adı varsa onunla ara
+            // Fallback - dergi adı varsa onunla ara
             if (pub.journal) {
               const q = await this.scimago.findByTitle(pub.journal);
               if (q) { pub.quality = q; return; }
@@ -509,7 +509,7 @@ export class PublicationsService {
           } catch {}
         })());
       }
-      // Unpaywall — OA durumu eksikse ekle
+      // Unpaywall - OA durumu eksikse ekle
       if (pub.doi && !pub.openAccess) {
         promises.push(
           this.oa.getOaStatusByDoi(pub.doi).then(info => {
@@ -528,7 +528,7 @@ export class PublicationsService {
   }
 
   /**
-   * Bir yayın listesi için analitik özet — panel için hazır KPI'lar.
+   * Bir yayın listesi için analitik özet - panel için hazır KPI'lar.
    */
   summarize(pubs: UnifiedPublication[]): {
     total: number;
@@ -556,9 +556,9 @@ export class PublicationsService {
     avgCountriesPerPaper: number | null;
     // Dergi konsantrasyonu
     topJournals: Array<{ name: string; count: number }>;
-    // Yayın türüne göre dağılım — article, book, book-chapter, dissertation, preprint vb.
+    // Yayın türüne göre dağılım - article, book, book-chapter, dissertation, preprint vb.
     typeDistribution: Array<{ type: string; label: string; count: number; citations: number }>;
-    // Üniversite işbirliği — yazarların kurumlarına göre (MKÜ hariç)
+    // Üniversite işbirliği - yazarların kurumlarına göre (MKÜ hariç)
     universityCollaboration: Array<{ name: string; count: number; country?: string }>;
   } {
     const total = pubs.length;
@@ -700,7 +700,7 @@ export class PublicationsService {
       'supplementary-materials': 'Ek Materyaller',
       'other':                 'Diğer',
     };
-    // Dedupe LABEL bazında — aynı Türkçe labela gelen farklı kodları birleştir
+    // Dedupe LABEL bazında - aynı Türkçe labela gelen farklı kodları birleştir
     // (article + journal-article + PAPER hepsi "Makale" → tek satır)
     const typeMap = new Map<string, { label: string; count: number; citations: number; rawTypes: Set<string> }>();
     for (const p of pubs) {

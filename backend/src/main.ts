@@ -9,7 +9,7 @@ import { join } from 'path';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // CORS — localhost + beyaz liste (CORS_ALLOWED_ORIGINS virgülle ayrılmış liste)
+  // CORS - localhost + beyaz liste (CORS_ALLOWED_ORIGINS virgülle ayrılmış liste)
   const envOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
     .split(',')
     .map(s => s.trim())
@@ -28,7 +28,7 @@ async function bootstrap() {
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
-      callback(new Error('CORS: izin verilmedi — ' + origin));
+      callback(new Error('CORS: izin verilmedi - ' + origin));
     },
     credentials: true,
   });

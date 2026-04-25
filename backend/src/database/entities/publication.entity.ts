@@ -1,7 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
 
 /**
- * Manual yayın kayıtları — kullanıcıların kendi profillerine
+ * Manual yayın kayıtları - kullanıcıların kendi profillerine
  * ekledikleri yayınlar. OpenAlex/Crossref'den gelen otomatik veriye
  * ek olarak; DOI'siz eski Türkçe yayınlar, kitap bölümleri,
  * proje raporları vb. için kullanılır.
@@ -43,7 +43,7 @@ export class Publication {
   citations: number;  // manuel girilen atıf sayısı (opsiyonel)
 
   @Column({ nullable: true })
-  quartile: string;  // Q1/Q2/Q3/Q4 — manuel girilebilir
+  quartile: string;  // Q1/Q2/Q3/Q4 - manuel girilebilir
 
   @Column({ default: false })
   isOpenAccess: boolean;

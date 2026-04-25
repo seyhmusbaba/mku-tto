@@ -40,7 +40,7 @@ function Icon({ name, className = 'w-4 h-4', strokeWidth = 1.8 }: { name: IconNa
   );
 }
 
-// Metriklere hover tooltip — kullanıcı "bu nedir?" diye merak ederse
+// Metriklere hover tooltip - kullanıcı "bu nedir?" diye merak ederse
 function InfoTip({ text }: { text: string }) {
   return (
     <span className="relative group inline-flex items-center cursor-help">
@@ -152,7 +152,7 @@ export function BibliometricsPanel({
   const sourceCoverage = data.sourceCoverage || {};
   const topResearchers = data.topResearchers || [];
 
-  // Co-author grafını oluştur — sadece researcher modunda ve publications listesi varsa
+  // Co-author grafını oluştur - sadece researcher modunda ve publications listesi varsa
   const collaborators = mode === 'researcher' && publications.length > 0 && user?.name
     ? extractCollaborators(publications, user.name)
     : [];
@@ -183,7 +183,7 @@ export function BibliometricsPanel({
 
   return (
     <div className="space-y-6">
-      {/* Kullanıcı başlığı — researcher modu */}
+      {/* Kullanıcı başlığı - researcher modu */}
       {mode === 'researcher' && user && (
         <div className="card p-5">
           <div className="flex items-center gap-4 flex-wrap">
@@ -233,45 +233,45 @@ export function BibliometricsPanel({
       )}
 
 
-      {/* KPI kartları — her birinin altında açıklama */}
+      {/* KPI kartları - her birinin altında açıklama */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiBig label="Toplam Yayın" value={summary.total} icon="book" color="#1a3a6b"
           desc="Birden fazla kaynakta geçen yayın tek sayılır (DOI bazlı dedupe)." />
         <KpiBig label="Toplam Atıf" value={summary.totalCitations} icon="quote" color="#7c3aed"
-          desc="Tüm yayınların aldığı toplam atıf — kaynaklar arasında en yüksek değer kullanılır." />
+          desc="Tüm yayınların aldığı toplam atıf - kaynaklar arasında en yüksek değer kullanılır." />
         <KpiBig label="h-index" value={summary.hIndex} icon="h-index" color="#c8a45a"
           desc="En az h tane yayını h veya daha fazla atıf almış demektir. Araştırmacının hem üretkenliğini hem etkisini ölçer." />
         <KpiBig label="Açık Erişim" value={`%${summary.openAccessRatio}`} sub={`${summary.openAccessCount} yayın`}
           icon="open" color="#059669"
-          desc="Açık erişim (OA) yayın oranı — okuyucunun ücret ödemeden erişebildiği makaleler." />
+          desc="Açık erişim (OA) yayın oranı - okuyucunun ücret ödemeden erişebildiği makaleler." />
       </div>
 
-      {/* SAMPLE UYARISI — kurumsal modda, örneklem bazlı metrikler öncesi */}
+      {/* SAMPLE UYARISI - kurumsal modda, örneklem bazlı metrikler öncesi */}
       {mode === 'institutional' && data.sampleNote && (
         <div className="p-4 rounded-2xl flex items-start gap-3 text-xs" style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}>
           <Icon name="alert" className="w-4 h-4 mt-0.5 flex-shrink-0" />
           <div className="leading-relaxed">
             <strong className="font-semibold">⚠ Aşağıdaki metrikler örneklem bazlıdır.</strong> {data.sampleNote}
-            <br />Kurumsal toplamlar (yayın sayısı, atıf, h-index) yukarıdaki KPI kartlarındadır ve OpenAlex kurumsal endpoint'inden doğrudan gelir — tüm {data.total?.toLocaleString?.('tr-TR') || data.total} yayını kapsar.
+            <br />Kurumsal toplamlar (yayın sayısı, atıf, h-index) yukarıdaki KPI kartlarındadır ve OpenAlex kurumsal endpoint'inden doğrudan gelir - tüm {data.total?.toLocaleString?.('tr-TR') || data.total} yayını kapsar.
           </div>
         </div>
       )}
 
-      {/* Alan-normalize metrikler — FWCI + Top 1% (SAMPLE) */}
+      {/* Alan-normalize metrikler - FWCI + Top 1% (SAMPLE) */}
       {(summary.avgFwci !== null && summary.avgFwci !== undefined) || summary.top1PctCount > 0 || summary.internationalCoauthorRatio !== undefined ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {summary.avgFwci !== null && summary.avgFwci !== undefined && (
             <KpiBig label={mode === 'institutional' ? 'Örneklem Ort. FWCI' : 'Ort. FWCI'} value={summary.avgFwci} icon="trending" color="#7c3aed"
               sub={mode === 'institutional' ? `top ${data.sampleSize || 500} yayın` : (summary.avgFwci >= 1.5 ? 'global ort. çok üstü' : summary.avgFwci >= 1.0 ? 'global ort. ile uyumlu' : 'global ort. altı')}
               desc={mode === 'institutional'
-                ? `FWCI en çok atıf alan ${data.sampleSize || 500} yayın üzerinden hesaplanır — sample, en yüksek atıflılarla sınırlı olduğu için değer kurumsal gerçek ortalamanın üstünde olur. Sadece üst-tier'ın etki yoğunluğunu gösterir.`
-                : "Field-Weighted Citation Impact — atıf, yayının alanı ve yılına göre normalize edilir. 1.00 global ortalamadır; 2.00 beklenenden iki kat etki demektir."} />
+                ? `FWCI en çok atıf alan ${data.sampleSize || 500} yayın üzerinden hesaplanır - sample, en yüksek atıflılarla sınırlı olduğu için değer kurumsal gerçek ortalamanın üstünde olur. Sadece üst-tier'ın etki yoğunluğunu gösterir.`
+                : "Field-Weighted Citation Impact - atıf, yayının alanı ve yılına göre normalize edilir. 1.00 global ortalamadır; 2.00 beklenenden iki kat etki demektir."} />
           )}
           {summary.top1PctCount > 0 && (
             <KpiBig label={mode === 'institutional' ? 'Örnek. Top 1%' : 'Top 1% Yayın'} value={summary.top1PctCount} sub={mode === 'institutional' ? `${data.sampleSize || 500} içinde` : `%${summary.top1PctRatio}`} icon="award" color="#059669"
               desc={mode === 'institutional'
                 ? `En çok atıf alan ${data.sampleSize || 500} yayının ne kadarı dünya genelinde üst %1'de. Tüm kurumun değil, sample'daki üst-tier'ın göstergesi.`
-                : "Alan-yıl normalize atıf sıralamasında üst %1'de yer alan yayınlar — en yüksek etkili çalışmaların göstergesi."} />
+                : "Alan-yıl normalize atıf sıralamasında üst %1'de yer alan yayınlar - en yüksek etkili çalışmaların göstergesi."} />
           )}
           {summary.top10PctCount > 0 && (
             <KpiBig label={mode === 'institutional' ? 'Örnek. Top 10%' : 'Top 10% Yayın'} value={summary.top10PctCount} sub={mode === 'institutional' ? `${data.sampleSize || 500} içinde` : `%${summary.top10PctRatio}`} icon="sparkles" color="#2563eb"
@@ -280,7 +280,7 @@ export function BibliometricsPanel({
           {summary.internationalCoauthorRatio !== undefined && summary.internationalCoauthorRatio > 0 && (
             <KpiBig label="Uluslararası Ortaklık" value={`%${summary.internationalCoauthorRatio}`}
               sub={`${summary.internationalCoauthorCount} yayın`} icon="globe" color="#c8a45a"
-              desc="En az bir yabancı ülkeden ortak yazar içeren yayınların oranı — kurumsal küresel görünürlüğün göstergesi." />
+              desc="En az bir yabancı ülkeden ortak yazar içeren yayınların oranı - kurumsal küresel görünürlüğün göstergesi." />
           )}
         </div>
       ) : null}
@@ -290,10 +290,10 @@ export function BibliometricsPanel({
         <div className="card p-5">
           <h4 className="font-display text-sm font-semibold text-navy mb-1 inline-flex items-center gap-2">
             <Icon name="globe" className="w-4 h-4" />
-            Uluslararası İşbirliği — Ülke Bazlı
+            Uluslararası İşbirliği - Ülke Bazlı
             <InfoTip text="Yayın yazarlarının kurum ülkelerine göre ortak yazarlık sayısı. Türkiye dışı ülkeler listelenir. Bir ülkeye tıklayarak hangi yayınların o ülkeyle ortak yapıldığını görebilirsiniz." />
           </h4>
-          <p className="text-xs text-muted mb-4">İlk {Math.min(summary.countryCollaboration.length, 15)} ülke — tıklayarak yayın listesini görün</p>
+          <p className="text-xs text-muted mb-4">İlk {Math.min(summary.countryCollaboration.length, 15)} ülke - tıklayarak yayın listesini görün</p>
           <div className="space-y-1.5">
             {summary.countryCollaboration.slice(0, 15).map((c: any) => {
               const max = summary.countryCollaboration[0]?.count || 1;
@@ -328,7 +328,7 @@ export function BibliometricsPanel({
         </div>
       )}
 
-      {/* Üniversite İşbirliği — MKÜ dışındaki co-author kurumları */}
+      {/* Üniversite İşbirliği - MKÜ dışındaki co-author kurumları */}
       {summary.universityCollaboration && summary.universityCollaboration.length > 0 && (
         <div className="card p-5">
           <h4 className="font-display text-sm font-semibold text-navy mb-1 inline-flex items-center gap-2">
@@ -336,7 +336,7 @@ export function BibliometricsPanel({
             Üniversite İşbirliği
             <InfoTip text="Yayın yazarlarının bağlı olduğu MKÜ dışı kurumlar (üniversite, araştırma merkezi vb.). Aynı yayında çoklu yazardan gelen aynı kurum bir kez sayılır." />
           </h4>
-          <p className="text-xs text-muted mb-4">İlk {Math.min(summary.universityCollaboration.length, 25)} kurum — ortak yayın sayısına göre</p>
+          <p className="text-xs text-muted mb-4">İlk {Math.min(summary.universityCollaboration.length, 25)} kurum - ortak yayın sayısına göre</p>
           <div className="space-y-1.5">
             {summary.universityCollaboration.slice(0, 25).map((u: any, i: number) => {
               const max = summary.universityCollaboration[0]?.count || 1;
@@ -357,7 +357,7 @@ export function BibliometricsPanel({
           </div>
           {summary.universityCollaboration.length > 25 && (
             <p className="text-[11px] text-muted mt-2 text-center">
-              Toplam {summary.universityCollaboration.length} işbirlikli kurum — ilk 25 gösterildi.
+              Toplam {summary.universityCollaboration.length} işbirlikli kurum - ilk 25 gösterildi.
             </p>
           )}
         </div>
@@ -369,7 +369,7 @@ export function BibliometricsPanel({
           <h4 className="font-display text-sm font-semibold text-navy mb-1 inline-flex items-center gap-2">
             <Icon name="layers" className="w-4 h-4" />
             Yayın Türüne Göre Dağılım
-            <InfoTip text="OpenAlex'in tespit ettiği her yayın türü — makale, kitap, kitap bölümü, tez, ön baskı, bildiri, rapor, inceleme vs. Kurumsal modda: en çok atıf alan 500 yayın içindeki dağılımdır." />
+            <InfoTip text="OpenAlex'in tespit ettiği her yayın türü - makale, kitap, kitap bölümü, tez, ön baskı, bildiri, rapor, inceleme vs. Kurumsal modda: en çok atıf alan 500 yayın içindeki dağılımdır." />
           </h4>
           <p className="text-xs text-muted mb-4">Türe göre adet ve toplam atıf</p>
           <div className="space-y-1.5">
@@ -399,7 +399,7 @@ export function BibliometricsPanel({
           <h4 className="font-display text-sm font-semibold text-navy mb-1 inline-flex items-center gap-2">
             <Icon name="award" className="w-4 h-4" />
             Dergi Kalite Dağılımı
-            <InfoTip text="SCImago Journal Rank'a göre dergilerin çeyrek sıralaması. Q1 ilk %25 (en prestijli), Q4 en alttaki %25. 'Bilinmiyor' — dergisi SCImago'da indeksli değil veya ISSN eşleşmesi yapılamadı." />
+            <InfoTip text="SCImago Journal Rank'a göre dergilerin çeyrek sıralaması. Q1 ilk %25 (en prestijli), Q4 en alttaki %25. 'Bilinmiyor' - dergisi SCImago'da indeksli değil veya ISSN eşleşmesi yapılamadı." />
           </h4>
           <p className="text-xs text-muted mb-4">Her çeyrek kaç yayını kapsıyor (SCImago SJR kaynaklı)</p>
           {quartileData.length > 0 ? (
@@ -443,7 +443,7 @@ export function BibliometricsPanel({
                 </div>
               )}
               <p className="text-[11px] text-muted mt-2 text-center">
-                {selectedQuartile ? 'Başka bir Q kademesine tıklayın veya aynısına basarak kapatın' : 'Bir Q kademesine tıklayın — o çeyrekteki yayınlar listelenir'}
+                {selectedQuartile ? 'Başka bir Q kademesine tıklayın veya aynısına basarak kapatın' : 'Bir Q kademesine tıklayın - o çeyrekteki yayınlar listelenir'}
               </p>
             </>
           ) : <p className="text-sm text-muted text-center py-8">SCImago verisi henüz yüklenmedi</p>}
@@ -486,7 +486,7 @@ export function BibliometricsPanel({
                 </AreaChart>
               </ResponsiveContainer>
 
-              {/* Yıl butonları — hem tıklanabilir liste hem de grafik için alternatif navigasyon */}
+              {/* Yıl butonları - hem tıklanabilir liste hem de grafik için alternatif navigasyon */}
               <div className="mt-2 flex flex-wrap gap-1">
                 {summary.byYear.map((y: any) => (
                   <button key={y.year}
@@ -502,7 +502,7 @@ export function BibliometricsPanel({
                 ))}
               </div>
               <p className="text-[11px] text-muted mt-2 text-center">
-                {selectedYear ? 'Başka bir yıla tıklayın veya aynısına basarak kapatın' : 'Bir yıla tıklayın — o yılın yayınları listelenir'}
+                {selectedYear ? 'Başka bir yıla tıklayın veya aynısına basarak kapatın' : 'Bir yıla tıklayın - o yılın yayınları listelenir'}
               </p>
             </>
           ) : <p className="text-sm text-muted text-center py-8">Yıl verisi yok</p>}
@@ -519,7 +519,7 @@ export function BibliometricsPanel({
         />
       )}
 
-      {/* Quartile drill-down — seçili Q için yayın listesi */}
+      {/* Quartile drill-down - seçili Q için yayın listesi */}
       {selectedQuartile && (
         <QuartileDrilldown
           quartile={selectedQuartile}
@@ -570,7 +570,7 @@ export function BibliometricsPanel({
             <h4 className="font-display text-sm font-semibold text-navy mb-1 inline-flex items-center gap-2">
               <Icon name="layers" className="w-4 h-4" />
               Kaynak Kapsamı
-              <InfoTip text="Her akademik veritabanı farklı yayınları indeksler. Bu grafik her kaynağın toplam yayın havuzuna katkısını gösterir — eksik kaynakları da ortaya koyar." />
+              <InfoTip text="Her akademik veritabanı farklı yayınları indeksler. Bu grafik her kaynağın toplam yayın havuzuna katkısını gösterir - eksik kaynakları da ortaya koyar." />
             </h4>
             <p className="text-xs text-muted mb-4">Her akademik veritabanının sağladığı yayın sayısı</p>
             {sourceCoverageData.length > 0 ? (
@@ -624,9 +624,9 @@ export function BibliometricsPanel({
           <h4 className="font-display text-sm font-semibold text-navy mb-1 inline-flex items-center gap-2">
             <Icon name="fire" className="w-4 h-4 text-amber-500" />
             En Çok Atıf Alan Yayınlar
-            <InfoTip text="Atıf sayısı — bir yayının etkisinin temel göstergesi. Her yayın kartında o yayının hangi dergide (Q kademesi), açık erişim mi, hangi kaynaklarda indeksli olduğu gösterilir." />
+            <InfoTip text="Atıf sayısı - bir yayının etkisinin temel göstergesi. Her yayın kartında o yayının hangi dergide (Q kademesi), açık erişim mi, hangi kaynaklarda indeksli olduğu gösterilir." />
           </h4>
-          <p className="text-xs text-muted mb-4">En etkili çalışmalarınız — atıf sayısına göre sıralı</p>
+          <p className="text-xs text-muted mb-4">En etkili çalışmalarınız - atıf sayısına göre sıralı</p>
           <div className="space-y-3">
             {topCited.map((p: any, i: number) => (
               <div key={p.externalIds?.doi || p.externalIds?.openalex || i} className="flex gap-3 pb-3 border-b last:border-0" style={{ borderColor: '#f0ede8' }}>
@@ -637,7 +637,7 @@ export function BibliometricsPanel({
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-navy line-clamp-2">{p.title}</p>
                   <p className="text-xs text-muted mt-0.5">
-                    {p.journal ? p.journal + ' · ' : ''}{p.year || '—'}
+                    {p.journal ? p.journal + ' · ' : ''}{p.year || '-'}
                     {p.quality?.sjrQuartile && (
                       <span className="ml-2 text-xs px-1.5 py-0.5 rounded text-white font-bold"
                         style={{ background: QUARTILE_COLORS[p.quality.sjrQuartile] }}>
@@ -673,7 +673,7 @@ export function BibliometricsPanel({
         </div>
       )}
 
-      {/* Co-author ağı — researcher modunda, publications listesi ORCID ile geldiyse */}
+      {/* Co-author ağı - researcher modunda, publications listesi ORCID ile geldiyse */}
       {mode === 'researcher' && collaborators.length > 0 && user?.name && (
         <CollaborationGraph centerName={user.name} collaborators={collaborators} />
       )}
@@ -713,7 +713,7 @@ function QuartileDrilldown({ quartile, publications, onClose }: {
       </div>
       {filtered.length === 0 ? (
         <p className="text-sm text-muted text-center py-6">
-          Bu kademede yayın listesi şu anda mevcut değil — ilerideki yüklemelerle görünür olacak.
+          Bu kademede yayın listesi şu anda mevcut değil - ilerideki yüklemelerle görünür olacak.
         </p>
       ) : (
         <div className="divide-y" style={{ borderColor: '#f0ede8', maxHeight: 400, overflowY: 'auto' }}>
@@ -723,7 +723,7 @@ function QuartileDrilldown({ quartile, publications, onClose }: {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-navy line-clamp-2">{p.title}</p>
                 <p className="text-xs text-muted mt-0.5">
-                  {p.journal ? p.journal + ' · ' : ''}{p.year || '—'}
+                  {p.journal ? p.journal + ' · ' : ''}{p.year || '-'}
                   {p.openAccess?.isOa && <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold">OA</span>}
                 </p>
                 {p.authors && p.authors.length > 0 && (
@@ -747,7 +747,7 @@ function QuartileDrilldown({ quartile, publications, onClose }: {
         </div>
       )}
       {filtered.length > 50 && (
-        <p className="text-xs text-muted mt-2 text-center">İlk 50 yayın listelendi — tam liste rapor dışa aktarmada bulunur.</p>
+        <p className="text-xs text-muted mt-2 text-center">İlk 50 yayın listelendi - tam liste rapor dışa aktarmada bulunur.</p>
       )}
     </div>
   );
@@ -782,11 +782,11 @@ function YearDrilldown({ year, publications, topCited, onClose }: {
       </div>
       {filtered.length === 0 ? (
         <p className="text-sm text-muted text-center py-6">
-          {year} yılında yayın bulunamadı (örneklem dışı kalmış olabilir — kurumsal toplam daha yüksek).
+          {year} yılında yayın bulunamadı (örneklem dışı kalmış olabilir - kurumsal toplam daha yüksek).
         </p>
       ) : (
         <div className="divide-y" style={{ borderColor: '#f0ede8', maxHeight: 600, overflowY: 'auto' }}>
-          {/* Tüm yayınlar — slice yok, scrollbar ile gezilir */}
+          {/* Tüm yayınlar - slice yok, scrollbar ile gezilir */}
           {filtered.map((p: any, i: number) => (
             <div key={p.doi || (p.title || '') + i} className="py-2.5 flex gap-3">
               <div className="w-8 text-xs text-muted font-semibold text-right flex-shrink-0">{i + 1}.</div>
@@ -820,7 +820,7 @@ function YearDrilldown({ year, publications, topCited, onClose }: {
         </div>
       )}
       <p className="text-[11px] text-muted mt-2 text-center">
-        {filtered.length > 0 ? `${filtered.length} yayın gösteriliyor — liste içinde kaydırarak gezebilirsiniz` : ''}
+        {filtered.length > 0 ? `${filtered.length} yayın gösteriliyor - liste içinde kaydırarak gezebilirsiniz` : ''}
       </p>
     </div>
   );
@@ -846,7 +846,7 @@ function CountryDrilldown({ country, publications, onClose }: {
         <button onClick={onClose} className="text-xs text-muted hover:text-navy font-semibold">Kapat ✕</button>
       </div>
       {filtered.length === 0 ? (
-        <p className="text-xs text-muted py-2">Bu ülke için yayın listesi yüklenmemiş — detay sadece kurumsal bibliyometri panelinde mevcuttur.</p>
+        <p className="text-xs text-muted py-2">Bu ülke için yayın listesi yüklenmemiş - detay sadece kurumsal bibliyometri panelinde mevcuttur.</p>
       ) : (
         <div className="divide-y" style={{ borderColor: '#f0ede8', maxHeight: 320, overflowY: 'auto' }}>
           {filtered.slice(0, 30).map((p: any, i: number) => (
@@ -855,7 +855,7 @@ function CountryDrilldown({ country, publications, onClose }: {
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-navy line-clamp-2">{p.title}</p>
                 <p className="text-[11px] text-muted mt-0.5">
-                  {p.journal ? p.journal + ' · ' : ''}{p.year || '—'}
+                  {p.journal ? p.journal + ' · ' : ''}{p.year || '-'}
                   {p.quality?.sjrQuartile && (
                     <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded text-white font-bold"
                       style={{ background: QUARTILE_COLORS[p.quality.sjrQuartile] }}>

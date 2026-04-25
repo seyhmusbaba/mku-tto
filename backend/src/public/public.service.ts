@@ -27,7 +27,7 @@ function toSlug(first: string, last: string): string {
 }
 
 /**
- * Vitrin (public) portal servisi — anonim ziyaretçilere açık.
+ * Vitrin (public) portal servisi - anonim ziyaretçilere açık.
  * Hassas veri asla döndürülmez (e-posta, telefon, bütçe, notlar).
  */
 @Injectable()
@@ -57,7 +57,7 @@ export class PublicService {
 
   // ── Kurumsal istatistikler ────────────────────────────────
   /**
-   * GERÇEK kurumsal istatistikler — OpenAlex kurum endpoint'inden
+   * GERÇEK kurumsal istatistikler - OpenAlex kurum endpoint'inden
    * canlı çekilir (MKÜ için ~11.600 yayın, ~273.000 atıf, h-index 165).
    * Kullanıcı aggregasyonu (Scopus sync bekleyen) kullanılmaz.
    * Kayıtlı araştırmacı sayısı sistemden gelir.
@@ -88,7 +88,7 @@ export class PublicService {
       }
     } catch {}
 
-    // Manuel yayınlar — portalda bireysel araştırmacı eklemiş olabilir
+    // Manuel yayınlar - portalda bireysel araştırmacı eklemiş olabilir
     const manualPubCount = await this.pubRepo.count();
 
     return {
@@ -201,12 +201,12 @@ export class PublicService {
   }
 
   /**
-   * Profile yayınları — 3 kaynağı birleştir ve deduplicate et:
+   * Profile yayınları - 3 kaynağı birleştir ve deduplicate et:
    *  1. Manuel yayınlar (user_publications)
    *  2. OpenAlex (ORCID ile)
    *  3. Scopus (scopusAuthorId ile)
    *
-   * Proje görünürlüğünden bağımsız — araştırmacının yayınları profilinde
+   * Proje görünürlüğünden bağımsız - araştırmacının yayınları profilinde
    * her zaman görünmeli.
    */
   async getProfilePublications(slugOrId: string) {
@@ -230,7 +230,7 @@ export class PublicService {
       ? await this.scopus.getAuthorPublications(user.scopusAuthorId, 50).catch(() => [])
       : [];
 
-    // Normalize — hepsini aynı şekle getir
+    // Normalize - hepsini aynı şekle getir
     type NormPub = {
       source: 'manual' | 'openalex' | 'scopus';
       key: string;              // dedup anahtarı (DOI veya title+year)
@@ -298,13 +298,13 @@ export class PublicService {
       });
     }
 
-    // Deduplicate — aynı key için en zengin kaydı tut (manuel > openalex > scopus)
+    // Deduplicate - aynı key için en zengin kaydı tut (manuel > openalex > scopus)
     const priority: Record<string, number> = { manual: 3, openalex: 2, scopus: 1 };
     const merged = new Map<string, NormPub>();
     for (const p of all) {
       const existing = merged.get(p.key);
       if (!existing || priority[p.source] > priority[existing.source]) {
-        // Yeni kayıt daha iyi — ama eskisinin boş olmayan alanlarını koru
+        // Yeni kayıt daha iyi - ama eskisinin boş olmayan alanlarını koru
         if (existing) {
           merged.set(p.key, {
             ...existing,
@@ -343,7 +343,7 @@ export class PublicService {
     return result.map(({ source, key, ...rest }) => rest);
   }
 
-  // ── Profil — kamuya açık projeler ─────────────────────────
+  // ── Profil - kamuya açık projeler ─────────────────────────
   async getProfileProjects(slugOrId: string) {
     const user = await this.resolveUser(slugOrId);
     const owned = await this.projectRepo.find({
@@ -370,11 +370,11 @@ export class PublicService {
     }));
   }
 
-  // ── Profil — ortaklıklar / co-author grafiği ──────────────
+  // ── Profil - ortaklıklar / co-author grafiği ──────────────
   async getProfileCollaborations(slugOrId: string) {
     const user = await this.resolveUser(slugOrId);
 
-    // Co-author (proje takım arkadaşları) — public/private fark etmez
+    // Co-author (proje takım arkadaşları) - public/private fark etmez
     // ama ortaklıklar sadece user'ın sahip olduğu projelerden
     const allProjects = await this.projectRepo.find({ where: { ownerId: user.id } });
     const projectIds = allProjects.map(p => p.id);
@@ -504,7 +504,7 @@ export class PublicService {
       wosHIndex: u.wosHIndex,
       wosCitedBy: u.wosCitedBy,
       wosDocCount: u.wosDocCount,
-      // Yeni kaynaklar — AVESİS tarzı
+      // Yeni kaynaklar - AVESİS tarzı
       openAlexAuthorId: (u as any).openAlexAuthorId,
       openAlexDocCount: (u as any).openAlexDocCount,
       openAlexCitedBy: (u as any).openAlexCitedBy,

@@ -149,7 +149,7 @@ export default function RolesPage() {
         } />
 
       <div className="p-6 xl:p-8 space-y-5">
-        {/* Üst bar — özet + arama */}
+        {/* Üst bar - özet + arama */}
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex gap-3">
             <div className="card px-5 py-3 inline-flex items-center gap-3">

@@ -10,11 +10,11 @@ import { SettingsService } from './settings.service';
 export class SettingsController {
   constructor(private settingsService: SettingsService) {}
 
-  // GET — herkese açık (logo/favicon/site adı login sayfasında da lazım)
+  // GET - herkese açık (logo/favicon/site adı login sayfasında da lazım)
   @Get()
   getAll() { return this.settingsService.getAll(); }
 
-  // PUT — sadece Süper Admin
+  // PUT - sadece Süper Admin
   @Put()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('Süper Admin')

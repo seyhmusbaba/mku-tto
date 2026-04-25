@@ -53,7 +53,7 @@ export function AiSummaryPanel({ title, description, type, faculty, budget, sdgG
 
   return (
     <div className="rounded-2xl border overflow-hidden" style={{ borderColor: '#e8e4dc' }}>
-      {/* Başlık — sadece aç/kapat, üretme tetiklemiyor */}
+      {/* Başlık - sadece aç/kapat, üretme tetiklemiyor */}
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
@@ -75,7 +75,7 @@ export function AiSummaryPanel({ title, description, type, faculty, budget, sdgG
       {open && (
         <div className="px-4 pb-4 pt-2 space-y-3" style={{ borderTop: '1px solid #f0ede8' }}>
 
-          {/* Henüz üretilmedi — sadece "Oluştur" butonu */}
+          {/* Henüz üretilmedi - sadece "Oluştur" butonu */}
           {!result && !loading && !error && (
             <div className="text-center py-4">
               <p className="text-xs text-muted mb-3">

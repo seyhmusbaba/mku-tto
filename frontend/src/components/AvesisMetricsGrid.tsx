@@ -28,7 +28,7 @@ interface Props {
 
 /**
  * AVESİS tarzı kaynak-bazlı bibliyometrik metrik grid.
- * Her kaynağın kendi logosu var — gerçek marka tanınırlığı.
+ * Her kaynağın kendi logosu var - gerçek marka tanınırlığı.
  */
 export function AvesisMetricsGrid({
   sources,
@@ -39,7 +39,7 @@ export function AvesisMetricsGrid({
   thesisAdvising,
   compact = false,
 }: Props) {
-  const fmt = (n?: number | null) => (typeof n === 'number' && n > 0) ? n.toLocaleString('tr-TR') : '—';
+  const fmt = (n?: number | null) => (typeof n === 'number' && n > 0) ? n.toLocaleString('tr-TR') : '-';
 
   const activeSources = sources.filter(s =>
     s.configured ||
@@ -117,7 +117,7 @@ function SourceCard({ source: s, fmt }: { source: MetricSource; fmt: (n?: number
 }
 
 // ─────────────────────────────────────────────────────────────
-// Gerçek marka logoları — favicon servisinden çekiliyor, başarısız
+// Gerçek marka logoları - favicon servisinden çekiliyor, başarısız
 // olursa SVG fallback devreye giriyor.
 // ─────────────────────────────────────────────────────────────
 
@@ -188,14 +188,14 @@ function FallbackSvg({ source }: { source: SourceKey }) {
         </svg>
       );
     case 'scopus':
-      // Scopus — turuncu kutu içinde büyük S (Elsevier brand style)
+      // Scopus - turuncu kutu içinde büyük S (Elsevier brand style)
       return (
         <svg width={24} height={24} viewBox="0 0 24 24">
           <text x="12" y="18" textAnchor="middle" fill={c} fontSize="18" fontWeight="900" fontFamily="Arial Black, sans-serif" fontStyle="italic">S</text>
         </svg>
       );
     case 'wos':
-      // Web of Science — mor arka planda "Wos" yazısı (Clarivate brand)
+      // Web of Science - mor arka planda "Wos" yazısı (Clarivate brand)
       return (
         <svg width={36} height={24} viewBox="0 0 36 24">
           <text x="18" y="17" textAnchor="middle" fill={c} fontSize="11" fontWeight="800" fontFamily="Arial, sans-serif" letterSpacing="-0.5">WoS</text>
@@ -229,7 +229,7 @@ function FallbackSvg({ source }: { source: SourceKey }) {
 }
 
 function MetricCell({ label, value }: { label: string; value: string }) {
-  const isEmpty = value === '—';
+  const isEmpty = value === '-';
   return (
     <div>
       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted mb-0.5">{label}</p>
@@ -242,7 +242,7 @@ function SummaryCell({ label, value }: { label: string; value: string }) {
   return (
     <div className="px-4 py-4 bg-white border-r border-b" style={{ borderColor: '#e8e4dc' }}>
       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">{label}</p>
-      <p className={`text-2xl font-bold tabular-nums mt-1 ${value === '—' ? 'text-gray-300' : 'text-navy'}`}>{value}</p>
+      <p className={`text-2xl font-bold tabular-nums mt-1 ${value === '-' ? 'text-gray-300' : 'text-navy'}`}>{value}</p>
     </div>
   );
 }

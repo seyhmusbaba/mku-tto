@@ -146,7 +146,7 @@ export default function EditProjectPage() {
         setEthicsFile(null); setEthicsBase64(null);
       }
 
-      toast.success('Proje güncellendi — değişiklikler kayıt altına alındı');
+      toast.success('Proje güncellendi - değişiklikler kayıt altına alındı');
       router.push('/projects/' + id);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Güncellenemedi');

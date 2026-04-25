@@ -77,7 +77,7 @@ function isEthicsAuthority(roleName?: string): boolean {
 
 /**
  * EPO OPS üzerinden patent doğrulama butonu.
- * Patent başvuru/tescil no'su girildikten sonra tıklanır — kurumun adıyla
+ * Patent başvuru/tescil no'su girildikten sonra tıklanır - kurumun adıyla
  * eşleşme arar. EPO_CONSUMER_KEY yoksa API 503 döner, burada kullanıcıya
  * "yapılandırılmadı" mesajı gösteririz.
  */
@@ -85,7 +85,7 @@ function PatentVerifyButton({ number }: { number?: string }) {
   const [verifying, setVerifying] = useState(false);
   const [result, setResult] = useState<any>(null);
 
-  const applicantDefault = 'Mustafa Kemal';  // kurum adı substring — eşleşmek için yeterli
+  const applicantDefault = 'Mustafa Kemal';  // kurum adı substring - eşleşmek için yeterli
 
   const verify = async () => {
     if (!number) { toast.error('Önce başvuru/tescil numarası girin'); return; }
@@ -128,7 +128,7 @@ function PatentVerifyButton({ number }: { number?: string }) {
           {result.error && <p><strong>Hata:</strong> {result.error}</p>}
           {result.verified && result.record && (
             <>
-              <p className="font-semibold">✓ Doğrulandı — kayıt EPO OPS'ta bulundu ve kurum adıyla eşleşti</p>
+              <p className="font-semibold">✓ Doğrulandı - kayıt EPO OPS'ta bulundu ve kurum adıyla eşleşti</p>
               <p className="mt-1 text-xs opacity-80">Başlık: {result.record.title}</p>
               <p className="text-xs opacity-80">Başvuru sahipleri: {result.record.applicants.join(' · ')}</p>
             </>
@@ -173,7 +173,7 @@ export default function EditProjectPage() {
       projectsApi.getOne(id).then(r => {
         const p = r.data;
         setProject(p);
-        // sdgGoals getter JSON'da gelmeyebilir — sdgGoalsJson'dan da parse et
+        // sdgGoals getter JSON'da gelmeyebilir - sdgGoalsJson'dan da parse et
         const sdg = p.sdgGoals && Array.isArray(p.sdgGoals) && p.sdgGoals.length > 0
           ? p.sdgGoals
           : (() => { try { return p.sdgGoalsJson ? JSON.parse(p.sdgGoalsJson) : []; } catch { return []; } })();
@@ -265,21 +265,21 @@ export default function EditProjectPage() {
 
       await projectsApi.update(id, payload);
 
-      // FormData ile belge yukle — başarısızlığı kullanıcıya bildir
+      // FormData ile belge yukle - başarısızlığı kullanıcıya bildir
       if (ipFile) {
         const fd = new FormData(); fd.append('file', ipFile); fd.append('name', 'Fikri Mülkiyet Belgesi'); fd.append('type', 'ip');
         try { await documentsApi.upload(id, fd); }
-        catch { toast.error('IP belgesi yüklenemedi — Belgeler sekmesinden elle yükleyin.'); }
+        catch { toast.error('IP belgesi yüklenemedi - Belgeler sekmesinden elle yükleyin.'); }
         setIpFile(null); setIpBase64(null);
       }
       if (ethicsFile) {
         const fd = new FormData(); fd.append('file', ethicsFile); fd.append('name', 'Etik Kurul Onay Belgesi'); fd.append('type', 'ethics');
         try { await documentsApi.upload(id, fd); }
-        catch { toast.error('Etik belgesi yüklenemedi — Belgeler sekmesinden elle yükleyin.'); }
+        catch { toast.error('Etik belgesi yüklenemedi - Belgeler sekmesinden elle yükleyin.'); }
         setEthicsFile(null); setEthicsBase64(null);
       }
 
-      toast.success('Proje güncellendi — değişiklikler kayıt altına alındı');
+      toast.success('Proje güncellendi - değişiklikler kayıt altına alındı');
       router.push('/projects/' + id);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Güncellenemedi');
@@ -579,7 +579,7 @@ export default function EditProjectPage() {
         </div>
       </div>
 
-      {/* Proje Zekâsı Dashboard — full-width, formun altında */}
+      {/* Proje Zekâsı Dashboard - full-width, formun altında */}
       <div className="px-6 pb-10 pt-4 border-t" style={{ borderColor: '#e8e4dc', background: '#faf8f4' }}>
         <div className="max-w-[1400px] mx-auto">
           <ProjectIntelligencePanel

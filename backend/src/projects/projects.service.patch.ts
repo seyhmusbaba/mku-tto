@@ -93,7 +93,7 @@ export const UPDATE_METHOD_PATCH = `
       };
       await this.notifyRectors({
         title: '⚖️ Fikri Mülkiyet Güncellemesi',
-        message: project.title + ' — Fikri Mülkiyet: ' + (IP_LABELS[dto.ipStatus]||dto.ipStatus),
+        message: project.title + ' - Fikri Mülkiyet: ' + (IP_LABELS[dto.ipStatus]||dto.ipStatus),
         link: '/projects/' + id, type: 'info',
       });
     }

@@ -58,7 +58,7 @@ function ResearchersContent() {
 
   return (
     <PublicLayout>
-      {/* ═════ Page title — editorial ═════ */}
+      {/* ═════ Page title - editorial ═════ */}
       <section className="border-b" style={{ borderColor: 'rgba(15, 36, 68, 0.12)', background: '#fefaf2' }}>
         <div className="max-w-[1280px] mx-auto px-6 py-14">
           <p className="text-[11px] tracking-[0.25em] uppercase font-bold mb-3 flex items-center gap-3" style={{ color: '#8a7a52' }}>
@@ -111,7 +111,7 @@ function ResearchersContent() {
           </div>
           {(search || faculty) && (
             <div className="mt-3 flex items-center gap-2 text-xs">
-              <span style={{ color: '#8a7a52' }}>Aktif filtreler —</span>
+              <span style={{ color: '#8a7a52' }}>Aktif filtreler -</span>
               {search && (
                 <button onClick={() => { setSearch(''); setPage(1); }}
                   className="px-2.5 py-1 border font-medium flex items-center gap-1.5 hover:bg-white transition-colors"
@@ -137,7 +137,7 @@ function ResearchersContent() {
         </div>
       </section>
 
-      {/* ═════ List — newspaper column ═════ */}
+      {/* ═════ List - newspaper column ═════ */}
       <section className="max-w-[1280px] mx-auto px-6 py-10">
         {loading ? (
           <div className="flex justify-center py-24"><div className="spinner" /></div>
@@ -172,7 +172,7 @@ function ResearchersContent() {
                     style={{ fontFamily: 'Playfair Display, serif', color: '#0f2444' }}>
                     {r.firstName} {r.lastName}
                   </p>
-                  <p className="text-sm truncate" style={{ color: '#4b5563' }}>{r.faculty || '—'}</p>
+                  <p className="text-sm truncate" style={{ color: '#4b5563' }}>{r.faculty || '-'}</p>
                   {r.department && <p className="text-xs italic truncate mt-0.5" style={{ color: '#9ca3af' }}>{r.department}</p>}
 
                   {(typeof r.scopusDocCount === 'number' && r.scopusDocCount > 0) || (typeof r.scopusHIndex === 'number' && r.scopusHIndex > 0) ? (

@@ -2,16 +2,16 @@ import { Injectable, Logger } from '@nestjs/common';
 import { HttpCache } from './http-cache';
 
 /**
- * Google Scholar HTML scraping — SADECE sayı metrikleri için.
+ * Google Scholar HTML scraping - SADECE sayı metrikleri için.
  *
  * UYARI: Google'ın resmi API'si yok ve scraping ToS ihlali. Bu servis:
  *   - Tek bir author profil sayfasını çeker (scraping değil, public görüntüleme)
  *   - 7 gün cache'ler (agresif olmamak için)
  *   - CAPTCHA tespit ederse sessizce null döner (sistem çökmez)
- *   - Railway datacenter IP'sinden bazı istekler 429/CAPTCHA alabilir —
+ *   - Railway datacenter IP'sinden bazı istekler 429/CAPTCHA alabilir -
  *     bu durumda manuel giriş alternatifi olarak cache boş kalır
  *
- * Alternatif: SerpAPI (ücretli, legal proxy) — SERPAPI_KEY env ile ayarlanırsa
+ * Alternatif: SerpAPI (ücretli, legal proxy) - SERPAPI_KEY env ile ayarlanırsa
  * öncelik kazanır.
  */
 @Injectable()
@@ -46,12 +46,12 @@ export class GoogleScholarService {
       }
     }
 
-    // Direkt HTML scraping — Railway'de bazen 429/CAPTCHA alabilir
+    // Direkt HTML scraping - Railway'de bazen 429/CAPTCHA alabilir
     const result = await this.scrapeHtml(scholarId);
     if (result) {
       this.cache.set(cacheKey, result, 60 * 60 * 24 * 7);
     } else {
-      // Başarısız sonucu da kısa süre cache'le — sürekli retry olmasın
+      // Başarısız sonucu da kısa süre cache'le - sürekli retry olmasın
       this.cache.set(cacheKey, null, 60 * 60 * 2);
     }
     return result;
@@ -80,7 +80,7 @@ export class GoogleScholarService {
       });
 
       if (!res.ok) {
-        this.logger.warn(`[Scholar] HTTP ${res.status} — ${scholarId}`);
+        this.logger.warn(`[Scholar] HTTP ${res.status} - ${scholarId}`);
         return null;
       }
 
@@ -93,7 +93,7 @@ export class GoogleScholarService {
         html.includes('Our systems have detected') ||
         html.length < 1000
       ) {
-        this.logger.warn(`[Scholar] CAPTCHA/bot engeli — ${scholarId}`);
+        this.logger.warn(`[Scholar] CAPTCHA/bot engeli - ${scholarId}`);
         return null;
       }
 
@@ -107,11 +107,11 @@ export class GoogleScholarService {
       }
 
       if (stats.length < 6) {
-        this.logger.warn(`[Scholar] Metrik tablosu parse edilemedi — ${scholarId} (${stats.length} değer)`);
+        this.logger.warn(`[Scholar] Metrik tablosu parse edilemedi - ${scholarId} (${stats.length} değer)`);
         return null;
       }
 
-      // Makaleler — gsc_a_tr satır sayısı (pagesize=100 ile ilk 100 görünür)
+      // Makaleler - gsc_a_tr satır sayısı (pagesize=100 ile ilk 100 görünür)
       const articleMatches = html.match(/class="gsc_a_tr"/g) || [];
       const docCount = articleMatches.length;
 
@@ -131,7 +131,7 @@ export class GoogleScholarService {
   }
 
   /**
-   * SerpAPI proxy — legal alternatif. SERPAPI_KEY env varsa kullanılır.
+   * SerpAPI proxy - legal alternatif. SERPAPI_KEY env varsa kullanılır.
    * https://serpapi.com/google-scholar-author-api
    */
   private async fetchViaSerpApi(scholarId: string): Promise<{

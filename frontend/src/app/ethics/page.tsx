@@ -245,7 +245,7 @@ export default function EthicsPage() {
                       <p style={{ color: rev.status === 'approved' ? '#059669' : '#dc2626' }}>{rev.reviewNote}</p>
                       {rev.reviewer && (
                         <p className="text-muted mt-1">
-                          — {rev.reviewer.title} {rev.reviewer.firstName} {rev.reviewer.lastName}
+                          - {rev.reviewer.title} {rev.reviewer.firstName} {rev.reviewer.lastName}
                           {rev.reviewedAt && ' · ' + new Date(rev.reviewedAt).toLocaleDateString('tr-TR')}
                         </p>
                       )}

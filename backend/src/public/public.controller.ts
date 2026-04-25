@@ -4,7 +4,7 @@ import { PublicService } from './public.service';
 
 /**
  * AVESİS tarzı vitrin portalı için kamuya açık uç noktalar.
- * Authentication yok — anonim ziyaretçiler erişebilir.
+ * Authentication yok - anonim ziyaretçiler erişebilir.
  */
 @SkipThrottle()
 @Controller('public')
@@ -38,7 +38,7 @@ export class PublicController {
   @Get('researchers/:slug/collaborations')
   collaborations(@Param('slug') slug: string) { return this.svc.getProfileCollaborations(slug); }
 
-  // Admin bootstrap — tüm mevcut kullanıcılar için slug oluştur
+  // Admin bootstrap - tüm mevcut kullanıcılar için slug oluştur
   @Post('backfill-slugs')
   backfill() { return this.svc.backfillSlugs(); }
 }

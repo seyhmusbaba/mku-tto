@@ -105,10 +105,10 @@ function ScopusWizardPanel({ title, description, projectText, keywords }: {
             <div>
               <p className="text-sm font-semibold text-navy">Scopus'ta {result.total?.toLocaleString('tr-TR')} benzer çalışma bulundu</p>
               <p className="text-xs text-muted mt-0.5">
-                {result.total > 100 ? 'Bu alan çok aktif — literatür taraması kritik önem taşıyor.' :
-                 result.total > 20  ? 'Orta yoğunlukta çalışma var — özgünlük vurgulayın.' :
-                 result.total > 0   ? 'Nispeten az çalışma — niş bir alan olabilir.' :
-                 'Henüz yayın bulunamadı — potansiyel olarak yeni bir alan.'}
+                {result.total > 100 ? 'Bu alan çok aktif - literatür taraması kritik önem taşıyor.' :
+                 result.total > 20  ? 'Orta yoğunlukta çalışma var - özgünlük vurgulayın.' :
+                 result.total > 0   ? 'Nispeten az çalışma - niş bir alan olabilir.' :
+                 'Henüz yayın bulunamadı - potansiyel olarak yeni bir alan.'}
               </p>
             </div>
             {result.total > 100 && (
@@ -185,7 +185,7 @@ const TYPE_CARDS_DEFAULT = [
   { key: 'bap',      label: 'BAP',         color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe', desc: 'Üniversite iç araştırma fonu',  budget: '10K – 200K TL', duration: '6 ay – 2 yıl' },
   { key: 'eu',       label: 'AB Projesi',  color: '#d97706', bg: '#fffbeb', border: '#fde68a', desc: 'Horizon Europe ve AB destekleri', budget: '500K – 5M EUR', duration: '2-5 yıl' },
   { key: 'industry', label: 'Sanayi',      color: '#ea580c', bg: '#fff7ed', border: '#fed7aa', desc: 'Sanayi-üniversite iş birligi',  budget: '100K – 5M TL', duration: '1-3 yıl' },
-  { key: 'other',    label: 'Diger',       color: '#64748b', bg: '#f8fafc', border: '#e2e8f0', desc: 'Diger fon kaynakları',          budget: '—', duration: '—' },
+  { key: 'other',    label: 'Diger',       color: '#64748b', bg: '#f8fafc', border: '#e2e8f0', desc: 'Diger fon kaynakları',          budget: '-', duration: '-' },
 ];
 
 const IP_OPTS = [
@@ -371,28 +371,28 @@ export default function NewProjectPage() {
       const res = await projectsApi.create(payload);
       const pid = res.data.id;
 
-      // Üyeleri ekle — hataları say, tam sessiz kalma
+      // Üyeleri ekle - hataları say, tam sessiz kalma
       let memberFailures = 0;
       for (const m of members) {
         try {
           await projectsApi.addMember(pid, { userId: m.id, role: 'researcher', canUpload: false });
         } catch { memberFailures++; }
       }
-      if (memberFailures > 0) toast.error(`${memberFailures} üye eklenemedi — proje detayından tekrar deneyin.`);
+      if (memberFailures > 0) toast.error(`${memberFailures} üye eklenemedi - proje detayından tekrar deneyin.`);
 
-      // Belge yüklemeleri — başarısızlığı kullanıcıya bildir
+      // Belge yüklemeleri - başarısızlığı kullanıcıya bildir
       if (acceptanceFile) {
         try { await uploadFile(pid, acceptanceFile, 'Başvuru Kabul Belgesi', 'acceptance'); }
-        catch { toast.error('Başvuru kabul belgesi yüklenemedi — detay sayfasından elle yükleyin.'); }
+        catch { toast.error('Başvuru kabul belgesi yüklenemedi - detay sayfasından elle yükleyin.'); }
       }
       if (ipFile) {
         try { await uploadFile(pid, ipFile, 'Fikri Mülkiyet Belgesi', 'ip'); }
-        catch { toast.error('IP belgesi yüklenemedi — detay sayfasından elle yükleyin.'); }
+        catch { toast.error('IP belgesi yüklenemedi - detay sayfasından elle yükleyin.'); }
       }
       // Tüm projeler etik kurul incelemesine gönderilir
       await api.post('/ethics/analyze/' + pid).catch(() => {});
 
-      toast.success('Proje oluşturuldu — Etik kurul incelemesine gönderildi!');
+      toast.success('Proje oluşturuldu - Etik kurul incelemesine gönderildi!');
       router.push('/projects/' + pid);
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Bir hata oluştu');
@@ -447,7 +447,7 @@ export default function NewProjectPage() {
           defaults.push({
             key: dt.key, label: dt.label,
             color: dt.color || '#64748b', bg: '#f8fafc', border: '#e2e8f0',
-            desc: 'Proje türü', budget: '—', duration: '—',
+            desc: 'Proje türü', budget: '-', duration: '-',
           });
         } else {
           // DB label'ını güncelle
@@ -460,7 +460,7 @@ export default function NewProjectPage() {
 
     switch (PHASES[phase].key) {
 
-      /* FAZ 1 — TÜR SEÇİMİ */
+      /* FAZ 1 - TÜR SEÇİMİ */
       case 'type': return (
         <div className="space-y-6">
           <div>
@@ -503,7 +503,7 @@ export default function NewProjectPage() {
         </div>
       );
 
-      /* FAZ 2 — TEMEL & EKİP */
+      /* FAZ 2 - TEMEL & EKİP */
       case 'basic': return (
         <div className="space-y-6">
           <div>
@@ -628,7 +628,7 @@ export default function NewProjectPage() {
 
             {/* Arama */}
             <div className="relative">
-              <input className="input" placeholder="Araştırmacı ekle — isim veya e-posta..."
+              <input className="input" placeholder="Araştırmacı ekle - isim veya e-posta..."
                 value={memberSearch} onChange={e => setMemberSearch(e.target.value)} />
               {filteredUsers.length > 0 && (
                 <div className="absolute top-full left-0 right-0 z-20 mt-1 rounded-xl shadow-lg bg-white border" style={{ borderColor: '#e8e4dc' }}>
@@ -652,7 +652,7 @@ export default function NewProjectPage() {
         </div>
       );
 
-      /* FAZ 3 — İÇERİK & UYUM */
+      /* FAZ 3 - İÇERİK & UYUM */
       case 'content': return (
         <div className="space-y-5">
           <div>
@@ -697,7 +697,7 @@ export default function NewProjectPage() {
 
             <div className="p-3 rounded-xl text-xs flex items-start gap-2" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8' }}>
               <NPIcon name="info" className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <span>Proje metni, özetten farklı olarak projenin tüm detaylarını içerir. <strong>YZ Uygunluk Kontrolü zorunludur</strong> — devam etmek için yapın.</span>
+              <span>Proje metni, özetten farklı olarak projenin tüm detaylarını içerir. <strong>YZ Uygunluk Kontrolü zorunludur</strong> - devam etmek için yapın.</span>
             </div>
 
             <textarea className="input" style={{ minHeight: 280, lineHeight: 1.8 }} value={form.projectText}
@@ -710,7 +710,7 @@ export default function NewProjectPage() {
               background: complianceDone ? '#f0fdf4' : '#fffbeb',
             }}>
               {complianceDone
-                ? <p className="text-xs font-semibold text-green-700 mb-2 inline-flex items-center gap-1.5"><NPIcon name="check" className="w-3.5 h-3.5" strokeWidth={2.2} />YZ Uygunluk Kontrolü tamamlandı — bir sonraki adıma geçebilirsiniz</p>
+                ? <p className="text-xs font-semibold text-green-700 mb-2 inline-flex items-center gap-1.5"><NPIcon name="check" className="w-3.5 h-3.5" strokeWidth={2.2} />YZ Uygunluk Kontrolü tamamlandı - bir sonraki adıma geçebilirsiniz</p>
                 : <p className="text-xs font-semibold text-amber-700 mb-2 inline-flex items-center gap-1.5"><NPIcon name="alert" className="w-3.5 h-3.5" />Devam etmek için aşağıdaki YZ kontrolünü yapın</p>
               }
               <ProjectComplianceCheck
@@ -721,7 +721,7 @@ export default function NewProjectPage() {
             </div>
           </div>
 
-          {/* Etik Kurul Zorunlu — tüm projeler için */}
+          {/* Etik Kurul Zorunlu - tüm projeler için */}
           {complianceDone && (
             <div className="card p-5">
               <h3 className="font-display text-sm font-semibold text-navy mb-3 inline-flex items-center gap-2">
@@ -743,7 +743,7 @@ export default function NewProjectPage() {
         </div>
       );
 
-      /* FAZ 4 — SINIFLANDIRMA */
+      /* FAZ 4 - SINIFLANDIRMA */
       case 'classify': return (
         <div className="space-y-5">
           <div>
@@ -766,7 +766,7 @@ export default function NewProjectPage() {
               <div className="p-3 rounded-xl" style={{ background: '#f0fdf4', border: '1px solid #86efac' }}>
                 <p className="text-xs font-semibold text-green-800 mb-2 inline-flex items-center gap-1.5">
                   <NPIcon name="sparkles" className="w-3.5 h-3.5" />
-                  YZ Önerileri — proje içeriğinize göre
+                  YZ Önerileri - proje içeriğinize göre
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {sdgSuggestions.map(code => {
@@ -878,7 +878,7 @@ export default function NewProjectPage() {
                             <strong>✓ Doğrulandı:</strong> {ipVerifyResult.data.title}
                             <br />
                             <span className="text-[11px]">
-                              Başvuran: {ipVerifyResult.data.applicants?.join(', ') || '—'} ·
+                              Başvuran: {ipVerifyResult.data.applicants?.join(', ') || '-'} ·
                               {ipVerifyResult.data.publicationDate ? ` Yayım: ${ipVerifyResult.data.publicationDate}` : ''}
                             </span>
                           </>
@@ -902,8 +902,8 @@ export default function NewProjectPage() {
         </div>
       );
 
-      /* FAZ 5 — SCOPUS LİTERATÜR TARAMA */
-      /* FAZ 5 — SCOPUS LİTERATÜR TARAMA */
+      /* FAZ 5 - SCOPUS LİTERATÜR TARAMA */
+      /* FAZ 5 - SCOPUS LİTERATÜR TARAMA */
       case 'scopus': return (
         <ScopusLiteraturePhase
           title={form.title}
@@ -915,7 +915,7 @@ export default function NewProjectPage() {
         />
       );
 
-      /* FAZ 6 — FİNANSAL & ONAY */
+      /* FAZ 6 - FİNANSAL & ONAY */
       case 'finalize': return (
         <div className="space-y-5">
           <div>
@@ -1020,7 +1020,7 @@ export default function NewProjectPage() {
               sdgSelected.length ? ['SKH', sdgSelected.length + ' hedef'] : null,
               members.length     ? ['Ekip', members.length + ' üye eklendi'] : null,
               complianceResult   ? ['YZ Uygunluk', complianceResult.score + '/100'] : null,
-              ['Etik Kurul', 'Zorunlu — kaydedilince otomatik gönderilecek'],
+              ['Etik Kurul', 'Zorunlu - kaydedilince otomatik gönderilecek'],
             ].filter(Boolean).map(([k, v]: any, i) => (
               <div key={i} className="flex justify-between text-sm border-b pb-1.5 last:border-0" style={{ borderColor: '#e8e4dc' }}>
                 <span className="text-muted">{k}</span>
@@ -1029,7 +1029,7 @@ export default function NewProjectPage() {
             ))}
           </div>
 
-          {/* ═══ PROJE ZEKÂSI — bütçe ve tüm diğer bilgiler girildikten sonra ═══ */}
+          {/* ═══ PROJE ZEKÂSI - bütçe ve tüm diğer bilgiler girildikten sonra ═══ */}
           <div className="mt-6 pt-6 border-t" style={{ borderColor: '#e8e4dc' }}>
             <ProjectIntelligencePanel
               title={form.title}
@@ -1091,7 +1091,7 @@ export default function NewProjectPage() {
         </div>
       </div>
 
-      {/* Form alanı — finalize fazında dashboard için genişler */}
+      {/* Form alanı - finalize fazında dashboard için genişler */}
       <div className="p-6" style={{ maxWidth: PHASES[phase].key === 'finalize' ? 1400 : 860, margin: '0 auto', transition: 'max-width 0.3s' }}>
         <div className="mb-6">{renderPhase()}</div>
 

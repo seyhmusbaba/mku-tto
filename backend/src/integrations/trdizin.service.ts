@@ -55,7 +55,7 @@ export class TrDizinService {
   private readonly mkuInstCode = process.env.TRDIZIN_INST_CODE || 'MzU1MDg2';
 
   isConfigured(): boolean {
-    // Public API — yapılandırma gerektirmez
+    // Public API - yapılandırma gerektirmez
     return true;
   }
 
@@ -81,7 +81,7 @@ export class TrDizinService {
   }
 
   /**
-   * Yayın arama — genel sorgu ile.
+   * Yayın arama - genel sorgu ile.
    * q: aranacak terim (Türkçe başlık, yazar, anahtar kelime)
    * limit: en fazla kaç sonuç (max 100)
    */
@@ -132,7 +132,7 @@ export class TrDizinService {
       return [];
     }
 
-    // 2. adım: her ID için detay çek (paralel 5'erli gruplar halinde — rate-limit dostu)
+    // 2. adım: her ID için detay çek (paralel 5'erli gruplar halinde - rate-limit dostu)
     const results: TrDizinPublication[] = [];
     for (let i = 0; i < ids.length; i += 5) {
       const batch = ids.slice(i, i + 5);
@@ -166,7 +166,7 @@ export class TrDizinService {
   }
 
   /**
-   * Bir yazarın yayınları — ad-soyad + kurum adı ile filtrele.
+   * Bir yazarın yayınları - ad-soyad + kurum adı ile filtrele.
    * ORCID'i olmayan hocalar için fallback.
    */
   async searchByAuthorName(
@@ -199,13 +199,13 @@ export class TrDizinService {
 
   /**
    * Elasticsearch hit → TrDizinPublication map.
-   * API tutarsız — bazı alanlar array, bazıları object.
+   * API tutarsız - bazı alanlar array, bazıları object.
    */
   private mapHit(h: any): TrDizinPublication | null {
     const src = h?._source || h;
     if (!src) return null;
 
-    // Title — orderTitle direct, veya title array'i
+    // Title - orderTitle direct, veya title array'i
     const title = src.orderTitle
       || (Array.isArray(src.title) ? src.title[0]?.title || src.title[0]?.value : src.title)
       || '';
@@ -221,7 +221,7 @@ export class TrDizinService {
       duty: a.duty,
     }));
 
-    // Subjects — array of {name, fullName}
+    // Subjects - array of {name, fullName}
     const subjects = (src.subjects || [])
       .map((s: any) => s.name || s.fullName)
       .filter(Boolean);
@@ -250,7 +250,7 @@ export class TrDizinService {
   }
 
   /**
-   * Tanı için — mevcut kurum kodu, API erişim durumu.
+   * Tanı için - mevcut kurum kodu, API erişim durumu.
    */
   async diagnostic(): Promise<{
     configured: boolean;
@@ -260,7 +260,7 @@ export class TrDizinService {
     samplePubsFound?: number;
   }> {
     const lastCheck = new Date().toISOString();
-    // Basit test — MKÜ institution code'dan 3 yayın çekmeyi dene
+    // Basit test - MKÜ institution code'dan 3 yayın çekmeyi dene
     try {
       const url = `${this.baseUrl}/institutionCodePublicationsById/${this.mkuInstCode}` +
         `?size=3&from=0&toYear=${new Date().getFullYear()}&fromYear=${new Date().getFullYear() - 1}` +

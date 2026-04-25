@@ -66,7 +66,7 @@ async function seed() {
     { name: 'Araştırma Görevlisi', description: 'Araştırmacı', permNames: ['projects:read'] },
     { name: 'Bölüm Başkanı', description: 'Bölüm yöneticisi', permNames: ['projects:read', 'analytics:read'] },
     { name: 'Dekan', description: 'Fakülte yöneticisi', permNames: ['projects:read', 'analytics:read', 'ethics:read'] },
-    { name: 'Rektör', description: 'Üniversite rektörü — tüm projeleri ve etik kurulu yönetir', permNames: ['projects:read', 'analytics:read', 'ethics:read', 'ethics:manage'] },
+    { name: 'Rektör', description: 'Üniversite rektörü - tüm projeleri ve etik kurulu yönetir', permNames: ['projects:read', 'analytics:read', 'ethics:read', 'ethics:manage'] },
   ];
 
   const savedRoles: Record<string, Role> = {};
@@ -114,7 +114,7 @@ async function seed() {
   const fatma   = savedUsers['fatma.sahin@mku.edu.tr'];
   const defaultOwner = (ahmet || mehmet || ayse || fatma)?.id;
 
-  // DEMO_PROJECTS ortak dosyadan gelir — seed script ile admin endpoint aynı veriyi paylaşır
+  // DEMO_PROJECTS ortak dosyadan gelir - seed script ile admin endpoint aynı veriyi paylaşır
   const projDefs: any[] = DEMO_PROJECTS.map(p => ({
     ...p,
     owner: p.ownerEmail ? (savedUsers[p.ownerEmail]?.id || defaultOwner) : defaultOwner,

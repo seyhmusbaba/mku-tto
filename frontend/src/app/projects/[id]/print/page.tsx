@@ -460,7 +460,7 @@ export default function ProjectPrintPage() {
         {/* Scopus Bağlı Yayınlar */}
         {linkedPubs.length > 0 && (
           <div className="section">
-            <div className="section-title">Proje Çıktıları — Scopus Yayınları ({linkedPubs.length})</div>
+            <div className="section-title">Proje Çıktıları - Scopus Yayınları ({linkedPubs.length})</div>
             {linkedPubs.map((p: any, i: number) => (
               <div key={i} style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: 8, marginBottom: 8 }}>
                 <p style={{ fontSize: '9.5pt', fontWeight: 600, color: '#0f2444', lineHeight: 1.4 }}>{p.title}</p>

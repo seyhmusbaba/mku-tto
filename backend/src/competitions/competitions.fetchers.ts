@@ -1,13 +1,13 @@
 /**
- * Güvenilir yarışma/çağrı kaynakları — RSS dışı özel fetcher'lar.
+ * Güvenilir yarışma/çağrı kaynakları - RSS dışı özel fetcher'lar.
  *
  * Desteklenen kaynak türleri:
- *  - tubitak    : TÜBİTAK duyurular (HTML scrape — tubitak.gov.tr/tr/duyuru)
- *  - kosgeb     : KOSGEB duyurular (HTML scrape — kosgeb.gov.tr)
+ *  - tubitak    : TÜBİTAK duyurular (HTML scrape - tubitak.gov.tr/tr/duyuru)
+ *  - kosgeb     : KOSGEB duyurular (HTML scrape - kosgeb.gov.tr)
  *  - eu-portal  : EU Funding & Tenders Portal (SEDIA JSON API)
  *  - rss        : Standart RSS/Atom feed (mevcut parser)
  *
- * Her fetcher FetchedItem[] döner — competitions.service bunları Competition
+ * Her fetcher FetchedItem[] döner - competitions.service bunları Competition
  * tablosuna dedupe-insert eder.
  */
 
@@ -37,7 +37,7 @@ export async function fetchTubitak(limit = 25): Promise<FetchedItem[]> {
     if (!res.ok) return [];
     const html = await res.text();
 
-    // Duyuru linklerini topla — `/tr/duyuru/<slug>` formatı
+    // Duyuru linklerini topla - `/tr/duyuru/<slug>` formatı
     const seenSlugs = new Set<string>();
     const items: FetchedItem[] = [];
     const linkRegex = /href="\/tr\/duyuru\/([a-z0-9-]+)"[^>]*>([^<]+)</gi;
@@ -158,7 +158,7 @@ export async function fetchEuFundingPortal(limit = 25): Promise<FetchedItem[]> {
       const title = r.title || (metadata.title?.[0]) || r.summary;
       if (!title || title.length < 10) continue;
 
-      // Son başvuru tarihi — metadata.deadlineDate veya callDeadlineDate
+      // Son başvuru tarihi - metadata.deadlineDate veya callDeadlineDate
       let deadline: string | undefined;
       if (metadata.deadlineDate?.[0]) {
         deadline = String(metadata.deadlineDate[0]).split('T')[0];
@@ -166,7 +166,7 @@ export async function fetchEuFundingPortal(limit = 25): Promise<FetchedItem[]> {
         deadline = String(metadata.callDeadlineDate[0]).split('T')[0];
       }
 
-      // Topic URL — öncelikli
+      // Topic URL - öncelikli
       const topicUrl = r.url || `https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-details/${r.reference}`;
 
       items.push({

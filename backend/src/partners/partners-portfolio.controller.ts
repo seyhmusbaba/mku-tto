@@ -4,7 +4,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PartnersService } from './partners.service';
 
 /**
- * Kurumsal partner portföyü — kurum bazlı agregasyon, yenileme takibi.
+ * Kurumsal partner portföyü - kurum bazlı agregasyon, yenileme takibi.
  * Project scope dışı, tüm partnerleri kapsar.
  */
 @SkipThrottle()

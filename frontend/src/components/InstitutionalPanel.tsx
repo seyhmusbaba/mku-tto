@@ -40,7 +40,7 @@ function InfoTip({ text }: { text: string }) {
   );
 }
 
-// Renk paleti — fakülte başına
+// Renk paleti - fakülte başına
 const FACULTY_COLORS = ['#0f2444', '#1a3a6b', '#c8a45a', '#7c3aed', '#059669', '#dc2626', '#0891b2', '#ea580c', '#94a3b8', '#92651a'];
 
 // UN SDG resmi renkleri
@@ -148,7 +148,7 @@ export function InstitutionalPanel({ highlightFaculty }: { highlightFaculty?: st
       <div className="p-4 rounded-2xl flex items-start gap-3 text-xs" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af' }}>
         <Icon name="info" className="w-4 h-4 mt-0.5 flex-shrink-0" />
         <div className="leading-relaxed">
-          <strong className="font-semibold">Kurumsal karşılaştırma — rektörlük ve dekanlık için tasarlanmıştır.</strong>{' '}
+          <strong className="font-semibold">Kurumsal karşılaştırma - rektörlük ve dekanlık için tasarlanmıştır.</strong>{' '}
           Fakültelerin güçlü yanlarını 6 boyutta kıyaslar, hangi fakültelerin aynı projelerde buluştuğunu matris olarak
           gösterir ve Sürdürülebilir Kalkınma Hedefleri'ne kurumsal katkıyı ısı haritasıyla serer.
         </div>
@@ -164,7 +164,7 @@ export function InstitutionalPanel({ highlightFaculty }: { highlightFaculty?: st
           </h3>
           <span className="text-xs text-muted">{radar.length} fakülte</span>
         </div>
-        <p className="text-xs text-muted mb-4">6 boyutlu karşılaştırma — 0-100 arasına normalize edilmiş değerler</p>
+        <p className="text-xs text-muted mb-4">6 boyutlu karşılaştırma - 0-100 arasına normalize edilmiş değerler</p>
 
         {/* Fakülte seçici */}
         <div className="flex flex-wrap gap-2 mb-4">
@@ -297,7 +297,7 @@ export function InstitutionalPanel({ highlightFaculty }: { highlightFaculty?: st
                     <td className="px-3 py-2 text-right text-emerald-600">{f.activeProjects}</td>
                     <td className="px-3 py-2 text-right text-blue-600">{f.completedProjects}</td>
                     <td className="px-3 py-2 text-right font-bold">
-                      {f.totalProjects > 0 ? `%${Math.round((f.completedProjects / f.totalProjects) * 100)}` : '—'}
+                      {f.totalProjects > 0 ? `%${Math.round((f.completedProjects / f.totalProjects) * 100)}` : '-'}
                     </td>
                     <td className="px-3 py-2 text-right font-semibold">{formatCurrency(f.totalBudget)}</td>
                     <td className="px-3 py-2 text-right">{f.sdgCoverage} / 17</td>
@@ -320,7 +320,7 @@ export function InstitutionalPanel({ highlightFaculty }: { highlightFaculty?: st
             Cross-Fakülte İşbirlik Matrisi
             <InfoTip text="Aynı projede farklı fakültelerden üyeler varsa, o fakülte çifti için +1 sayılır. Hücre rengi ne kadar koyuysa o kadar çok ortak proje var. Başarılı kurumsal işbirliklerini ortaya çıkarır." />
           </h3>
-          <p className="text-xs text-muted mb-4">Hangi fakülteler birlikte proje yapıyor — hücredeki sayı ortak proje sayısı</p>
+          <p className="text-xs text-muted mb-4">Hangi fakülteler birlikte proje yapıyor - hücredeki sayı ortak proje sayısı</p>
 
           <div className="overflow-x-auto">
             <table className="text-xs">
@@ -398,19 +398,19 @@ export function InstitutionalPanel({ highlightFaculty }: { highlightFaculty?: st
         </div>
       )}
 
-      {/* Proje drilldown modal — işbirliği hücresi */}
+      {/* Proje drilldown modal - işbirliği hücresi */}
       {collabCell && (
         <ProjectListModal
-          title={`${collabCell.facultyA} ↔ ${collabCell.facultyB} — Ortak Projeler`}
+          title={`${collabCell.facultyA} ↔ ${collabCell.facultyB} - Ortak Projeler`}
           projects={collabCell.projects}
           onClose={() => setCollabCell(null)}
         />
       )}
 
-      {/* Proje drilldown modal — SDG hücresi */}
+      {/* Proje drilldown modal - SDG hücresi */}
       {heatCell && (
         <ProjectListModal
-          title={`${heatCell.faculty} — ${heatCell.sdgCode} Projeleri`}
+          title={`${heatCell.faculty} - ${heatCell.sdgCode} Projeleri`}
           projects={heatCell.projects}
           onClose={() => setHeatCell(null)}
         />
@@ -424,7 +424,7 @@ export function InstitutionalPanel({ highlightFaculty }: { highlightFaculty?: st
             SDG × Fakülte Isı Haritası
             <InfoTip text="Hangi fakülte hangi Sürdürülebilir Kalkınma Hedefi'ne kaç projeyle katkı sağlıyor. Koyu renkli hücreler güçlü odak alanlarını, açık renkler gelişim fırsatlarını gösterir." />
           </h3>
-          <p className="text-xs text-muted mb-4">Hücre rengi koyulaştıkça katkı artar — kurumsal odak alanlarını ortaya çıkarır</p>
+          <p className="text-xs text-muted mb-4">Hücre rengi koyulaştıkça katkı artar - kurumsal odak alanlarını ortaya çıkarır</p>
 
           <div className="overflow-x-auto">
             <table className="text-xs">
@@ -553,7 +553,7 @@ function ProjectListModal({ title, projects, onClose }: {
 }
 
 /**
- * Radar tooltip — hover'da normalized değerle beraber ham sayıları da göster.
+ * Radar tooltip - hover'da normalized değerle beraber ham sayıları da göster.
  */
 function RadarTooltip({ active, payload, radar }: any) {
   if (!active || !payload?.length) return null;

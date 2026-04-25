@@ -93,7 +93,7 @@ export class User {
   wosLastSync: string;
 
   // ═════════ AVESİS tarzı kaynak-bazlı metrikler ═════════
-  // OpenAlex — ORCID üzerinden otomatik sync, bedava, Scholar'a en yakın kapsam
+  // OpenAlex - ORCID üzerinden otomatik sync, bedava, Scholar'a en yakın kapsam
   // Author ID manuel olarak da set edilebilir (örn. A5012345678)
   @Column({ nullable: true })
   openAlexAuthorId: string;
@@ -120,7 +120,7 @@ export class User {
   @Column({ nullable: true, type: 'int' })
   googleScholarDocCount: number;
 
-  // TR Dizin (TÜBİTAK ULAKBİM) — otomatik veya manuel
+  // TR Dizin (TÜBİTAK ULAKBİM) - otomatik veya manuel
   @Column({ nullable: true, type: 'int' })
   trDizinHIndex: number;
 
@@ -130,7 +130,7 @@ export class User {
   @Column({ nullable: true, type: 'int' })
   trDizinDocCount: number;
 
-  // Sobiad (sosyal bilimler atıf indeksi) — manuel
+  // Sobiad (sosyal bilimler atıf indeksi) - manuel
   @Column({ nullable: true, type: 'int' })
   sobiadHIndex: number;
 
@@ -144,15 +144,15 @@ export class User {
   @Column({ nullable: true, type: 'int' })
   otherCitedBy: number;
 
-  // Tez danışmanlığı sayısı — manuel
+  // Tez danışmanlığı sayısı - manuel
   @Column({ nullable: true, type: 'int' })
   thesisAdvisorCount: number;
 
-  // Açık erişim yayın sayısı (farklı kaynaklardan toplanan) — manuel veya hesaplanmış
+  // Açık erişim yayın sayısı (farklı kaynaklardan toplanan) - manuel veya hesaplanmış
   @Column({ nullable: true, type: 'int' })
   openAccessCount: number;
 
-  // Toplam yayın sayısı (dedupe'li gerçek sayı) — manuel giriş izinli
+  // Toplam yayın sayısı (dedupe'li gerçek sayı) - manuel giriş izinli
   @Column({ nullable: true, type: 'int' })
   totalPublicationCount: number;
 

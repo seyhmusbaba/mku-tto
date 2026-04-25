@@ -19,7 +19,7 @@ export class ScopusController {
     @InjectRepository(ProjectMember) private memberRepo: Repository<ProjectMember>,
   ) {}
 
-  // Scopus API bağlantı testi — sadece oturum açmış kullanıcılar
+  // Scopus API bağlantı testi - sadece oturum açmış kullanıcılar
   @Get('test')
   async test() {
     if (!this.scopus.isConfigured()) {
@@ -64,7 +64,7 @@ export class ScopusController {
   }
 
 
-  // Debug: Scopus sync adımlarını detaylı göster — sadece admin
+  // Debug: Scopus sync adımlarını detaylı göster - sadece admin
   // /api/scopus/debug?userId=USER_ID_BURAYA
   @Get('debug')
   async debug(@Query('userId') userId: string | undefined, @Request() req: any) {
@@ -183,7 +183,7 @@ export class ScopusController {
 
     const authorId = (user as any).scopusAuthorId;
 
-    // Önbelleği temizle — her senkronizasyonda taze veri çek
+    // Önbelleği temizle - her senkronizasyonda taze veri çek
     this.scopus.clearCache(`author:${authorId}`);
 
     const profile = await this.scopus.getAuthorProfile(authorId);
@@ -202,7 +202,7 @@ export class ScopusController {
     return { success: true, profile };
   }
 
-  // ── 2. PROJE — YAYIN EŞLEŞTİRME ──────────────────────────────
+  // ── 2. PROJE - YAYIN EŞLEŞTİRME ──────────────────────────────
   @UseGuards(JwtAuthGuard)
   @Get('project/:projectId/related-publications')
   async getProjectRelatedPublications(@Param('projectId') projectId: string) {
@@ -329,13 +329,13 @@ function buildFundingRecommendations(areaCodes: string[], projectType?: string):
   const recs: any[] = [];
 
   const areaMap: Record<string, string[]> = {
-    COMP: ['TÜBİTAK 1001', 'TÜBİTAK 1501', 'Horizon Europe — ICT', 'ITEA'],
-    ENGI: ['TÜBİTAK 1001', 'TÜBİTAK 1507', 'EUREKA', 'Horizon Europe — EIC'],
-    MEDI: ['TÜBİTAK 1001', 'SAĞLIK BAKANLIĞI ArGe', 'Horizon Europe — Health'],
-    AGRI: ['TÜBİTAK 1001', 'TAGEM', 'Horizon Europe — Agrifood'],
-    ENVI: ['TÜBİTAK 1001', 'ÇEVRE BAKANLIĞI', 'Horizon Europe — Climate'],
-    ENER: ['TÜBİTAK 1001', 'YEGM', 'Horizon Europe — Energy'],
-    SOCI: ['TÜBİTAK 1001', 'YÖK Teşvik Fonu', 'Horizon Europe — Societies'],
+    COMP: ['TÜBİTAK 1001', 'TÜBİTAK 1501', 'Horizon Europe - ICT', 'ITEA'],
+    ENGI: ['TÜBİTAK 1001', 'TÜBİTAK 1507', 'EUREKA', 'Horizon Europe - EIC'],
+    MEDI: ['TÜBİTAK 1001', 'SAĞLIK BAKANLIĞI ArGe', 'Horizon Europe - Health'],
+    AGRI: ['TÜBİTAK 1001', 'TAGEM', 'Horizon Europe - Agrifood'],
+    ENVI: ['TÜBİTAK 1001', 'ÇEVRE BAKANLIĞI', 'Horizon Europe - Climate'],
+    ENER: ['TÜBİTAK 1001', 'YEGM', 'Horizon Europe - Energy'],
+    SOCI: ['TÜBİTAK 1001', 'YÖK Teşvik Fonu', 'Horizon Europe - Societies'],
     MATH: ['TÜBİTAK 1001', 'MSRT', 'ERC Starting Grant'],
   };
 

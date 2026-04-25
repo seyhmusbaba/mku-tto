@@ -357,11 +357,11 @@ function UsersPageInner() {
                           </Link>
                         </td>
                         <td className="px-5 py-4">
-                          <span className="badge text-xs" style={{ background: roleStyle.bg, color: roleStyle.text, border: `1px solid ${roleStyle.border}` }}>{u.role?.name || '—'}</span>
+                          <span className="badge text-xs" style={{ background: roleStyle.bg, color: roleStyle.text, border: `1px solid ${roleStyle.border}` }}>{u.role?.name || '-'}</span>
                         </td>
                         <td className="px-5 py-4">
                           {u.title && <p className="text-xs text-muted">{u.title}</p>}
-                          <p className="text-xs text-muted">{u.department || u.faculty || '—'}</p>
+                          <p className="text-xs text-muted">{u.department || u.faculty || '-'}</p>
                         </td>
                         <td className="px-5 py-4">
                           <span className={`badge text-xs ${u.isActive ? 'badge-green' : 'badge-gray'}`}>{u.isActive ? 'Aktif' : 'Pasif'}</span>

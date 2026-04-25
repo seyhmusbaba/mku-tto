@@ -12,7 +12,7 @@ import { User } from '../database/entities/user.entity';
  *   2. YOKSIS_USERNAME ve YOKSIS_PASSWORD env değişkenleri set edilmeli
  *   3. Sunucu IP'si YÖK'e tescil ettirilmeli
  *
- * Kimlik bilgileri olmadan "demo modu" çalışır — gerçek veri çekilmez.
+ * Kimlik bilgileri olmadan "demo modu" çalışır - gerçek veri çekilmez.
  */
 @Injectable()
 export class YoksisService {

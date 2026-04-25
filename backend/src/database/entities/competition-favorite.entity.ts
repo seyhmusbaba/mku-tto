@@ -2,7 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 
 
 /**
  * Kullanıcının takip ettiği yarışma/çağrı kayıtları.
- * Unique(userId, competitionId) — aynı yarışmayı 2 kez favoriye eklenmez.
+ * Unique(userId, competitionId) - aynı yarışmayı 2 kez favoriye eklenmez.
  */
 @Entity('competition_favorites')
 @Index(['userId', 'competitionId'], { unique: true })

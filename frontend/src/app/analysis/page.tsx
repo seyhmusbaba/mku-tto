@@ -51,7 +51,7 @@ const STATUS_COLORS: Record<string,string> = {
   application:'#d97706', pending:'#d97706', active:'#059669', completed:'#2563eb',
   suspended:'#6b7280', cancelled:'#dc2626',
 };
-// Fon kaynağı panelindeki bar renkleri — MKÜ paletine uyumlu
+// Fon kaynağı panelindeki bar renkleri - MKÜ paletine uyumlu
 const SOURCE_COLORS = ['#0f2444', '#c8a45a', '#059669', '#7c3aed', '#e9711c', '#4285f4', '#dc2626', '#5e33bf'];
 
 type Tab = 'overview' | 'institutional' | 'bibliometrics' | 'faculty' | 'researcher' | 'funding' | 'timeline' | 'gantt' | 'scopus';
@@ -108,7 +108,7 @@ export default function AnalysisPage() {
       .catch(() => {})
       .finally(() => setOverviewLoading(false));
 
-    // Filtre değişince tüm diğer sekmeler de yeniden çekilsin — tutarlı görünüm için
+    // Filtre değişince tüm diğer sekmeler de yeniden çekilsin - tutarlı görünüm için
     api.get('/analytics/faculty-performance', { params: filterParams })
       .then(r => setFacultyData(r.data || []))
       .catch(() => {});
@@ -160,26 +160,26 @@ export default function AnalysisPage() {
     // Genel Bakış herkese açık (scope backend'de otomatik kısıtlanır: user → sadece kendisi)
     { key: 'overview', label: 'Genel Bakış' },
 
-    // Kurumsal Karşılaştırma — SADECE rektörlük seviyesi
+    // Kurumsal Karşılaştırma - SADECE rektörlük seviyesi
     ...(isInstitutionWide ? [{ key: 'institutional' as Tab, label: 'Kurumsal Karşılaştırma' }] : []),
 
-    // Bibliyometri — biblioEnabled + en az fakülte-genişliğinde yetki gerek
+    // Bibliyometri - biblioEnabled + en az fakülte-genişliğinde yetki gerek
     ...(biblioEnabled && isDeptWide ? [{ key: 'bibliometrics' as Tab, label: 'Bibliyometri' }] : []),
 
-    // Fakülteler karşılaştırması — Dekan+ görür (dekan sadece kendi fakültesi context'inde)
+    // Fakülteler karşılaştırması - Dekan+ görür (dekan sadece kendi fakültesi context'inde)
     ...(isFacultyWide ? [{ key: 'faculty' as Tab, label: 'Fakülteler' }] : []),
 
-    // Araştırmacı verimliliği — Bölüm Başkanı+ görür (kendi kapsamında)
+    // Araştırmacı verimliliği - Bölüm Başkanı+ görür (kendi kapsamında)
     ...(isDeptWide ? [{ key: 'researcher' as Tab, label: 'Araştırmacılar' }] : []),
 
-    // Fon Analizi — Bölüm Başkanı+ (kendi kapsamında)
+    // Fon Analizi - Bölüm Başkanı+ (kendi kapsamında)
     ...(isDeptWide ? [{ key: 'funding' as Tab, label: 'Fon Analizi' }] : []),
 
-    // Zaman ve Gantt — kendi projeleri herkese faydalı, scope otomatik
+    // Zaman ve Gantt - kendi projeleri herkese faydalı, scope otomatik
     { key: 'timeline', label: 'Zaman Serisi' },
     { key: 'gantt',    label: 'Gantt'        },
 
-    // Scopus Analitik — biblioEnabled + en az fakülte-genişliğinde
+    // Scopus Analitik - biblioEnabled + en az fakülte-genişliğinde
     ...(biblioEnabled && isFacultyWide ? [{ key: 'scopus' as Tab, label: 'Scopus Analitik' }] : []),
   ];
 
@@ -259,7 +259,7 @@ export default function AnalysisPage() {
           <PeriodReportModal onClose={() => setPeriodModalOpen(false)} />
         )}
 
-        {/* Drilldown Modal — KPI/chart tıklayınca proje listesi */}
+        {/* Drilldown Modal - KPI/chart tıklayınca proje listesi */}
         {drilldown && (
           <DrilldownModal
             filter={drilldown.filter}
@@ -306,9 +306,9 @@ export default function AnalysisPage() {
                     <AIcon name="info" className="w-4 h-4 flex-shrink-0" />
                     <span>
                       {overview.scope === 'faculty' && overview.scopeValue ? (
-                        <><strong>{overview.scopeValue}</strong> fakültesi görünümü — kendi fakültenizin analiz verileri. Kurumsal Karşılaştırma sekmesinde diğer fakültelerle kıyaslayabilirsiniz.</>
+                        <><strong>{overview.scopeValue}</strong> fakültesi görünümü - kendi fakültenizin analiz verileri. Kurumsal Karşılaştırma sekmesinde diğer fakültelerle kıyaslayabilirsiniz.</>
                       ) : overview.scope === 'department' && overview.scopeValue ? (
-                        <><strong>{overview.scopeValue}</strong> bölüm görünümü — kendi bölümünüzün analiz verileri. Fakülteler sekmesinde diğer bölümlerle karşılaştırabilirsiniz.</>
+                        <><strong>{overview.scopeValue}</strong> bölüm görünümü - kendi bölümünüzün analiz verileri. Fakülteler sekmesinde diğer bölümlerle karşılaştırabilirsiniz.</>
                       ) : (
                         <>Yalnızca yetkili olduğunuz projeler gösteriliyor. Tüm analizlere erişim için yöneticinizle iletişime geçin.</>
                       )}
@@ -438,7 +438,7 @@ export default function AnalysisPage() {
                           ))}
                         </div>
                       </div>
-                      {/* 3 renkli stacked bar — aktif/tamamlanma/başvuru sürecinde */}
+                      {/* 3 renkli stacked bar - aktif/tamamlanma/başvuru sürecinde */}
                       <div className="mt-2 h-2 rounded-full overflow-hidden flex" style={{ background: '#f0ede8' }}>
                         <div style={{ width: `${f.activeRate ?? 0}%`, background: '#059669' }} title={`Aktif: %${f.activeRate ?? 0}`} />
                         <div style={{ width: `${f.completedRate ?? 0}%`, background: '#2563eb' }} title={`Tamamlanan: %${f.completedRate ?? 0}`} />
@@ -507,7 +507,7 @@ export default function AnalysisPage() {
                 {/* ═ Proje Türü Başarı Oranları ═ */}
                 <div className="card p-5">
                   <h3 className="font-display text-sm font-semibold text-navy mb-1">Proje Türüne Göre Dağılım</h3>
-                  <p className="text-xs text-muted mb-4">TÜBİTAK 1001, BAP, AB projesi gibi — proje türü bazlı başarı oranları</p>
+                  <p className="text-xs text-muted mb-4">TÜBİTAK 1001, BAP, AB projesi gibi - proje türü bazlı başarı oranları</p>
                   <ResponsiveContainer width="100%" height={280}>
                     <BarChart data={fundingData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0ede8" />
@@ -531,7 +531,7 @@ export default function AnalysisPage() {
                       Fon Kaynağına Göre Dağılım
                     </h3>
                     <p className="text-xs text-muted mb-4">
-                      Nereden geliyor — TÜBİTAK, Rektörlük/BAP, AB, Sanayi, Kalkınma Ajansları vs. (Normalleştirilmiş)
+                      Nereden geliyor - TÜBİTAK, Rektörlük/BAP, AB, Sanayi, Kalkınma Ajansları vs. (Normalleştirilmiş)
                     </p>
 
                     {/* Horizontal stacked bar */}
@@ -706,7 +706,7 @@ export default function AnalysisPage() {
                   <div className="flex gap-1 p-1 rounded-xl" style={{ background: '#f0ede8' }}>
                     {(() => {
                       type BiblioScope = 'me' | 'faculty-compare' | 'dept-compare' | 'institutional';
-                      // Permission bazlı yetki kontrolü — Roller & Yetkiler modülünden yönetilir
+                      // Permission bazlı yetki kontrolü - Roller & Yetkiler modülünden yönetilir
                       const perms = user?.role?.permissions?.map((p: any) => p.name) || [];
                       const has = (p: string) => perms.includes(p);
                       const canCompareFaculty = has('analytics:faculty-compare');
@@ -889,7 +889,7 @@ function ScopusAnalyticsTab() {
                       <AIcon name={m.icon} className="w-5 h-5" />
                     </span>
                     <p className="font-display text-2xl font-bold" style={{ color: m.color }}>
-                      {m.value ?? '—'}
+                      {m.value ?? '-'}
                     </p>
                     <p className="text-xs text-muted mt-0.5">{m.label}</p>
                   </div>
@@ -931,7 +931,7 @@ function ScopusAnalyticsTab() {
                 </div>
               )}
 
-              {/* Recharts — konu dağılımı */}
+              {/* Recharts - konu dağılımı */}
               {metrics.topSubjects?.length > 0 && (
                 <div className="card p-5">
                   <h3 className="font-display text-sm font-semibold text-navy mb-4 inline-flex items-center gap-2">
@@ -1059,7 +1059,7 @@ function PeriodReportModal({ onClose }: { onClose: () => void }) {
             </svg>
           </button>
         </div>
-        <p className="text-sm text-muted mb-4">Belirli bir tarih aralığı için PDF raporu üretir — başvurulan/aktifleşen/tamamlanan projeler dönem içinde.</p>
+        <p className="text-sm text-muted mb-4">Belirli bir tarih aralığı için PDF raporu üretir - başvurulan/aktifleşen/tamamlanan projeler dönem içinde.</p>
 
         <label className="label">Hazır Aralık</label>
         <div className="flex flex-wrap gap-2 mb-4">
@@ -1124,7 +1124,7 @@ function FacultyComparisonPanel({ highlightFaculty }: { highlightFaculty?: strin
       <div className="p-4 rounded-2xl flex items-start gap-3 text-xs" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af' }}>
         <AIcon name="info" className="w-4 h-4 mt-0.5 flex-shrink-0" />
         <div className="leading-relaxed">
-          <strong>Fakülteler arası bibliyometri karşılaştırması.</strong> Her fakülteden en çok 5 araştırmacı örneklenmiştir — fakülte başına sayılar bu örneklemi yansıtır, tüm akademik kadroyu değil. Örneklem boyutu sağda gösterilir. Sarı satır sizin fakültenizdir.
+          <strong>Fakülteler arası bibliyometri karşılaştırması.</strong> Her fakülteden en çok 5 araştırmacı örneklenmiştir - fakülte başına sayılar bu örneklemi yansıtır, tüm akademik kadroyu değil. Örneklem boyutu sağda gösterilir. Sarı satır sizin fakültenizdir.
         </div>
       </div>
 
@@ -1162,12 +1162,12 @@ function FacultyComparisonPanel({ highlightFaculty }: { highlightFaculty?: strin
                   <td className="px-3 py-2 text-right text-navy">{f.totalCitations}</td>
                   <td className="px-3 py-2 text-right font-bold">{f.hIndex}</td>
                   <td className="px-3 py-2 text-right">{f.i10Index}</td>
-                  <td className="px-3 py-2 text-right">{f.avgFwci !== null ? (+f.avgFwci).toFixed(2) : '—'}</td>
+                  <td className="px-3 py-2 text-right">{f.avgFwci !== null ? (+f.avgFwci).toFixed(2) : '-'}</td>
                   <td className="px-3 py-2 text-right text-emerald-600">{f.top1PctCount}</td>
                   <td className="px-3 py-2 text-right text-emerald-600">{f.q1Count}</td>
                   <td className="px-3 py-2 text-right">%{f.openAccessRatio}</td>
                   <td className="px-3 py-2 text-right">%{f.internationalRatio}</td>
-                  <td className="px-3 py-2 text-xs">{f.topResearcher?.name || '—'}{f.topResearcher ? ` · h=${f.topResearcher.hIndex}` : ''}</td>
+                  <td className="px-3 py-2 text-xs">{f.topResearcher?.name || '-'}{f.topResearcher ? ` · h=${f.topResearcher.hIndex}` : ''}</td>
                 </tr>
               );
             })}
@@ -1213,7 +1213,7 @@ function DepartmentComparisonPanel({ userFaculty, userDept, roleName }: { userFa
       <div className="p-4 rounded-2xl flex items-start gap-3 text-xs" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af' }}>
         <AIcon name="info" className="w-4 h-4 mt-0.5 flex-shrink-0" />
         <div className="leading-relaxed flex-1">
-          <strong>Bölümler arası bibliyometri karşılaştırması.</strong> Seçili fakülte içindeki bölümler — her bölümden en çok 3 araştırmacı örneklenmiştir.
+          <strong>Bölümler arası bibliyometri karşılaştırması.</strong> Seçili fakülte içindeki bölümler - her bölümden en çok 3 araştırmacı örneklenmiştir.
           {canSelectFaculty && (
             <div className="mt-2">
               <select className="input text-sm py-1 w-72" value={selectedFaculty} onChange={e => setSelectedFaculty(e.target.value)}>
@@ -1269,10 +1269,10 @@ function DepartmentComparisonPanel({ userFaculty, userDept, roleName }: { userFa
                       <td className="px-3 py-2 text-right text-navy">{d.totalPubs}</td>
                       <td className="px-3 py-2 text-right text-navy">{d.totalCitations}</td>
                       <td className="px-3 py-2 text-right font-bold">{d.hIndex}</td>
-                      <td className="px-3 py-2 text-right">{d.avgFwci !== null ? (+d.avgFwci).toFixed(2) : '—'}</td>
+                      <td className="px-3 py-2 text-right">{d.avgFwci !== null ? (+d.avgFwci).toFixed(2) : '-'}</td>
                       <td className="px-3 py-2 text-right text-emerald-600">{d.q1Count}</td>
                       <td className="px-3 py-2 text-right">%{d.openAccessRatio}</td>
-                      <td className="px-3 py-2 text-xs">{d.topResearcher?.name || '—'}{d.topResearcher ? ` · h=${d.topResearcher.hIndex}` : ''}</td>
+                      <td className="px-3 py-2 text-xs">{d.topResearcher?.name || '-'}{d.topResearcher ? ` · h=${d.topResearcher.hIndex}` : ''}</td>
                     </tr>
                   );
                 })}
@@ -1290,7 +1290,7 @@ function DepartmentComparisonPanel({ userFaculty, userDept, roleName }: { userFa
 }
 
 /**
- * Drilldown Modal — KPI/chart bileşenine tıklandığında açılır,
+ * Drilldown Modal - KPI/chart bileşenine tıklandığında açılır,
  * filtreli proje listesini modal içinde gösterir.
  */
 function DrilldownModal({ filter, title, onClose }: {
@@ -1309,7 +1309,7 @@ function DrilldownModal({ filter, title, onClose }: {
     if (filter.type) params.type = filter.type;
     if (filter.status) params.status = filter.status;
     if (filter.faculty) params.faculty = filter.faculty;
-    // fundingSource için search'e düşeceğiz — projects endpoint'inde direkt filtre yok
+    // fundingSource için search'e düşeceğiz - projects endpoint'inde direkt filtre yok
     api.get('/projects', { params }).then(r => {
       let data = r.data?.data || [];
       // fundingSource filtresi client-side normalleştir

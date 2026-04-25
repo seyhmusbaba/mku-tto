@@ -24,7 +24,7 @@ export class DashboardService {
     return qb;
   }
 
-  // Yönetici dashboard — scope'a göre filtrelenir (global/fakülte/bölüm)
+  // Yönetici dashboard - scope'a göre filtrelenir (global/fakülte/bölüm)
   async getStats(scope: DashboardScope = { kind: 'global' }) {
     const baseQb = () => this.applyScope(this.projectRepo.createQueryBuilder('p'), 'p', scope);
 
@@ -66,7 +66,7 @@ export class DashboardService {
     );
     const recentProjects = await recentProjectsQb.orderBy('p.createdAt', 'DESC').take(8).getMany();
 
-    // En yüksek bütçeli — ayrı sorgu (scope filtreli)
+    // En yüksek bütçeli - ayrı sorgu (scope filtreli)
     const topBudget = await this.applyScope(
       this.projectRepo.createQueryBuilder('p').leftJoinAndSelect('p.owner', 'owner'),
       'p', scope,
@@ -115,7 +115,7 @@ export class DashboardService {
     return null;
   }
 
-  // Kişisel istatistikler — normal kullanıcılar için
+  // Kişisel istatistikler - normal kullanıcılar için
   async getPersonalStats(userId: string) {
     // Kullanıcının yürütücü veya üye olduğu projelerin ID'leri
     const ownedProjects = await this.projectRepo.find({ where: { ownerId: userId }, select: ['id'] });

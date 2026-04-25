@@ -112,7 +112,7 @@ export class SearchService {
     if (f.type) qb.andWhere('p.type = :t', { t: f.type });
     if (f.status) qb.andWhere('p.status = :s', { s: f.status });
     if (f.faculty) qb.andWhere('p.faculty = :f', { f: f.faculty });
-    // startDate ISO string formatında (YYYY-MM-DD) — substring ile yıl filtrele
+    // startDate ISO string formatında (YYYY-MM-DD) - substring ile yıl filtrele
     if (f.yearFrom) qb.andWhere('SUBSTRING(p."startDate", 1, 4) >= :yf', { yf: String(f.yearFrom) });
     if (f.yearTo) qb.andWhere('SUBSTRING(p."startDate", 1, 4) <= :yt', { yt: String(f.yearTo) });
 
@@ -238,7 +238,7 @@ export class SearchService {
     };
   }
 
-  // ── Suggestions — lightweight autocomplete ────────────────
+  // ── Suggestions - lightweight autocomplete ────────────────
   async suggest(query: string, limit = 5): Promise<string[]> {
     const q = (query || '').trim();
     if (q.length < 2) return [];

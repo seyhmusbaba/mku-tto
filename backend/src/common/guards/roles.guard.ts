@@ -19,7 +19,7 @@ export class RolesGuard implements CanActivate {
     const req = context.switchToHttp().getRequest();
     if (!req.user) return false;
 
-    // JWT payload'ında rol adı varsa önce onu kontrol et — DB sorgusu tasarrufu
+    // JWT payload'ında rol adı varsa önce onu kontrol et - DB sorgusu tasarrufu
     if (req.user.roleName && roles.includes(req.user.roleName)) return true;
 
     try {

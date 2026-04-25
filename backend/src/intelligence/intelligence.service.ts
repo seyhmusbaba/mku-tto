@@ -10,7 +10,7 @@ import { PatentService } from '../integrations/patent.service';
 import { CrossrefService } from '../integrations/crossref.service';
 
 /**
- * Project Intelligence — proje oluşturma/düzenleme sayfasındaki canlı
+ * Project Intelligence - proje oluşturma/düzenleme sayfasındaki canlı
  * karar destek paneli için backend.
  */
 
@@ -256,7 +256,7 @@ export class IntelligenceService {
     }
   }
 
-  // ═══ 4. PATENT MANZARASI (DÜZELTİLDİ — keyword-in-text) ═══════════════
+  // ═══ 4. PATENT MANZARASI (DÜZELTİLDİ - keyword-in-text) ═══════════════
   async getPatentLandscape(keywords: string[]): Promise<{ trCount: number; epCount: number; configured: boolean; samples: any[] }> {
     if (keywords.length === 0) return { trCount: 0, epCount: 0, configured: false, samples: [] };
     if (!this.patent.isConfigured()) {
@@ -264,7 +264,7 @@ export class IntelligenceService {
     }
 
     try {
-      // İlk 2 en anlamlı anahtar kelimeyi birleştir — AND ile arar EPO
+      // İlk 2 en anlamlı anahtar kelimeyi birleştir - AND ile arar EPO
       const query = keywords.slice(0, 2).join(' AND ');
       const [trResults, epResults] = await Promise.all([
         this.patent.searchByKeyword(query, 'TR', 15),
@@ -478,13 +478,13 @@ export class IntelligenceService {
     }
   }
 
-  // ═══ 8. ULUSAL BENCHMARK (DÜZELTİLDİ — native OpenAIRE filter) ═══════
+  // ═══ 8. ULUSAL BENCHMARK (DÜZELTİLDİ - native OpenAIRE filter) ═══════
   async getTurkeyBenchmark(keywords: string[]): Promise<{ total: number; topInstitutions: Array<{ name: string; count: number }> }> {
     const query = keywords.filter(k => k.length > 3).slice(0, 3).join(' ');
     if (!query) return { total: 0, topInstitutions: [] };
 
     try {
-      // CordisService.searchProjects native keyword param kullanıyor —
+      // CordisService.searchProjects native keyword param kullanıyor -
       // sonra TR partnerlarını filtrele.
       const matched = await this.cordis.searchProjects(query, 50);
 
@@ -580,7 +580,7 @@ export class IntelligenceService {
     return [...common, ...(typeSpecific[type] || [])];
   }
 
-  // ═══ 11. AI SYNTHESIS — her şeyi birleştir, öneri üret ═══════════════════
+  // ═══ 11. AI SYNTHESIS - her şeyi birleştir, öneri üret ═══════════════════
   async getSynthesis(
     title: string,
     description: string | undefined,
@@ -625,7 +625,7 @@ export class IntelligenceService {
 
     const overallScore = Math.round((originalityScore + competitionScore + fitScore + successProbability) / 4);
 
-    // AI narrative — Anthropic API varsa AI, yoksa rule-based
+    // AI narrative - Anthropic API varsa AI, yoksa rule-based
     const synthesis = await this.generateSynthesisNarrative({
       title, description, keywords, type, budget,
       similar, eu, patents, journals, success, sdg,
@@ -645,27 +645,27 @@ export class IntelligenceService {
   private async generateSynthesisNarrative(ctx: any): Promise<{ narrative: string; highlights: string[]; risks: string[]; recommendations: string[]; source: 'ai' | 'rule-based' }> {
     const apiKey = process.env.ANTHROPIC_API_KEY;
 
-    // Rule-based fallback — daha analitik, somut veri referanslı
+    // Rule-based fallback - daha analitik, somut veri referanslı
     const ruleBased = () => {
       const highlights: string[] = [];
       const risks: string[] = [];
       const recommendations: string[] = [];
 
-      // Highlights — somut veri ile
+      // Highlights - somut veri ile
       if (ctx.similar.total > 0 && ctx.similar.total < 30) {
-        highlights.push(`Az işlenmiş niş alan — dünyada yalnızca ${ctx.similar.total} emsal yayın var (ortalama ${ctx.similar.avgCitations} atıf)`);
+        highlights.push(`Az işlenmiş niş alan - dünyada yalnızca ${ctx.similar.total} emsal yayın var (ortalama ${ctx.similar.avgCitations} atıf)`);
       } else if (ctx.similar.total > 100) {
-        highlights.push(`Olgun araştırma alanı — ${ctx.similar.total} yayın, ortalama ${ctx.similar.avgCitations} atıf; referans literatürü zengin`);
+        highlights.push(`Olgun araştırma alanı - ${ctx.similar.total} yayın, ortalama ${ctx.similar.avgCitations} atıf; referans literatürü zengin`);
       }
       if (ctx.journals.length > 0 && ctx.journals[0]) {
         const top = ctx.journals[0];
         const q1count = ctx.journals.filter((j: any) => j.sjrQuartile === 'Q1').length;
-        if (q1count > 0) highlights.push(`${q1count} Q1 hedef dergi eşleşti — en uygun: "${top.title}"${top.sjrScore ? ` (SJR ${top.sjrScore})` : ''}`);
+        if (q1count > 0) highlights.push(`${q1count} Q1 hedef dergi eşleşti - en uygun: "${top.title}"${top.sjrScore ? ` (SJR ${top.sjrScore})` : ''}`);
         else if (top.title) highlights.push(`Potansiyel hedef dergi: "${top.title}"`);
       }
       if (ctx.eu.total > 0) {
         const sampleAcro = ctx.eu.items?.[0]?.acronym;
-        highlights.push(`${ctx.eu.total} benzer AB projesi tespit edildi${sampleAcro ? ` (örn. ${sampleAcro})` : ''} — ortalama AB katkısı €${Math.round(ctx.eu.avgBudget).toLocaleString()}`);
+        highlights.push(`${ctx.eu.total} benzer AB projesi tespit edildi${sampleAcro ? ` (örn. ${sampleAcro})` : ''} - ortalama AB katkısı €${Math.round(ctx.eu.avgBudget).toLocaleString()}`);
       }
       if (ctx.sdg.length >= 2) {
         const topSdgs = ctx.sdg.slice(0, 2).map((s: any) => s.sdgName).join(' ve ');
@@ -675,24 +675,24 @@ export class IntelligenceService {
         highlights.push(`MKÜ'de benzer ${ctx.success.sampleSize} projenin %${ctx.scores.successProbability}'i başarıyla tamamlanmış`);
       }
 
-      // Risks — spesifik
+      // Risks - spesifik
       if (ctx.similar.total > 150) {
-        risks.push(`Yüksek rekabet yoğunluğu — ${ctx.similar.total} yayınla doymuş bir alan, farklılaşan katkı netleştirilmeli`);
+        risks.push(`Yüksek rekabet yoğunluğu - ${ctx.similar.total} yayınla doymuş bir alan, farklılaşan katkı netleştirilmeli`);
       }
       if (ctx.patents.trCount + ctx.patents.epCount > 10) {
-        risks.push(`Prior art riski yüksek: EPO'da ${ctx.patents.trCount} TR + ${ctx.patents.epCount} AB patent tespit edildi — IP planı önceden gerekli`);
+        risks.push(`Prior art riski yüksek: EPO'da ${ctx.patents.trCount} TR + ${ctx.patents.epCount} AB patent tespit edildi - IP planı önceden gerekli`);
       }
       if (ctx.scores.successProbability < 50 && ctx.success.sampleSize > 3) {
-        risks.push(`Dikkat: MKÜ'de benzer ${ctx.success.sampleSize} projenin tamamlanma oranı %${ctx.scores.successProbability} — iyi bir proje yönetim planı kritik`);
+        risks.push(`Dikkat: MKÜ'de benzer ${ctx.success.sampleSize} projenin tamamlanma oranı %${ctx.scores.successProbability} - iyi bir proje yönetim planı kritik`);
       }
       if (ctx.journals.length > 0 && ctx.journals.filter((j: any) => j.sjrQuartile).length === 0) {
-        risks.push('Dergi kalite verisi eksik — SCImago yüklü değil, hedef dergi stratejisi manuel doğrulanmalı');
+        risks.push('Dergi kalite verisi eksik - SCImago yüklü değil, hedef dergi stratejisi manuel doğrulanmalı');
       }
       if (ctx.eu.total === 0 && ctx.keywords.length > 0) {
-        risks.push('Bu konuda AB fonlu proje yok — AB başvurusu risk taşır, ulusal kaynaklara yönelin');
+        risks.push('Bu konuda AB fonlu proje yok - AB başvurusu risk taşır, ulusal kaynaklara yönelin');
       }
 
-      // Recommendations — aksiyon odaklı, somut
+      // Recommendations - aksiyon odaklı, somut
       if (ctx.similar.items && ctx.similar.items[0]) {
         const top = ctx.similar.items[0];
         recommendations.push(`En çok atıf alan "${top.title}" (${top.year}, ${top.citedBy} atıf) çalışmasını inceleyip farklılaşan katkınızı önerinin girişinde belirtin`);
@@ -703,25 +703,25 @@ export class IntelligenceService {
       if (ctx.eu.avgBudget > 0 && ctx.budget) {
         const diff = ctx.eu.avgBudget - ctx.budget;
         if (Math.abs(diff) > ctx.eu.avgBudget * 0.5) {
-          recommendations.push(`Bütçeniz ${ctx.budget.toLocaleString()} ₺ — benzer AB projeleri €${Math.round(ctx.eu.avgBudget).toLocaleString()}; orana göre uygun mu yeniden değerlendirin`);
+          recommendations.push(`Bütçeniz ${ctx.budget.toLocaleString()} ₺ - benzer AB projeleri €${Math.round(ctx.eu.avgBudget).toLocaleString()}; orana göre uygun mu yeniden değerlendirin`);
         }
       }
       if (ctx.eu.countries && Object.keys(ctx.eu.countries).length > 0) {
         const topCountries = Object.entries(ctx.eu.countries).sort((a: any, b: any) => b[1] - a[1]).slice(0, 3).map((c: any) => c[0]);
-        recommendations.push(`En aktif AB partner ülkeleri: ${topCountries.join(', ')} — konsorsiyum kurarken bu ülkelerden kurumlarla iletişime geçin`);
+        recommendations.push(`En aktif AB partner ülkeleri: ${topCountries.join(', ')} - konsorsiyum kurarken bu ülkelerden kurumlarla iletişime geçin`);
       }
       if (ctx.sdg.length === 0) {
-        recommendations.push('OpenAlex SDG eşleşmesi yapılamadı — proje metninde SDG ile ilgili terimler kullanarak küresel etki çerçevesi ekleyin');
+        recommendations.push('OpenAlex SDG eşleşmesi yapılamadı - proje metninde SDG ile ilgili terimler kullanarak küresel etki çerçevesi ekleyin');
       }
 
-      // Narrative — somut veri çağrısıyla
+      // Narrative - somut veri çağrısıyla
       const originalityLabel = ctx.scores.originalityScore >= 70 ? 'güçlü özgünlük' : ctx.scores.originalityScore >= 50 ? 'orta özgünlük' : 'yüksek rekabet';
       const compLabel = ctx.scores.competitionScore >= 70 ? 'az sayıda rakip' : ctx.scores.competitionScore >= 50 ? 'orta düzey rekabet' : 'yoğun rekabet';
 
       const narrative =
         `Proje ${originalityLabel} (%${ctx.scores.originalityScore}) ve ${compLabel} (%${ctx.scores.competitionScore}) profili sergiliyor. ` +
         (ctx.similar.total > 0
-          ? `OpenAlex'te ${ctx.similar.total} benzer yayın — ortalama ${ctx.similar.avgCitations} atıf, zirve yılı ${ctx.similar.peakYear || 'belirsiz'}. `
+          ? `OpenAlex'te ${ctx.similar.total} benzer yayın - ortalama ${ctx.similar.avgCitations} atıf, zirve yılı ${ctx.similar.peakYear || 'belirsiz'}. `
           : 'Dünya literatüründe neredeyse hiç emsal yok; bu bir fırsat veya niş seçimin sonucu olabilir. ') +
         (ctx.eu.total > 0
           ? `AB'de ${ctx.eu.total} emsal proje finanse edilmiş (ortalama €${Math.round(ctx.eu.avgBudget).toLocaleString()}); `
@@ -742,9 +742,9 @@ export class IntelligenceService {
 
     if (!apiKey) return ruleBased();
 
-    // AI-powered narrative — somut veri referanslı
+    // AI-powered narrative - somut veri referanslı
     try {
-      // Gerçek referans veriler — prompt'ta tırnak içinde geçsin
+      // Gerçek referans veriler - prompt'ta tırnak içinde geçsin
       const topSimilar = (ctx.similar.items || []).slice(0, 3).map((w: any) =>
         `"${w.title}" (${w.year || '?'}, ${w.citedBy} atıf${w.journal ? `, ${w.journal}` : ''})`
       ).join('\n    ');
@@ -757,7 +757,7 @@ export class IntelligenceService {
       const sdgNames = (ctx.sdg || []).slice(0, 3).map((s: any) => s.sdgName).join(', ');
       const topCountries = ctx.eu.countries ? Object.entries(ctx.eu.countries).sort((a: any, b: any) => b[1] - a[1]).slice(0, 4).map((c: any) => c[0]).join(', ') : '';
 
-      const prompt = `Sen bir akademik proje danışmanısın — MKÜ TTO (Mustafa Kemal Üniversitesi Teknoloji Transfer Ofisi) için çalışıyorsun.
+      const prompt = `Sen bir akademik proje danışmanısın - MKÜ TTO (Mustafa Kemal Üniversitesi Teknoloji Transfer Ofisi) için çalışıyorsun.
 Kullanıcının yazdığı proje için KİŞİSELLEŞMİŞ, SOMUT VERİYE dayanan bir analiz üret.
 
 PROJE BİLGİLERİ:
@@ -805,15 +805,15 @@ KOMPOZİT SKORLAR:
 
 SENDEN İSTENENLER:
 
-1. NARRATIVE: 2 paragraflık TÜRKÇE yönetici özeti yaz. Genellemelerden kaçın — YUKARIDAKİ SOMUT VERİLERE atıf yap:
+1. NARRATIVE: 2 paragraflık TÜRKÇE yönetici özeti yaz. Genellemelerden kaçın - YUKARIDAKİ SOMUT VERİLERE atıf yap:
    - Gerçek dergi isimlerini tırnak içinde ver
    - Gerçek AB proje akronimlerini kullan
    - Sayıları yuvarlamadan yaz (%73 tamamlanma gibi)
    - Bu proje için SPESİFİK olan şeyleri söyle
 
-2. HIGHLIGHTS (3-5 madde): Bu projenin güçlü yönleri — yukarıdaki verilerle desteklenmiş.
-3. RISKS (2-4 madde): Dikkat edilmesi gerekenler — rakamsal gerekçelerle.
-4. RECOMMENDATIONS (3 somut öneri): AKSİYON ODAKLI — "X dergisine gönder", "Y ülkesinden partner ara", "Z yayını referans al" gibi.
+2. HIGHLIGHTS (3-5 madde): Bu projenin güçlü yönleri - yukarıdaki verilerle desteklenmiş.
+3. RISKS (2-4 madde): Dikkat edilmesi gerekenler - rakamsal gerekçelerle.
+4. RECOMMENDATIONS (3 somut öneri): AKSİYON ODAKLI - "X dergisine gönder", "Y ülkesinden partner ara", "Z yayını referans al" gibi.
 
 SADECE JSON döndür, başka hiçbir şey yazma:
 {
@@ -882,7 +882,7 @@ SADECE JSON döndür, başka hiçbir şey yazma:
       const p25 = budgets.length > 0 ? budgets[Math.floor(budgets.length * 0.25)] : 0;
       const p75 = budgets.length > 0 ? budgets[Math.floor(budgets.length * 0.75)] : 0;
 
-      // Analog projeler — en yakın 3 bütçeli
+      // Analog projeler - en yakın 3 bütçeli
       let analogs: any[] = [];
       if (budget) {
         const sorted = [...projects].sort((a, b) =>
@@ -909,7 +909,7 @@ SADECE JSON döndür, başka hiçbir şey yazma:
         }));
       }
 
-      // Başarı olasılığı — aynı tür + benzer bütçedeki projelerin completion oranı
+      // Başarı olasılığı - aynı tür + benzer bütçedeki projelerin completion oranı
       let targetProjects = projects;
       if (budget) {
         // Bütçenin ±%50'si içinde olan projeleri al
@@ -942,7 +942,7 @@ SADECE JSON döndür, başka hiçbir şey yazma:
     }
   }
 
-  // ═══ 13. COLLABORATION NETWORK — konu bazlı, mevcut vs potansiyel ════════
+  // ═══ 13. COLLABORATION NETWORK - konu bazlı, mevcut vs potansiyel ════════
   /**
    * Yeni yaklaşım: "geçmiş ortakları göster" değil, "proje konusunda aktif
    * dünya araştırmacılarını göster, içlerinden senin eski ortakların vurgulu".
@@ -965,7 +965,7 @@ SADECE JSON döndür, başka hiçbir şey yazma:
   }> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
 
-    // Merkez — eğer konu verilmişse konu node'u, yoksa kullanıcı
+    // Merkez - eğer konu verilmişse konu node'u, yoksa kullanıcı
     const topicQuery = [title, ...keywords].filter(Boolean).join(' ').slice(0, 200);
     const hasTopic = topicQuery.length > 10;
 
@@ -995,7 +995,7 @@ SADECE JSON döndür, başka hiçbir şey yazma:
         }
       }
 
-      // 2) Konu uzmanları — OpenAlex'ten topic search + top authors
+      // 2) Konu uzmanları - OpenAlex'ten topic search + top authors
       const topicExperts = new Map<string, { name: string; count: number; institution?: string; orcid?: string; country?: string; totalCitations: number }>();
       if (hasTopic) {
         const works = await this.searchOpenAlexByQuery(topicQuery, 60);
@@ -1013,7 +1013,7 @@ SADECE JSON döndür, başka hiçbir şey yazma:
         }
       }
 
-      // 3) Birleştir — her yazar için tip belirle
+      // 3) Birleştir - her yazar için tip belirle
       const allKeys = new Set([...existingCoauthors.keys(), ...topicExperts.keys()]);
       const nodeList: any[] = [];
       for (const key of allKeys) {
@@ -1026,7 +1026,7 @@ SADECE JSON döndür, başka hiçbir şey yazma:
 
         if (ex && te) {
           type = 'both';
-          weight = ex.count + te.count;  // ekstra ağırlık — hem tanıdık hem alanında
+          weight = ex.count + te.count;  // ekstra ağırlık - hem tanıdık hem alanında
         } else if (ex) {
           type = 'existing-coauthor';
           weight = ex.count;
@@ -1048,7 +1048,7 @@ SADECE JSON döndür, başka hiçbir şey yazma:
         });
       }
 
-      // En iyi 20 — 'both' > 'topic-expert' > 'existing'
+      // En iyi 20 - 'both' > 'topic-expert' > 'existing'
       nodeList.sort((a, b) => a.sortKey - b.sortKey);
       const top = nodeList.slice(0, 20);
 
@@ -1062,7 +1062,7 @@ SADECE JSON döndür, başka hiçbir şey yazma:
         pubCount: n.pubCount,
       }));
 
-      // Kenarlar — hepsi merkeze bağlı, tip ayrımı renklerle
+      // Kenarlar - hepsi merkeze bağlı, tip ayrımı renklerle
       const edges = nodes.map(n => ({
         source: 'center',
         target: n.id,

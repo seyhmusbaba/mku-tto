@@ -45,7 +45,7 @@ function CIcon({ name, className = 'w-4 h-4', strokeWidth = 1.8 }: { name: CIcon
   );
 }
 
-// Tarih ayrıştır — "15 Mayıs 2025", "2025-05-15", "15.05.2025" gibi formatları destekle
+// Tarih ayrıştır - "15 Mayıs 2025", "2025-05-15", "15.05.2025" gibi formatları destekle
 function parseDeadline(str: string): Date | null {
   if (!str) return null;
   // ISO format
@@ -156,7 +156,7 @@ export default function CompetitionsPage() {
   useEffect(() => { load(1); api.get('/competitions/stats').then(r => setStats(r.data)).catch(() => {}); }, [filters]);
   useEffect(() => { if (tab === 'sources') loadSources(); }, [tab]);
 
-  // Favori ID'leri her zaman yüklü olsun — kart üzerinde star state
+  // Favori ID'leri her zaman yüklü olsun - kart üzerinde star state
   useEffect(() => {
     api.get('/competitions/favorites/ids').then(r => setFavoriteIds(r.data || [])).catch(() => {});
   }, []);
@@ -298,7 +298,7 @@ export default function CompetitionsPage() {
       />
 
       <div className="p-6 space-y-5">
-        {/* Sekmeler — Favoriler herkese açık, Kaynaklar sadece admin */}
+        {/* Sekmeler - Favoriler herkese açık, Kaynaklar sadece admin */}
         <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: '#f0ede8' }}>
           {[
             ['list', 'Duyurular', 'trophy'],
@@ -336,7 +336,7 @@ export default function CompetitionsPage() {
                 <div>
                   <p className="text-sm font-semibold text-green-800">Otomatik Tarama Aktif</p>
                   <p className="text-xs text-green-700 mt-0.5 inline-flex items-center gap-1 flex-wrap">
-                    {scheduleInfo?.interval || 'Her 6 saatte bir (00:00, 06:00, 12:00, 18:00)'} — Yeni duyuru bulununca tüm kullanıcılara
+                    {scheduleInfo?.interval || 'Her 6 saatte bir (00:00, 06:00, 12:00, 18:00)'} - Yeni duyuru bulununca tüm kullanıcılara
                     <CIcon name="bell" className="w-3.5 h-3.5" />
                     bildirim gider
                   </p>
@@ -661,14 +661,14 @@ export default function CompetitionsPage() {
                 </select>
                 <p className="text-[11px] text-muted mt-1">
                   {sourceForm.type === 'rss' && 'Standart RSS/Atom feed URL girin. Test butonu ile feed geçerliliğini doğrulayın.'}
-                  {sourceForm.type === 'tubitak' && 'URL ihmal edilebilir — fetcher sabit endpoint kullanır. Test butonu canlı tarar.'}
-                  {sourceForm.type === 'kosgeb' && 'URL ihmal edilebilir — fetcher sabit endpoint kullanır. Test butonu canlı tarar.'}
-                  {sourceForm.type === 'eu-portal' && 'URL ihmal edilebilir — SEDIA JSON API kullanılır. Horizon Europe, Erasmus+, EU4Health dahil.'}
+                  {sourceForm.type === 'tubitak' && 'URL ihmal edilebilir - fetcher sabit endpoint kullanır. Test butonu canlı tarar.'}
+                  {sourceForm.type === 'kosgeb' && 'URL ihmal edilebilir - fetcher sabit endpoint kullanır. Test butonu canlı tarar.'}
+                  {sourceForm.type === 'eu-portal' && 'URL ihmal edilebilir - SEDIA JSON API kullanılır. Horizon Europe, Erasmus+, EU4Health dahil.'}
                 </p>
               </div>
               <div>
                 <label className="label">
-                  {sourceForm.type === 'rss' ? 'RSS Feed URL *' : 'URL (opsiyonel — fetcher sabit endpoint kullanır)'}
+                  {sourceForm.type === 'rss' ? 'RSS Feed URL *' : 'URL (opsiyonel - fetcher sabit endpoint kullanır)'}
                 </label>
                 <div className="flex gap-2">
                   <input className="input flex-1" value={sourceForm.url} onChange={e => { sf('url', e.target.value); setTestResult(null); }} placeholder="https://..." />
@@ -682,7 +682,7 @@ export default function CompetitionsPage() {
                       <>
                         <p className="font-semibold text-green-700 inline-flex items-center gap-1.5">
                           <CIcon name="check" className="w-3.5 h-3.5" strokeWidth={2.2} />
-                          Bağlantı başarılı — {testResult.count} duyuru bulundu
+                          Bağlantı başarılı - {testResult.count} duyuru bulundu
                         </p>
                         {testResult.preview?.map((t: string, i: number) => <p key={i} className="text-green-600 mt-1 truncate">• {t}</p>)}
                       </>

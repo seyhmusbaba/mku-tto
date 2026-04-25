@@ -1,4 +1,4 @@
-// Global settings cache — localStorage ile anlık yükleme, API ile güncelleme
+// Global settings cache - localStorage ile anlık yükleme, API ile güncelleme
 
 export interface AppSettings {
   site_name: string;
@@ -17,7 +17,7 @@ const DEFAULT: AppSettings = {
   footer_text: '© Hatay Mustafa Kemal Üniversitesi TTO',
 };
 
-// localStorage'dan anında oku — sayfa yenilenince flash olmaz
+// localStorage'dan anında oku - sayfa yenilenince flash olmaz
 function readFromStorage(): AppSettings {
   if (typeof window === 'undefined') return { ...DEFAULT };
   try {
@@ -32,7 +32,7 @@ function writeToStorage(s: AppSettings) {
   try { localStorage.setItem(LS_KEY, JSON.stringify(s)); } catch {}
 }
 
-// İlk değer localStorage'dan — anında, senkron
+// İlk değer localStorage'dan - anında, senkron
 let _cache: AppSettings = readFromStorage();
 let _loaded = false;
 let _promise: Promise<AppSettings> | null = null;
@@ -73,7 +73,7 @@ export function loadSettings(force = false): Promise<AppSettings> {
     .then(r => r.json())
     .then((data: Record<string, string>) => {
       _cache = { ...DEFAULT, ...data };
-      writeToStorage(_cache); // localStorage'a yaz — sonraki açılışta anında okunur
+      writeToStorage(_cache); // localStorage'a yaz - sonraki açılışta anında okunur
       _loaded = true;
       _listeners.forEach(fn => fn(_cache));
       return _cache;

@@ -8,7 +8,7 @@ import { User } from '../database/entities/user.entity';
 import { DEMO_PROJECTS } from '../database/demo-projects';
 
 /**
- * Admin yardımcı endpoint'leri — Railway shell olmadığı için DB bakımını
+ * Admin yardımcı endpoint'leri - Railway shell olmadığı için DB bakımını
  * tarayıcıdan yapabilmek için.
  */
 @SkipThrottle()

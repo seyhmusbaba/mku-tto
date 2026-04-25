@@ -49,11 +49,11 @@ export default function PublicHomePage() {
   }, []);
 
   const fmt = (n: number | undefined) =>
-    typeof n === 'number' && n > 0 ? new Intl.NumberFormat('tr-TR').format(n) : '—';
+    typeof n === 'number' && n > 0 ? new Intl.NumberFormat('tr-TR').format(n) : '-';
 
   return (
     <PublicLayout>
-      {/* ═════ HERO — editorial ═════ */}
+      {/* ═════ HERO - editorial ═════ */}
       <section className="relative overflow-hidden border-b" style={{ background: '#fefaf2', borderColor: 'rgba(15, 36, 68, 0.12)' }}>
         {/* Dekoratif geometrik desen */}
         <div className="absolute inset-0 opacity-[0.035] pointer-events-none"
@@ -128,7 +128,7 @@ export default function PublicHomePage() {
         </div>
       </section>
 
-      {/* ═════ STATS — magazin başyazısı rakamları ═════ */}
+      {/* ═════ STATS - magazin başyazısı rakamları ═════ */}
       {stats && (
         <section className="border-b" style={{ borderColor: 'rgba(15, 36, 68, 0.12)', background: '#ffffff' }}>
           <div className="max-w-[1280px] mx-auto px-6 py-14">
@@ -155,7 +155,7 @@ export default function PublicHomePage() {
         </section>
       )}
 
-      {/* ═════ FACULTIES — editorial liste ═════ */}
+      {/* ═════ FACULTIES - editorial liste ═════ */}
       {faculties.length > 0 && (
         <section className="max-w-[1280px] mx-auto px-6 py-16">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-8">
@@ -200,7 +200,7 @@ export default function PublicHomePage() {
         </section>
       )}
 
-      {/* ═════ RECENT RESEARCHERS — profil kartları (editorial) ═════ */}
+      {/* ═════ RECENT RESEARCHERS - profil kartları (editorial) ═════ */}
       {recent && recent.recentResearchers.length > 0 && (
         <section className="border-t" style={{ borderColor: 'rgba(15, 36, 68, 0.12)', background: '#fefaf2' }}>
           <div className="max-w-[1280px] mx-auto px-6 py-16">
@@ -244,7 +244,7 @@ export default function PublicHomePage() {
                     <p className="text-xl leading-tight group-hover:text-[#a88a3f] transition-colors" style={{ fontFamily: 'Playfair Display, serif', color: '#0f2444' }}>
                       {r.firstName} {r.lastName}
                     </p>
-                    <p className="text-xs mt-2" style={{ color: '#6b7280' }}>{r.faculty || '—'}</p>
+                    <p className="text-xs mt-2" style={{ color: '#6b7280' }}>{r.faculty || '-'}</p>
                     {r.department && <p className="text-[11px] italic mt-0.5" style={{ color: '#9ca3af' }}>{r.department}</p>}
                   </div>
                 </Link>
@@ -254,7 +254,7 @@ export default function PublicHomePage() {
         </section>
       )}
 
-      {/* ═════ RECENT PUBLICATIONS — derginin içindekiler sayfası ═════ */}
+      {/* ═════ RECENT PUBLICATIONS - derginin içindekiler sayfası ═════ */}
       {recent && recent.recentPublications.length > 0 && (
         <section className="max-w-[1280px] mx-auto px-6 py-16">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
@@ -266,7 +266,7 @@ export default function PublicHomePage() {
                 Son <span style={{ fontStyle: 'italic', color: '#a88a3f' }}>yayınlar</span>
               </h2>
               <p className="text-sm leading-relaxed" style={{ color: '#6b7280' }}>
-                Portala yakın zamanda eklenmiş akademik çıktılar — makaleler, bildiriler
+                Portala yakın zamanda eklenmiş akademik çıktılar - makaleler, bildiriler
                 ve kitap bölümleri.
               </p>
             </div>

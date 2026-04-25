@@ -1,6 +1,6 @@
 /* Ana sistemde tek kurumsal sans-serif: Inter.
    Vitrin portalı (/p) sayfaları hâlâ Playfair Display serif'i inline style
-   ile kullanıyor — bu yüzden her ikisi de import ediliyor. */
+   ile kullanıyor - bu yüzden her ikisi de import ediliyor. */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
@@ -31,7 +31,7 @@
     background: var(--cream);
     color: var(--text);
     line-height: 1.55;
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';  /* Inter stylistic set — daha karakterli rakamlar */
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';  /* Inter stylistic set - daha karakterli rakamlar */
     letter-spacing: -0.005em;
   }
   h1, h2, h3, h4, h5, h6 {
@@ -44,7 +44,7 @@
   h2 { font-size: 1.5rem; line-height: 1.25; }
   h3 { font-size: 1.15rem; line-height: 1.3; }
   h4 { font-size: 1rem; line-height: 1.35; }
-  /* Tabular nums — finansal/istatistiksel sayılar için hizalanmış */
+  /* Tabular nums - finansal/istatistiksel sayılar için hizalanmış */
   .tabular-nums { font-variant-numeric: tabular-nums; }
 }
 
@@ -63,7 +63,7 @@
     transform: translateY(-2px);
   }
 
-  /* Inputs — font büyüdü */
+  /* Inputs - font büyüdü */
   .input {
     @apply w-full px-4 py-3 rounded-xl transition-all duration-150 outline-none;
     font-size: 14.5px;
@@ -243,7 +243,7 @@
   .line-clamp-2 { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 }
 
-/* Print friendly — /analysis sayfasından PDF Al için */
+/* Print friendly - /analysis sayfasından PDF Al için */
 @media print {
   @page { size: A4; margin: 14mm; }
   body { background: white !important; }

@@ -33,7 +33,7 @@ export class ProjectPartner {
   @Column({ nullable: true }) contractStartDate: string;
   @Column({ nullable: true }) contractEndDate: string;
 
-  /** Sektör — firma odak alanı (manuel): teknoloji, sağlık, imalat, vs. */
+  /** Sektör - firma odak alanı (manuel): teknoloji, sağlık, imalat, vs. */
   @Column({ nullable: true }) sector: string;
 
   /** Firma büyüklüğü: micro | small | medium | large */

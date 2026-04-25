@@ -210,7 +210,7 @@ function ActivityFeed({ logs }: { logs: any[] }) {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-navy">
                   {meta.label}
-                  {log.entityTitle && <span className="text-muted font-normal"> — {log.entityTitle}</span>}
+                  {log.entityTitle && <span className="text-muted font-normal"> - {log.entityTitle}</span>}
                 </p>
                 <p className="text-xs text-muted mt-0.5">
                   {log.user ? `${log.user.firstName} ${log.user.lastName}` : 'Sistem'}

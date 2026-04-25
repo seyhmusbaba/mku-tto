@@ -8,7 +8,7 @@ import { useAuth } from '@/lib/auth-context';
 import { auditApi } from '@/lib/api';
 
 /**
- * Admin Audit Log Viewer — tüm sistem üzerindeki proje değişikliklerini
+ * Admin Audit Log Viewer - tüm sistem üzerindeki proje değişikliklerini
  * kronolojik olarak listeler, filtrelenebilir.
  */
 

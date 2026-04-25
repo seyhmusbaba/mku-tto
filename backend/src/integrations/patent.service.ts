@@ -4,14 +4,14 @@ import { HttpCache, RateLimiter, fetchJson } from './http-cache';
 /**
  * Patent arama / doğrulama servisi.
  *
- * Primary: EPO OPS (European Patent Office — Open Patent Services)
+ * Primary: EPO OPS (European Patent Office - Open Patent Services)
  * - Türk patentleri (TR kind code) dahil, dünyanın tüm büyük patent ofislerini indeksler
  * - Resmi REST API, OAuth2 client credentials
  * - Ücretsiz tier: ayda 4 GB trafik, 200 request/dakika
  * - Kayıt: https://developers.epo.org/
  * - Gereken env: EPO_CONSUMER_KEY, EPO_CONSUMER_SECRET
  *
- * TÜRKPATENT'in doğrudan public JSON API'si yok — EPATENT kurumsal girişli.
+ * TÜRKPATENT'in doğrudan public JSON API'si yok - EPATENT kurumsal girişli.
  * EPO OPS yoluyla TR patentleri doğrularız; bu endüstri standartıdır.
  */
 
@@ -47,7 +47,7 @@ export class PatentService {
   }
 
   /**
-   * OAuth2 token al — 20 dk geçerli, cache'le.
+   * OAuth2 token al - 20 dk geçerli, cache'le.
    */
   private async getToken(): Promise<string | null> {
     if (!this.isConfigured()) return null;
@@ -117,7 +117,7 @@ export class PatentService {
   /**
    * Anahtar kelime (başlık + özet) bazlı patent araması.
    * EPO OPS CQL'inde `txt` alanı başlık + özet içinde arama yapar.
-   * Prior art analizi için DOĞRU yöntem budur — başvuru sahibi adı değil.
+   * Prior art analizi için DOĞRU yöntem budur - başvuru sahibi adı değil.
    */
   async searchByKeyword(query: string, country?: string, limit = 25): Promise<PatentRecord[]> {
     if (!query) return [];

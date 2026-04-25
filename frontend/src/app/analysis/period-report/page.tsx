@@ -4,7 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import axios from 'axios';
 
 /**
- * Dönemsel Rapor — belirli tarih aralığı için özet PDF.
+ * Dönemsel Rapor - belirli tarih aralığı için özet PDF.
  * /analysis sayfasından "Dönemsel Rapor" modal'ından açılır.
  *
  * Query params: from=YYYY-MM-DD, to=YYYY-MM-DD, preset=30d|90d|qtr|ytd|1y|custom
@@ -75,7 +75,7 @@ function PeriodReportContent() {
       axios.get(`${base}/analytics/institutional/faculty-radar`, { headers }).then(r => r.data).catch(() => []),
       axios.get(`${base}/analytics/timeline`, { headers }).then(r => r.data).catch(() => []),
       axios.get(`${base}/analytics/researcher-productivity`, { headers, params: { limit: 20 } }).then(r => r.data).catch(() => []),
-      // Bibliyometri de dönem filtresi uygulasın — startDate değil, publicationYear bazında
+      // Bibliyometri de dönem filtresi uygulasın - startDate değil, publicationYear bazında
       axios.get(`${base}/analytics/bibliometrics/institutional`, {
         headers,
         params: {
@@ -117,7 +117,7 @@ function PeriodReportContent() {
 
   const presetLabel = PRESET_LABELS[preset] || preset;
 
-  // Dönem içindeki timeline verileri — sadece from-to arasındaki aylar/dönemler
+  // Dönem içindeki timeline verileri - sadece from-to arasındaki aylar/dönemler
   const filteredTimeline = timeline.filter((t: any) => {
     if (!t.period) return false;
     // period: "2025-10" veya benzer formatta
@@ -150,7 +150,7 @@ function PeriodReportContent() {
         <div className="no-print" style={s.toolbar}>
           <button onClick={() => window.print()} style={s.btnPrimary}>PDF olarak kaydet</button>
           <button onClick={() => window.close()} style={s.btnSecondary}>Kapat</button>
-          <span style={s.tbHint}>Rapor hazır — otomatik print açılıyor</span>
+          <span style={s.tbHint}>Rapor hazır - otomatik print açılıyor</span>
         </div>
 
         {/* KAPAK */}
@@ -182,7 +182,7 @@ function PeriodReportContent() {
             </div>
           </div>
           <div style={s.coverBottom}>
-            <p style={s.coverDataSrc}>{institutionName} — Teknoloji Transfer Ofisi</p>
+            <p style={s.coverDataSrc}>{institutionName} - Teknoloji Transfer Ofisi</p>
           </div>
         </div>
 
@@ -190,7 +190,7 @@ function PeriodReportContent() {
         <div style={s.section}>
           <h2 style={s.h2}>DÖNEM ÖZETİ</h2>
           <p style={s.p}>
-            <strong>{presetLabel}</strong> aralığında ({formatDate(from)} — {formatDate(to)}, {days} gün) başlatılan,
+            <strong>{presetLabel}</strong> aralığında ({formatDate(from)} - {formatDate(to)}, {days} gün) başlatılan,
             aktif duruma geçen veya statüsü değişen projeler bu rapora dahil edilmiştir.
           </p>
 
@@ -258,12 +258,12 @@ function PeriodReportContent() {
           </div>
         )}
 
-        {/* FAKÜLTE ÖZETİ (dönem filtresi yok — aktif kurum görünümü) */}
+        {/* FAKÜLTE ÖZETİ (dönem filtresi yok - aktif kurum görünümü) */}
         {radar.length > 0 && (
           <div style={s.section}>
             <h2 style={s.h2}>FAKÜLTE GÖRÜNÜMÜ</h2>
             <p style={s.p}>
-              <em>Bu bölüm genel kurum görünümüdür — dönem filtresi uygulanmaz.
+              <em>Bu bölüm genel kurum görünümüdür - dönem filtresi uygulanmaz.
               Dönem içi proje sayıları yukarıdaki durum dağılımındadır.</em>
             </p>
             <table style={s.table}>
@@ -326,7 +326,7 @@ function PeriodReportContent() {
             <p style={s.p}>
               {institutional.isPeriodFiltered ? (
                 <em>Bibliyometri göstergeleri <strong>{institutional.periodLabel}</strong> yayın yılına göre filtrelenmiştir.
-                Yayın yılı dönem içinde olanlar sayılır — atıflar bugüne kadar alınan toplamdır.</em>
+                Yayın yılı dönem içinde olanlar sayılır - atıflar bugüne kadar alınan toplamdır.</em>
               ) : (
                 <em>Bibliyometri göstergeleri kurum genelidir. Dönem için yıl filtresi uygulanmak üzere period-report parametresi geçirilmelidir.</em>
               )}
@@ -337,7 +337,7 @@ function PeriodReportContent() {
               <Kpi label="h-index" value={institutional.hIndex || 0} color="#c8a45a" />
               <Kpi label="i10-index" value={formatNum(institutional.i10Index || 0)} color="#059669" />
               <Kpi label="Açık Erişim" value={`%${institutional.openAccessRatio || 0}`} color="#0891b2" sub={`${formatNum(institutional.openAccessCount || 0)} yayın`} />
-              <Kpi label="2 Yıl Ort. Atıf" value={institutional.twoYearMeanCitedness !== undefined ? (+institutional.twoYearMeanCitedness).toFixed(2) : '—'} color="#2563eb" />
+              <Kpi label="2 Yıl Ort. Atıf" value={institutional.twoYearMeanCitedness !== undefined ? (+institutional.twoYearMeanCitedness).toFixed(2) : '-'} color="#2563eb" />
             </div>
 
             {/* Top-cited publications örneklem */}
@@ -363,8 +363,8 @@ function PeriodReportContent() {
                         <tr key={p.doi || i}>
                           <td style={s.td}>{i + 1}</td>
                           <td style={s.tdSmall}>{p.title}</td>
-                          <td style={s.tdSmall}>{p.journal || '—'}</td>
-                          <td style={s.tdR}>{p.year || '—'}</td>
+                          <td style={s.tdSmall}>{p.journal || '-'}</td>
+                          <td style={s.tdR}>{p.year || '-'}</td>
                           <td style={{ ...s.tdR, fontWeight: 700 }}>{p.citedBy?.best || 0}</td>
                         </tr>
                       ))}
@@ -454,7 +454,7 @@ function PeriodReportContent() {
                         <td style={s.td}>{t.label}</td>
                         <td style={{ ...s.tdR, fontWeight: 700 }}>{t.count}</td>
                         <td style={s.tdR}>{formatNum(t.citations)}</td>
-                        <td style={s.tdR}>{t.count > 0 ? (t.citations / t.count).toFixed(1) : '—'}</td>
+                        <td style={s.tdR}>{t.count > 0 ? (t.citations / t.count).toFixed(1) : '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -493,7 +493,7 @@ function PeriodReportContent() {
         {cordisProjects.length > 0 && (
           <div style={s.section}>
             <h2 style={s.h2}>ULUSLARARASI FONLAMA (CORDIS)</h2>
-            <p style={s.p}><em>Kurum geneli — dönem filtresi yok.</em></p>
+            <p style={s.p}><em>Kurum geneli - dönem filtresi yok.</em></p>
             <table style={s.table}>
               <thead>
                 <tr>
@@ -507,9 +507,9 @@ function PeriodReportContent() {
                 {cordisProjects.slice(0, 10).map((p: any) => (
                   <tr key={p.id}>
                     <td style={s.td}>{p.framework}</td>
-                    <td style={s.td}>{p.acronym || '—'}</td>
+                    <td style={s.td}>{p.acronym || '-'}</td>
                     <td style={{ ...s.tdSmall }}>{p.title}</td>
-                    <td style={s.tdR}>{p.ecMaxContribution ? '€' + Number(p.ecMaxContribution).toLocaleString('tr-TR') : '—'}</td>
+                    <td style={s.tdR}>{p.ecMaxContribution ? '€' + Number(p.ecMaxContribution).toLocaleString('tr-TR') : '-'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -521,7 +521,7 @@ function PeriodReportContent() {
         {funding?.bySource && funding.bySource.length > 0 && (
           <div style={s.section}>
             <h2 style={s.h2}>FONLAMA KAYNAĞI BAŞARI ORANI</h2>
-            <p style={s.p}><em>Kurum geneli — dönem filtresi yok.</em></p>
+            <p style={s.p}><em>Kurum geneli - dönem filtresi yok.</em></p>
             <table style={s.table}>
               <thead>
                 <tr>
@@ -534,7 +534,7 @@ function PeriodReportContent() {
               <tbody>
                 {funding.bySource.map((f: any) => (
                   <tr key={f.source}>
-                    <td style={s.td}>{f.source || '—'}</td>
+                    <td style={s.td}>{f.source || '-'}</td>
                     <td style={s.tdR}>{f.totalApplications || 0}</td>
                     <td style={s.tdR}>{f.accepted || 0}</td>
                     <td style={{ ...s.tdR, fontWeight: 700 }}>%{f.successRate || 0}</td>
@@ -566,7 +566,7 @@ function PeriodReportContent() {
                   <tr key={r.userId}>
                     <td style={s.td}>{i + 1}</td>
                     <td style={{ ...s.td, fontWeight: i < 3 ? 700 : 400 }}>{r.name}</td>
-                    <td style={s.td}>{r.faculty || '—'}</td>
+                    <td style={s.td}>{r.faculty || '-'}</td>
                     <td style={s.tdR}>{r.total}</td>
                     <td style={s.tdR}>{r.active}</td>
                     <td style={s.tdR}>{formatTry(r.totalBudget)}</td>
@@ -589,7 +589,7 @@ function PeriodReportContent() {
             üzerinden. Aktif veya beklemede projeler oranı bozmaz.
           </p>
           <p style={s.p}>
-            <strong>Fakülte görünümü:</strong> Kurum geneli anlık görünüm — seçili dönemle sınırlı değil.
+            <strong>Fakülte görünümü:</strong> Kurum geneli anlık görünüm - seçili dönemle sınırlı değil.
           </p>
 
           <div style={s.footerMeta}>

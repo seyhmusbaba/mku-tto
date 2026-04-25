@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { HttpCache, RateLimiter, fetchJson } from './http-cache';
 
 /**
- * OpenAlex — OurResearch projesi, Scopus/WoS'un ücretsiz ve açık alternatifi.
+ * OpenAlex - OurResearch projesi, Scopus/WoS'un ücretsiz ve açık alternatifi.
  * 240M+ yayın, 90M+ yazar, 100K+ kurum indeksli.
  *
  * Docs: https://docs.openalex.org/
@@ -50,7 +50,7 @@ export interface OpenAlexWork {
   venue?: { displayName?: string; issn?: string[]; type?: string; publisher?: string };
   authors: Array<{ id?: string; displayName: string; orcid?: string; institution?: string; institutions?: string[]; countries?: string[] }>;
   concepts: Array<{ displayName: string; level: number; score: number }>;
-  sdgs?: Array<{ displayName: string; id: string; score: number }>;  // UN SDG eşlemesi — AVESIS seviyesini geçer
+  sdgs?: Array<{ displayName: string; id: string; score: number }>;  // UN SDG eşlemesi - AVESIS seviyesini geçer
   referencesCount?: number;
   fwci?: number;                      // field-weighted citation impact
   citedByPercentile?: { min: number; max: number };  // alan-yıl normalize yüzdelik
@@ -166,7 +166,7 @@ export class OpenAlexService {
       const url = `${this.baseUrl}/institutions?${params}`;
       const data = await fetchJson(url, { headers: { 'User-Agent': this.userAgent() } });
       const items = (data?.results || []).map((i: any) => this.mapInstitution(i)).filter(Boolean) as OpenAlexInstitution[];
-      this.cache.set(cacheKey, items, 60 * 60 * 24 * 30); // 30 gün — kurum nadiren değişir
+      this.cache.set(cacheKey, items, 60 * 60 * 24 * 30); // 30 gün - kurum nadiren değişir
       return items;
     } catch (e: any) {
       this.logger.warn(`OpenAlex institution search failed: ${e.message}`);
@@ -178,7 +178,7 @@ export class OpenAlexService {
     if (!institutionId) return [];
     const cleanId = institutionId.replace(/^https?:\/\/openalex\.org\//, '');
 
-    // Year param'ı normalize et — tek yıl mı, aralık mı?
+    // Year param'ı normalize et - tek yıl mı, aralık mı?
     let yearFilter: string | undefined;
     let cacheKeyYear: string;
     if (typeof yearOrRange === 'number') {
@@ -204,7 +204,7 @@ export class OpenAlexService {
       const maxPages = Math.ceil(Math.min(limit, 2000) / perPage); // Max 2000 kayıt = 20 sayfa
       const collected: OpenAlexWork[] = [];
 
-      // Sayfalama — OpenAlex `page` parametresi ile
+      // Sayfalama - OpenAlex `page` parametresi ile
       for (let page = 1; page <= maxPages; page++) {
         await this.limiter.acquire();
         const params = new URLSearchParams({
@@ -322,7 +322,7 @@ export class OpenAlexService {
         const countries = Array.from(new Set(
           (a.institutions || []).map((i: any) => i.country_code).filter(Boolean)
         )) as string[];
-        // Fallback — bazı kayıtlarda author ana düzeyinde countries var
+        // Fallback - bazı kayıtlarda author ana düzeyinde countries var
         if (countries.length === 0 && Array.isArray(a.countries)) {
           for (const c of a.countries) if (c) countries.push(c);
         }
@@ -356,7 +356,7 @@ export class OpenAlexService {
   }
 
   /**
-   * Kurum özeti — peer benchmark için kullanılır.
+   * Kurum özeti - peer benchmark için kullanılır.
    * /institutions/{id} endpoint'ine tek istekle tüm özet gelir.
    */
   async getInstitutionSummary(institutionId: string): Promise<{

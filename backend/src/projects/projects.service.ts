@@ -89,7 +89,7 @@ export class ProjectsService {
         qb.andWhere('project.status = :status', { status });
       }
     }
-    // ownership filtresi — "benim sahibim olduğum" / "üyesi olduğum" kısıtlaması
+    // ownership filtresi - "benim sahibim olduğum" / "üyesi olduğum" kısıtlaması
     // (Rol bazlı otomatik kısıtlamanın üstüne eklenir, daraltır)
     if (ownership === 'owned') {
       qb.andWhere('project.ownerId = :ownUid', { ownUid: currentUser.userId });
@@ -105,7 +105,7 @@ export class ProjectsService {
     if (dateTo) qb.andWhere('project.startDate <= :dt', { dt: dateTo });
     if (sdg) qb.andWhere('project.sdgGoalsJson ILIKE :sdg', { sdg: '%' + sdg + '%' });
 
-    // Beyaz listeli sort — SQL injection riski yok
+    // Beyaz listeli sort - SQL injection riski yok
     const ALLOWED_SORT: Record<string, string> = {
       createdAt: 'project.createdAt',
       title: 'project.title',
@@ -213,7 +213,7 @@ export class ProjectsService {
   }
 
   async update(id: string, dto: any, currentUser: any) {
-    // KRİTİK: Gerçek entity'yi çek (serialize değil) — aksi halde setter'lar çalışmaz,
+    // KRİTİK: Gerçek entity'yi çek (serialize değil) - aksi halde setter'lar çalışmaz,
     // sdgGoals / tags / keywords JSON alanlarına yazılamaz.
     const project = await this.projectRepo.findOne({
       where: { id },
@@ -229,7 +229,7 @@ export class ProjectsService {
       throw new ForbiddenException('Bu projeyi duzenleme yetkiniz yok');
     }
 
-    // Beyaz liste — genel alanlar
+    // Beyaz liste - genel alanlar
     const safeDto: Record<string, any> = {};
     for (const field of ALLOWED_UPDATE_FIELDS) {
       if (dto[field] !== undefined) safeDto[field] = dto[field];
@@ -297,7 +297,7 @@ export class ProjectsService {
       await this.notifyStatusChange(project, safeDto.status, currentUser.userId).catch(e => this.logSwallowed('notify:statusChange', e));
       await this.notifyRectors({
         title: 'Proje Durumu: ' + (STATUS_LABELS[safeDto.status] || safeDto.status),
-        message: project.title + (project.owner ? ' — ' + project.owner.firstName + ' ' + project.owner.lastName : ''),
+        message: project.title + (project.owner ? ' - ' + project.owner.firstName + ' ' + project.owner.lastName : ''),
         link: '/projects/' + id,
         type: safeDto.status === 'completed' ? 'success' : 'info',
       });
@@ -372,7 +372,7 @@ export class ProjectsService {
       const user = await this.userRepo.findOne({ where: { id: currentUser.userId }, relations: ['role'] });
       const isAdmin = user?.role?.name === 'Süper Admin';
       if (!isAdmin && project.ownerId !== currentUser.userId) {
-        throw new ForbiddenException('Bu projeyi silme yetkiniz yok — sadece proje sahibi veya Süper Admin silebilir');
+        throw new ForbiddenException('Bu projeyi silme yetkiniz yok - sadece proje sahibi veya Süper Admin silebilir');
       }
     }
 
@@ -450,7 +450,7 @@ export class ProjectsService {
   }
 
   /**
-   * Yetki kontrolü — yalnızca proje sahibi veya Süper Admin proje üzerinde
+   * Yetki kontrolü - yalnızca proje sahibi veya Süper Admin proje üzerinde
    * yönetim işlemi (üye ekle/sil, sil) yapabilir.
    */
   private async assertProjectOwnerOrAdmin(projectId: string, currentUser: any): Promise<void> {

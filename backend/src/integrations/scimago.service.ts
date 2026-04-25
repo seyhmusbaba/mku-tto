@@ -4,16 +4,16 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 /**
- * Dergi kalite servisi — iki kaynakla çalışır:
+ * Dergi kalite servisi - iki kaynakla çalışır:
  *
- * 1. SCImago JR CSV (tercih edilirse) — local snapshot veya URL'den
+ * 1. SCImago JR CSV (tercih edilirse) - local snapshot veya URL'den
  *    indirilir. Cloudflare bloğu nedeniyle Railway'de çalışmayabilir.
  *
- * 2. OpenAlex Sources API (fallback, default) — her dergi için h_index,
+ * 2. OpenAlex Sources API (fallback, default) - her dergi için h_index,
  *    2yr_mean_citedness, works_count döner. Kendi quartile'ımızı bu
  *    metriklere göre hesaplıyoruz. 250k+ dergi kapsar, Cloudflare yok.
  *
- * Frontend'in bilmesine gerek yok — aynı getQualityByIssn sinyaliyle çalışır.
+ * Frontend'in bilmesine gerek yok - aynı getQualityByIssn sinyaliyle çalışır.
  */
 
 export interface JournalQuality {
@@ -26,7 +26,7 @@ export interface JournalQuality {
   hIndex?: number;
   year?: number;
   categories?: string[];
-  source?: 'scimago' | 'openalex';   // veri kaynağı — transparency
+  source?: 'scimago' | 'openalex';   // veri kaynağı - transparency
   citedness?: number;                 // OpenAlex: 2yr_mean_citedness
   worksCount?: number;                // OpenAlex: toplam yayın
 }
@@ -40,10 +40,10 @@ export class ScimagoService implements OnModuleInit {
   private lastLoaded: number = 0;
   private readonly RELOAD_MS = 30 * 24 * 60 * 60 * 1000; // 30 gün
 
-  // Son yükleme denemesinin detaylı sonucu — debug için
+  // Son yükleme denemesinin detaylı sonucu - debug için
   private lastAttempt: Array<{ url: string; status?: number; contentType?: string; bodyPreview?: string; error?: string }> = [];
 
-  // SCImago yayın URL'ı — yıl otomatik geriye düşecek (son mevcut yıl)
+  // SCImago yayın URL'ı - yıl otomatik geriye düşecek (son mevcut yıl)
   // SCIMAGO_CSV_URL env'i ile özel mirror URL'i verilebilir (virgülle ayrılmış liste)
   private get candidateUrls(): string[] {
     if (process.env.SCIMAGO_CSV_URL) {
@@ -57,7 +57,7 @@ export class ScimagoService implements OnModuleInit {
   }
 
   async onModuleInit() {
-    // İlk yüklemeyi zaman kazanmak için başlat, async — bloklamaz
+    // İlk yüklemeyi zaman kazanmak için başlat, async - bloklamaz
     if (process.env.SCIMAGO_AUTO_LOAD !== 'false') {
       this.ensureLoaded().catch(e => this.logger.warn('SCImago initial load failed: ' + e.message));
     }
@@ -79,14 +79,14 @@ export class ScimagoService implements OnModuleInit {
     if (!issn) return null;
     const normalized = this.normalizeIssn(issn);
 
-    // 1) SCImago CSV — yüklüyse hızlıdır
+    // 1) SCImago CSV - yüklüyse hızlıdır
     await this.ensureLoaded();
     if (this.table) {
       const hit = this.table.get(normalized);
       if (hit) return { ...hit, source: 'scimago' };
     }
 
-    // 2) OpenAlex fallback — cache kontrolü var
+    // 2) OpenAlex fallback - cache kontrolü var
     return this.resolveViaOpenAlex(issn);
   }
 
@@ -102,7 +102,7 @@ export class ScimagoService implements OnModuleInit {
   }
 
   /**
-   * Başlıkla yaklaşık arama — ISSN yoksa son çare.
+   * Başlıkla yaklaşık arama - ISSN yoksa son çare.
    * Önce SCImago tablosu, sonra OpenAlex'te dergi adı araması.
    */
   async findByTitle(title: string): Promise<JournalQuality | null> {
@@ -120,7 +120,7 @@ export class ScimagoService implements OnModuleInit {
       }
     }
 
-    // 2) OpenAlex — title search
+    // 2) OpenAlex - title search
     return this.resolveViaOpenAlexByTitle(title);
   }
 
@@ -228,7 +228,7 @@ export class ScimagoService implements OnModuleInit {
 
   /**
    * OpenAlex metriklerinden Q1-Q4 tahmini.
-   * 2yr_mean_citedness temel metrik — h_index ile tamamlanır.
+   * 2yr_mean_citedness temel metrik - h_index ile tamamlanır.
    */
   private estimateQuartile(citedness: number | undefined, hIndex: number | undefined): 'Q1' | 'Q2' | 'Q3' | 'Q4' | undefined {
     if (citedness === undefined && hIndex === undefined) return undefined;
@@ -241,7 +241,7 @@ export class ScimagoService implements OnModuleInit {
       return 'Q4';
     }
 
-    // Fallback: h_index — çok kaba
+    // Fallback: h_index - çok kaba
     if (hIndex !== undefined) {
       if (hIndex >= 100) return 'Q1';
       if (hIndex >= 50) return 'Q2';
@@ -258,7 +258,7 @@ export class ScimagoService implements OnModuleInit {
     return normalized;
   }
 
-  /** İstatistiksel veri — panel için */
+  /** İstatistiksel veri - panel için */
   async getQuartileDistribution(issns: string[]): Promise<{ Q1: number; Q2: number; Q3: number; Q4: number; unknown: number }> {
     const result = { Q1: 0, Q2: 0, Q3: 0, Q4: 0, unknown: 0 };
     for (const issn of issns) {
@@ -279,12 +279,12 @@ export class ScimagoService implements OnModuleInit {
   }
 
   /**
-   * Yerel CSV dosyası yolu — Railway IP'leri SCImago'ya 403 gördüğü için
+   * Yerel CSV dosyası yolu - Railway IP'leri SCImago'ya 403 gördüğü için
    * repo'da commit edilmiş snapshot öncelikli. Yol SCIMAGO_LOCAL_PATH env ile değiştirilebilir.
    */
   private getLocalPath(): string {
     if (process.env.SCIMAGO_LOCAL_PATH) return process.env.SCIMAGO_LOCAL_PATH;
-    // Railway'de çalışma dizini: /app — bu da __dirname + assets/scimago-sjr.csv
+    // Railway'de çalışma dizini: /app - bu da __dirname + assets/scimago-sjr.csv
     const candidates = [
       path.resolve(process.cwd(), 'assets/scimago-sjr.csv'),
       path.resolve(process.cwd(), 'backend/assets/scimago-sjr.csv'),
@@ -294,7 +294,7 @@ export class ScimagoService implements OnModuleInit {
     for (const c of candidates) {
       if (fs.existsSync(c)) return c;
     }
-    return candidates[0]; // ilkini döndür — yoksa yok sayılır
+    return candidates[0]; // ilkini döndür - yoksa yok sayılır
   }
 
   private async tryLocalFile(): Promise<boolean> {
@@ -302,7 +302,7 @@ export class ScimagoService implements OnModuleInit {
     const attempt: typeof this.lastAttempt[0] = { url: `file://${p}` };
     try {
       if (!fs.existsSync(p)) {
-        attempt.error = 'Dosya bulunamadı — scripts/fetch-scimago.mjs ile indirip commit edin';
+        attempt.error = 'Dosya bulunamadı - scripts/fetch-scimago.mjs ile indirip commit edin';
         this.lastAttempt.push(attempt);
         return false;
       }
@@ -315,14 +315,14 @@ export class ScimagoService implements OnModuleInit {
 
       const table = this.parseCsv(text);
       if (table.size === 0) {
-        attempt.error = 'CSV parse edildi ancak 0 kayıt — başlık kolonları eşleşmemiş';
+        attempt.error = 'CSV parse edildi ancak 0 kayıt - başlık kolonları eşleşmemiş';
         this.lastAttempt.push(attempt);
         return false;
       }
       this.table = table;
       this.lastLoaded = Date.now();
       this.lastAttempt.push(attempt);
-      this.logger.log(`SCImago yüklendi (yerel dosya): ${table.size} dergi kaydı — ${p}`);
+      this.logger.log(`SCImago yüklendi (yerel dosya): ${table.size} dergi kaydı - ${p}`);
       return true;
     } catch (e: any) {
       attempt.error = e.message;
@@ -334,7 +334,7 @@ export class ScimagoService implements OnModuleInit {
   private async loadTable(): Promise<void> {
     this.lastAttempt = [];
 
-    // 1) Yerel dosyayı dene (tercih edilir — Railway'de bu çalışır)
+    // 1) Yerel dosyayı dene (tercih edilir - Railway'de bu çalışır)
     if (await this.tryLocalFile()) return;
 
     // 2) URL'leri dene (lokal geliştirmede kullanışlı; Railway'de 403 yer)
@@ -343,7 +343,7 @@ export class ScimagoService implements OnModuleInit {
       try {
         this.logger.log(`SCImago tablosu yükleniyor: ${url}`);
         const res = await fetch(url, {
-          signal: AbortSignal.timeout(60000), // 60 sn — büyük dosya
+          signal: AbortSignal.timeout(60000), // 60 sn - büyük dosya
           headers: {
             'User-Agent': 'mku-tto/1.0 (academic institution analytics)',
             'Accept': 'text/csv, application/csv, text/plain, */*',
@@ -372,7 +372,7 @@ export class ScimagoService implements OnModuleInit {
 
         const table = this.parseCsv(text);
         if (table.size === 0) {
-          attempt.error = 'CSV parse edildi ancak 0 kayıt — başlık kolonları eşleşmemiş olabilir';
+          attempt.error = 'CSV parse edildi ancak 0 kayıt - başlık kolonları eşleşmemiş olabilir';
           this.lastAttempt.push(attempt);
           continue;
         }
@@ -388,11 +388,11 @@ export class ScimagoService implements OnModuleInit {
         this.logger.warn(`SCImago ${url} yüklenemedi: ${e.message}`);
       }
     }
-    this.logger.error('SCImago tablosu hiçbir URL\'den yüklenemedi — kalite bilgisi yok');
+    this.logger.error('SCImago tablosu hiçbir URL\'den yüklenemedi - kalite bilgisi yok');
     this.logger.error(`Denenen URL'ler ve sonuçları: ${JSON.stringify(this.lastAttempt, null, 2)}`);
   }
 
-  /** Son yükleme denemesinin detaylı raporu — diagnostic endpoint için */
+  /** Son yükleme denemesinin detaylı raporu - diagnostic endpoint için */
   getLastAttemptReport(): { loaded: boolean; journalCount: number; lastLoadedAt: string | null; attempts: typeof this.lastAttempt } {
     return {
       loaded: this.isConfigured(),
@@ -449,7 +449,7 @@ export class ScimagoService implements OnModuleInit {
           : undefined,
       };
 
-      // Birden fazla ISSN olabilir (print + electronic) — hepsini indeksle
+      // Birden fazla ISSN olabilir (print + electronic) - hepsini indeksle
       const issns = issnField.split(/[,\s]+/).map(s => this.normalizeIssn(s)).filter(Boolean);
       for (const n of issns) {
         map.set(n, { ...entry, issn: n });

@@ -81,7 +81,7 @@ export class InstitutionalService {
       .groupBy('p.faculty')
       .getRawMany();
 
-    // Her fakülte için ek sorgular — SDG çeşitliliği ve üye sayısı
+    // Her fakülte için ek sorgular - SDG çeşitliliği ve üye sayısı
     const result: FacultyRadarRow[] = [];
     for (const r of rows) {
       const faculty = r.faculty;
@@ -108,7 +108,7 @@ export class InstitutionalService {
       });
     }
 
-    // 0-100 normalize et — radar chart'ı düzgün göstersin
+    // 0-100 normalize et - radar chart'ı düzgün göstersin
     const maxProjects = Math.max(...result.map(r => r.totalProjects), 1);
     const maxBudget = Math.max(...result.map(r => r.totalBudget), 1);
     const maxSdg = 17;

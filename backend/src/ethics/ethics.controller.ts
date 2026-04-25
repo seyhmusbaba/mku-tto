@@ -76,7 +76,7 @@ export class EthicsController {
     return {
       required: true,
       riskScore: 100,
-      reasons: ['Kurumsal politika — tüm projeler etik kurul onayı gerektirir'],
+      reasons: ['Kurumsal politika - tüm projeler etik kurul onayı gerektirir'],
       recommendation: 'Etik kurul onayı zorunludur. Proje kaydedilince otomatik olarak incelemeye gönderilecektir.',
     };
   }

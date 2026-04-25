@@ -6,10 +6,10 @@ import { ProjectTypesService } from './project-types.service';
 export class ProjectTypesController {
   constructor(private svc: ProjectTypesService) {}
 
-  // Public — kayıt formu ve proje formunda token olmadan erişilebilmeli
+  // Public - kayıt formu ve proje formunda token olmadan erişilebilmeli
   @Get('active') findActive() { return this.svc.findActive(); }
 
-  // Yönetici işlemleri — auth gerektirir
+  // Yönetici işlemleri - auth gerektirir
   @UseGuards(JwtAuthGuard) @Get() findAll() { return this.svc.findAll(); }
   @UseGuards(JwtAuthGuard) @Post() create(@Body() dto: any) { return this.svc.create(dto); }
   @UseGuards(JwtAuthGuard) @Put(':id') update(@Param('id') id: string, @Body() dto: any) { return this.svc.update(id, dto); }

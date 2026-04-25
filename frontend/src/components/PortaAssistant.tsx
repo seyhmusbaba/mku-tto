@@ -11,7 +11,7 @@ interface Msg {
 }
 
 /**
- * Markdown sembollerini ve yorum satırı stilini temizler — düz sohbet için.
+ * Markdown sembollerini ve yorum satırı stilini temizler - düz sohbet için.
  */
 function cleanText(s: string): string {
   return s
@@ -30,7 +30,7 @@ function cleanText(s: string): string {
 }
 
 /**
- * PORTA Asistan — her sayfada sağ altta görünen yay/kapanır sohbet paneli.
+ * PORTA Asistan - her sayfada sağ altta görünen yay/kapanır sohbet paneli.
  * Yanıtlar typewriter (yazıyormuş gibi) efektle akar, açılış-kapanış animasyonlu.
  */
 export function PortaAssistant() {
@@ -43,7 +43,7 @@ export function PortaAssistant() {
   const boxRef = useRef<HTMLDivElement>(null);
   const typingTimers = useRef<number[]>([]);
 
-  // Açılış/kapanış mount koordinasyonu — transition'a zaman tanı
+  // Açılış/kapanış mount koordinasyonu - transition'a zaman tanı
   useEffect(() => {
     if (open) {
       setMounted(true);
@@ -63,7 +63,7 @@ export function PortaAssistant() {
   useEffect(() => () => { typingTimers.current.forEach(clearTimeout); }, []);
 
   /**
-   * Asistan yanıtını karakter karakter göster — hız: 12-18ms/karakter,
+   * Asistan yanıtını karakter karakter göster - hız: 12-18ms/karakter,
    * noktalama sonrası ek küçük duraklama.
    */
   const typewriter = (fullText: string) => {
@@ -87,7 +87,7 @@ export function PortaAssistant() {
           ? { ...m, visible: fullText.slice(0, i) }
           : m
       ));
-      // Noktalama sonrası hafif gecikme — daha doğal görünüm
+      // Noktalama sonrası hafif gecikme - daha doğal görünüm
       const lastChar = fullText[i - 1];
       const delay = /[.!?]/.test(lastChar) ? 140 : /[,;:]/.test(lastChar) ? 70 : 14;
       const t = window.setTimeout(step, delay);
@@ -115,7 +115,7 @@ export function PortaAssistant() {
       // Bir sonraki tick'te typewriter başlat
       window.setTimeout(() => typewriter(clean), 50);
     } catch (e: any) {
-      const msg = e?.response?.data?.message || 'Yanıt alınamadı — asistan servisi şu an kullanılamıyor.';
+      const msg = e?.response?.data?.message || 'Yanıt alınamadı - asistan servisi şu an kullanılamıyor.';
       setMessages(prev => [...prev, { role: 'assistant', content: msg, visible: msg, error: true }]);
       setSending(false);
     }

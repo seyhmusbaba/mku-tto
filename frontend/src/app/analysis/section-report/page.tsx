@@ -187,7 +187,7 @@ function SectionReportContent() {
         <div className="no-print" style={s.toolbar}>
           <button onClick={() => window.print()} style={s.btnPrimary}>PDF olarak kaydet</button>
           <button onClick={() => window.close()} style={s.btnSecondary}>Kapat</button>
-          <span style={s.tbHint}>Yükleme tamamlandı — otomatik print açılıyor</span>
+          <span style={s.tbHint}>Yükleme tamamlandı - otomatik print açılıyor</span>
         </div>
 
         {/* KAPAK */}
@@ -212,7 +212,7 @@ function SectionReportContent() {
             </p>
           </div>
           <div style={s.coverBottom}>
-            <p style={s.coverDataSrc}>{institutionName} — Teknoloji Transfer Ofisi</p>
+            <p style={s.coverDataSrc}>{institutionName} - Teknoloji Transfer Ofisi</p>
           </div>
         </div>
 
@@ -376,7 +376,7 @@ function InstitutionalSection({ data }: { data: any }) {
             if (!c.projects || c.projects.length === 0) return null;
             return (
               <div key={`pair-${idx}`} style={{ marginTop: 14, pageBreakInside: 'avoid' }}>
-                <h3 style={s.h3}>{c.facultyA} ↔ {c.facultyB} — Ortak Projeler ({c.sharedProjects})</h3>
+                <h3 style={s.h3}>{c.facultyA} ↔ {c.facultyB} - Ortak Projeler ({c.sharedProjects})</h3>
                 <table style={s.table}>
                   <thead><tr><th style={s.th}>#</th><th style={s.th}>Proje</th><th style={s.thR}>Durum</th></tr></thead>
                   <tbody>
@@ -384,7 +384,7 @@ function InstitutionalSection({ data }: { data: any }) {
                       <tr key={p.id || i}>
                         <td style={s.td}>{i + 1}</td>
                         <td style={s.tdSmall}>{p.name}</td>
-                        <td style={s.tdR}>{p.status || '—'}</td>
+                        <td style={s.tdR}>{p.status || '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -444,7 +444,7 @@ function InstitutionalSection({ data }: { data: any }) {
                         <tr key={p.id || i}>
                           <td style={s.td}>{i + 1}</td>
                           <td style={s.tdSmall}>{p.name}</td>
-                          <td style={s.tdR}>{p.status || '—'}</td>
+                          <td style={s.tdR}>{p.status || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -462,7 +462,7 @@ function InstitutionalSection({ data }: { data: any }) {
 function BibliometricsSection({ data }: { data: any }) {
   const inst = data?.institutional;
   const peerBench = data?.peerBench;
-  if (!inst || inst.configured === false) return <EmptySection msg="Bibliyometri verisi yok — kurumsal OpenAlex ID ayarlı değil" />;
+  if (!inst || inst.configured === false) return <EmptySection msg="Bibliyometri verisi yok - kurumsal OpenAlex ID ayarlı değil" />;
 
   const quartileTotal = ['Q1','Q2','Q3','Q4','unknown'].reduce((x, k) => x + (inst.quartileDistribution?.[k] || 0), 0);
   const quartileKnown = quartileTotal - (inst.quartileDistribution?.unknown || 0);
@@ -485,12 +485,12 @@ function BibliometricsSection({ data }: { data: any }) {
           <Kpi label="i10-index" value={inst.i10Index} color="#059669" />
           <Kpi label="Açık Erişim" value={`%${inst.openAccessRatio}`} color="#0891b2" />
           <Kpi label="Q1 Yayın" value={formatNum(inst.quartileDistribution?.Q1 || 0)} color="#059669" sub={`%${quartileKnown > 0 ? Math.round(((inst.quartileDistribution?.Q1 || 0) / quartileKnown) * 100) : 0}`} />
-          <Kpi label="Ort. FWCI" value={inst.avgFwci !== null && inst.avgFwci !== undefined ? inst.avgFwci : '—'} color="#7c3aed" />
+          <Kpi label="Ort. FWCI" value={inst.avgFwci !== null && inst.avgFwci !== undefined ? inst.avgFwci : '-'} color="#7c3aed" />
           <Kpi label="Top 1% Yayın" value={formatNum(inst.top1PctCount || 0)} color="#059669" sub={`%${inst.top1PctRatio || 0}`} />
           <Kpi label="Top 10% Yayın" value={formatNum(inst.top10PctCount || 0)} color="#2563eb" sub={`%${inst.top10PctRatio || 0}`} />
           <Kpi label="Uluslararası Ortaklık" value={`%${inst.internationalCoauthorRatio || 0}`} color="#c8a45a" />
           <Kpi label="Ort. Yazar/Makale" value={inst.avgAuthorsPerPaper || 0} color="#0891b2" />
-          <Kpi label="Ort. Ülke/Makale" value={inst.avgCountriesPerPaper !== null ? inst.avgCountriesPerPaper : '—'} color="#1a3a6b" />
+          <Kpi label="Ort. Ülke/Makale" value={inst.avgCountriesPerPaper !== null ? inst.avgCountriesPerPaper : '-'} color="#1a3a6b" />
         </div>
       </div>
 
@@ -533,8 +533,8 @@ function BibliometricsSection({ data }: { data: any }) {
                   <td style={s.td}>{p.displayName} {p.isMku && <span style={{ color: '#c8a45a' }}>★</span>}</td>
                   <td style={s.tdR}>{formatNum(p.worksCount)}</td>
                   <td style={s.tdR}>{formatNum(p.citedByCount)}</td>
-                  <td style={s.tdR}>{p.hIndex || '—'}</td>
-                  <td style={s.tdR}>{p.twoYearMeanCitedness !== undefined ? (+p.twoYearMeanCitedness).toFixed(2) : '—'}</td>
+                  <td style={s.tdR}>{p.hIndex || '-'}</td>
+                  <td style={s.tdR}>{p.twoYearMeanCitedness !== undefined ? (+p.twoYearMeanCitedness).toFixed(2) : '-'}</td>
                 </tr>
               ))}
             </tbody>
@@ -551,7 +551,7 @@ function BibliometricsSection({ data }: { data: any }) {
 
       {topCountries.length > 0 && (
         <div style={s.section}>
-          <h2 style={s.h2}>ULUSLARARASI İŞBİRLİĞİ — ÜLKE BAZLI</h2>
+          <h2 style={s.h2}>ULUSLARARASI İŞBİRLİĞİ - ÜLKE BAZLI</h2>
           <table style={s.table}>
             <thead><tr><th style={s.th}>#</th><th style={s.th}>Ülke</th><th style={s.thR}>Ortak Yayın</th></tr></thead>
             <tbody>
@@ -575,7 +575,7 @@ function BibliometricsSection({ data }: { data: any }) {
               <div key={c.code} style={{ marginTop: 14, pageBreakInside: 'avoid' }}>
                 <h3 style={s.h3}>
                   <span style={{ marginRight: 6 }}>{countryFlag(c.code)}</span>
-                  {countryName(c.code)} — Ortak Yayınlar
+                  {countryName(c.code)} - Ortak Yayınlar
                 </h3>
                 <table style={s.table}>
                   <thead><tr><th style={s.th}>#</th><th style={s.th}>Başlık</th><th style={s.th}>Dergi</th><th style={s.thR}>Yıl</th><th style={s.thR}>Atıf</th></tr></thead>
@@ -584,8 +584,8 @@ function BibliometricsSection({ data }: { data: any }) {
                       <tr key={p.doi || i}>
                         <td style={s.td}>{i + 1}</td>
                         <td style={s.tdSmall}>{p.title}</td>
-                        <td style={s.tdSmall}>{p.journal || '—'}</td>
-                        <td style={s.tdR}>{p.year || '—'}</td>
+                        <td style={s.tdSmall}>{p.journal || '-'}</td>
+                        <td style={s.tdR}>{p.year || '-'}</td>
                         <td style={{ ...s.tdR, fontWeight: 700 }}>{p?.citedBy?.best || 0}</td>
                       </tr>
                     ))}
@@ -607,9 +607,9 @@ function BibliometricsSection({ data }: { data: any }) {
                 <tr key={p.doi || i}>
                   <td style={s.td}>{i + 1}</td>
                   <td style={s.tdSmall}>{p.title}</td>
-                  <td style={s.tdSmall}>{p.journal || '—'}</td>
-                  <td style={s.tdR}>{p.year || '—'}</td>
-                  <td style={s.tdR}>{p.quality?.sjrQuartile ? <span style={{ ...s.qBadge, background: QUARTILE_COLORS[p.quality.sjrQuartile] }}>{p.quality.sjrQuartile}</span> : '—'}</td>
+                  <td style={s.tdSmall}>{p.journal || '-'}</td>
+                  <td style={s.tdR}>{p.year || '-'}</td>
+                  <td style={s.tdR}>{p.quality?.sjrQuartile ? <span style={{ ...s.qBadge, background: QUARTILE_COLORS[p.quality.sjrQuartile] }}>{p.quality.sjrQuartile}</span> : '-'}</td>
                   <td style={{ ...s.tdR, fontWeight: 700 }}>{p.citedBy?.best || 0}</td>
                 </tr>
               ))}
@@ -639,7 +639,7 @@ function BibliometricsSection({ data }: { data: any }) {
       {inst.typeDistribution && inst.typeDistribution.length > 0 && (
         <div style={s.section}>
           <h2 style={s.h2}>YAYIN TÜRÜNE GÖRE DAĞILIM</h2>
-          <p style={s.p}>OpenAlex'in tespit ettiği türlere göre — makale, kitap, kitap bölümü, tez, ön baskı, bildiri, inceleme vs.</p>
+          <p style={s.p}>OpenAlex'in tespit ettiği türlere göre - makale, kitap, kitap bölümü, tez, ön baskı, bildiri, inceleme vs.</p>
           <table style={s.table}>
             <thead>
               <tr>
@@ -654,7 +654,7 @@ function BibliometricsSection({ data }: { data: any }) {
               {inst.typeDistribution.map((t: any) => {
                 const totalSample = inst.typeDistribution.reduce((x: number, y: any) => x + y.count, 0);
                 const pct = totalSample > 0 ? (t.count / totalSample) * 100 : 0;
-                const avgCit = t.count > 0 ? (t.citations / t.count).toFixed(1) : '—';
+                const avgCit = t.count > 0 ? (t.citations / t.count).toFixed(1) : '-';
                 return (
                   <tr key={t.type}>
                     <td style={s.td}>{t.label}</td>
@@ -750,8 +750,8 @@ function ResearcherSection({ data }: { data: any }) {
             <tr key={r.userId}>
               <td style={s.td}>{i + 1}</td>
               <td style={{ ...s.td, fontWeight: i < 3 ? 700 : 400 }}>{r.name}</td>
-              <td style={s.td}>{r.faculty || '—'}</td>
-              <td style={s.td}>{r.department || '—'}</td>
+              <td style={s.td}>{r.faculty || '-'}</td>
+              <td style={s.td}>{r.department || '-'}</td>
               <td style={s.tdR}>{r.total}</td>
               <td style={s.tdR}>{r.active}</td>
               <td style={s.tdR}>{r.completed}</td>
@@ -788,7 +788,7 @@ function FundingSection({ data }: { data: any }) {
             <tbody>
               {funding.bySource.map((f: any) => (
                 <tr key={f.source}>
-                  <td style={s.td}>{f.source || '—'}</td>
+                  <td style={s.td}>{f.source || '-'}</td>
                   <td style={s.tdR}>{f.totalApplications || 0}</td>
                   <td style={s.tdR}>{f.accepted || 0}</td>
                   <td style={{ ...s.tdR, fontWeight: 700 }}>%{f.successRate || 0}</td>
@@ -828,7 +828,7 @@ function FundingSection({ data }: { data: any }) {
 
       {cordis.length > 0 && (
         <div style={s.section}>
-          <h2 style={s.h2}>CORDIS — AB PROJELERİ</h2>
+          <h2 style={s.h2}>CORDIS - AB PROJELERİ</h2>
           <p style={s.p}>Toplam AB katkısı: <strong>€{Number(totalEu).toLocaleString('tr-TR')}</strong></p>
           <table style={s.table}>
             <thead>
@@ -844,10 +844,10 @@ function FundingSection({ data }: { data: any }) {
               {cordis.slice(0, 15).map((p: any) => (
                 <tr key={p.id}>
                   <td style={s.td}>{p.framework}</td>
-                  <td style={s.td}>{p.acronym || '—'}</td>
+                  <td style={s.td}>{p.acronym || '-'}</td>
                   <td style={s.tdSmall}>{p.title}</td>
-                  <td style={s.td}>{p.coordinator?.name || '—'}</td>
-                  <td style={s.tdR}>{p.ecMaxContribution ? '€' + Number(p.ecMaxContribution).toLocaleString('tr-TR') : '—'}</td>
+                  <td style={s.td}>{p.coordinator?.name || '-'}</td>
+                  <td style={s.tdR}>{p.ecMaxContribution ? '€' + Number(p.ecMaxContribution).toLocaleString('tr-TR') : '-'}</td>
                 </tr>
               ))}
             </tbody>

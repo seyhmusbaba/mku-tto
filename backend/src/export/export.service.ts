@@ -61,7 +61,7 @@ export class ExportService {
       ].join(SEP);
     });
     const content = [headers.join(SEP), ...rows].join('\r\n');
-    // UTF-8 BOM — Excel'de Türkçe karakterleri doğru gösterir
+    // UTF-8 BOM - Excel'de Türkçe karakterleri doğru gösterir
     const bom = Buffer.from('\uFEFF', 'utf-8');
     return Buffer.concat([bom, Buffer.from(content, 'utf-8')]);
   }

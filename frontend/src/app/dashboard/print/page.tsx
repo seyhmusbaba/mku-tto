@@ -108,7 +108,7 @@ export default function DashboardPrintPage() {
         <div className="header">
           <div className="header-left">
             <h1>{siteName}</h1>
-            <p>Teknoloji Transfer Ofisi — Proje Yönetim Sistemi</p>
+            <p>Teknoloji Transfer Ofisi - Proje Yönetim Sistemi</p>
           </div>
           <div className="header-right">
             <strong>Genel Bakış Raporu</strong>
@@ -238,14 +238,14 @@ export default function DashboardPrintPage() {
                   <tr key={p.id}>
                     <td style={{ fontWeight: 600, maxWidth: 200 }}>{p.title}</td>
                     <td>{TYPE_LABELS[p.type] || p.type}</td>
-                    <td>{p.faculty || '—'}</td>
+                    <td>{p.faculty || '-'}</td>
                     <td>
                       <span className="badge" style={{ background: STATUS_COLORS[p.status] || '#6b7280' }}>
                         {STATUS_LABELS[p.status] || p.status}
                       </span>
                     </td>
-                    <td>{p.budget ? formatCurrency(p.budget) : '—'}</td>
-                    <td>{p.startDate ? new Date(p.startDate).toLocaleDateString('tr-TR') : '—'}</td>
+                    <td>{p.budget ? formatCurrency(p.budget) : '-'}</td>
+                    <td>{p.startDate ? new Date(p.startDate).toLocaleDateString('tr-TR') : '-'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -255,7 +255,7 @@ export default function DashboardPrintPage() {
 
         {/* Alt bilgi */}
         <div className="footer">
-          <span>{siteName} — Proje Yönetim Sistemi</span>
+          <span>{siteName} - Proje Yönetim Sistemi</span>
           <span>Rapor Tarihi: {printDate}</span>
         </div>
       </div>

@@ -47,7 +47,7 @@ export class ProjectMilestone {
 }
 
 /**
- * Proje çıktısı (deliverable) — rapor, makale, prototip, sunum vs.
+ * Proje çıktısı (deliverable) - rapor, makale, prototip, sunum vs.
  * Opsiyonel olarak bir milestone'a bağlanabilir.
  */
 @Entity('project_deliverables')
@@ -103,7 +103,7 @@ export class ProjectDeliverable {
 }
 
 /**
- * Proje risk register — risk tanımı, olasılık, etki, mitigasyon.
+ * Proje risk register - risk tanımı, olasılık, etki, mitigasyon.
  */
 @Entity('project_risks')
 export class ProjectRisk {

@@ -6,7 +6,7 @@ import { useMemo } from 'react';
  * Merkez: araştırmacı. Çevre: sık ortak yazdığı kişiler (yayın sayısına göre
  * boyut ve mesafe ayarlanır).
  *
- * Yayın listesinden otomatik çıkarılır — OpenAlex/Crossref'in author listeleri
+ * Yayın listesinden otomatik çıkarılır - OpenAlex/Crossref'in author listeleri
  * üzerinden ortak yazar frekansı hesaplanır.
  */
 
@@ -72,7 +72,7 @@ export function CollaborationGraph({
           </span>
         </span>
       </h4>
-      <p className="text-xs text-muted mb-4">En sık ortak yazdığı <strong>{display.length}</strong> yazar — daire boyutu ortak yayın sayısını gösterir</p>
+      <p className="text-xs text-muted mb-4">En sık ortak yazdığı <strong>{display.length}</strong> yazar - daire boyutu ortak yayın sayısını gösterir</p>
 
       <div className="flex justify-center">
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
@@ -100,11 +100,11 @@ export function CollaborationGraph({
 
           {/* Ortak yazar düğümleri */}
           {nodes.map((n, i) => {
-            // Etiketin konumu — merkezden dışa doğru biraz kaydır
+            // Etiketin konumu - merkezden dışa doğru biraz kaydır
             const labelDist = n.r + 8;
             const lx = cx + Math.cos(n.angle) * (ringR + labelDist);
             const ly = cy + Math.sin(n.angle) * (ringR + labelDist);
-            // Metin hizalaması — angle'a göre
+            // Metin hizalaması - angle'a göre
             const cos = Math.cos(n.angle);
             const anchor = cos > 0.2 ? 'start' : cos < -0.2 ? 'end' : 'middle';
 
@@ -163,7 +163,7 @@ export function extractCollaborators(pubs: any[], selfName: string): Collaborato
     for (const a of p.authors || []) {
       const name = (a.name || '').trim();
       if (!name || name.toLowerCase() === selfLower) continue;
-      // Self-match gevşek — kısmi isim eşleşmesi de sayılsın
+      // Self-match gevşek - kısmi isim eşleşmesi de sayılsın
       const parts = selfLower.split(/\s+/).filter(w => w.length > 2);
       if (parts.some(pt => name.toLowerCase().includes(pt))) continue;
 
