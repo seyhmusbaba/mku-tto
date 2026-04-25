@@ -15,17 +15,31 @@ export default function ProjectPrintPage() {
   const [project, setProject]     = useState<Project | null>(null);
   const [reports, setReports]     = useState<ProjectReport[]>([]);
   const [linkedPubs, setLinkedPubs] = useState<any[]>([]);
+  const [intelligence, setIntelligence] = useState<any | null>(null);
+  const [partners, setPartners]     = useState<any[]>([]);
+  const [auditLogs, setAuditLogs]   = useState<any[]>([]);
   const [loading, setLoading]     = useState(true);
 
   useEffect(() => {
     const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-    // sessionStorage'dan token al (ana sayfadan kopyalandı)
     const token = sessionStorage.getItem('tto_print_token') || localStorage.getItem('tto_token') || '';
     const headers = { Authorization: `Bearer ${token}` };
+
+    // Onceden hesaplanmis Is Zekasi raporu varsa localStorage'dan al
+    try {
+      const cached = localStorage.getItem(`intel_report_${id}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed?.data) setIntelligence(parsed.data);
+      }
+    } catch {}
+
     Promise.all([
       axios.get(`${base}/projects/${id}`, { headers }).then(r => setProject(r.data)),
       axios.get(`${base}/projects/${id}/reports`, { headers }).then(r => setReports(r.data)).catch(() => {}),
       axios.get(`${base}/scopus/project/${id}/linked-publications`, { headers }).then(r => setLinkedPubs(r.data || [])).catch(() => {}),
+      axios.get(`${base}/projects/${id}/partners`, { headers }).then(r => setPartners(r.data || [])).catch(() => {}),
+      axios.get(`${base}/audit/project/${id}`, { headers }).then(r => setAuditLogs(r.data || [])).catch(() => {}),
     ]).finally(() => {
       setLoading(false);
     });
@@ -62,44 +76,56 @@ export default function ProjectPrintPage() {
       <button className="print-btn" onClick={handlePrint}>🖨️ PDF Olarak Kaydet</button>
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: white; color: #1a1a1a; font-size: 11pt; line-height: 1.5; }
-        
-        .page { max-width: 210mm; margin: 0 auto; padding: 12mm 14mm; }
-        
-        /* Üst başlık */
-        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f2444; padding-bottom: 10px; margin-bottom: 18px; }
-        .header-left h1 { font-size: 16pt; font-weight: 700; color: #0f2444; margin-bottom: 3px; }
-        .header-left p { font-size: 9pt; color: #6b7280; }
+        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #f5f5f5; color: #1a1a1a; font-size: 10.5pt; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+
+        .page { max-width: 210mm; margin: 0 auto; padding: 14mm 16mm; background: white; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+
+        /* Kapak / Ust baslik - kurumsal stil */
+        .header { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: flex-start;
+          border-bottom: 3px double #0f2444; padding-bottom: 14px; margin-bottom: 22px; }
+        .header-left h1 { font-size: 18pt; font-weight: 700; color: #0f2444; margin-bottom: 4px; line-height: 1.25; letter-spacing: -0.01em; }
+        .header-left .subtitle { font-size: 10pt; color: #6b7280; line-height: 1.4; }
         .header-right { text-align: right; }
-        .header-right .status { display: inline-block; padding: 4px 12px; border-radius: 99px; font-size: 9pt; font-weight: 600; color: white; }
-        .header-right .date { font-size: 8.5pt; color: #9ca3af; margin-top: 5px; }
-        .mku-logo { font-size: 9pt; font-weight: 700; color: #0f2444; margin-bottom: 4px; }
+        .header-right .status { display: inline-block; padding: 5px 14px; border-radius: 99px; font-size: 9pt; font-weight: 700;
+          color: white; letter-spacing: 0.02em; text-transform: uppercase; }
+        .header-right .date { font-size: 8.5pt; color: #9ca3af; margin-top: 6px; }
+        .mku-logo { font-size: 9pt; font-weight: 700; color: #c8a45a; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+        .doc-id { font-size: 8pt; color: #9ca3af; margin-top: 4px; font-family: 'SF Mono', Consolas, monospace; }
+
+        /* Section basliklari */
+        .section { margin-bottom: 22px; page-break-inside: avoid; }
+        .section-title { font-size: 10.5pt; font-weight: 700; color: #0f2444; text-transform: uppercase; letter-spacing: 0.06em;
+          border-bottom: 2px solid #0f2444; padding-bottom: 5px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .section-title::before { content: ''; width: 4px; height: 14px; background: #c8a45a; border-radius: 2px; }
+        .section-subtitle { font-size: 8.5pt; color: #6b7280; margin-bottom: 10px; margin-top: -6px; font-style: italic; }
+
+        /* Info grid - daha hizali, daha okunakli */
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; }
+        .info-item { display: flex; flex-direction: column; padding: 6px 10px; background: #faf8f4; border-left: 2px solid #c8a45a; border-radius: 0 4px 4px 0; }
+        .info-label { font-size: 8pt; color: #6b7280; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+        .info-value { font-size: 10pt; color: #0f2444; font-weight: 600; margin-top: 2px; line-height: 1.3; }
         
-        /* Section başlıkları */
-        .section { margin-bottom: 18px; }
-        .section-title { font-size: 10pt; font-weight: 700; color: #0f2444; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; margin-bottom: 10px; }
-        
-        /* Info grid */
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 20px; }
-        .info-item { display: flex; flex-direction: column; }
-        .info-label { font-size: 8pt; color: #9ca3af; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
-        .info-value { font-size: 10pt; color: #1a1a1a; font-weight: 500; margin-top: 1px; }
-        
-        /* Bütçe kutuları */
-        .budget-box { display: inline-block; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 8px 14px; margin-right: 8px; margin-bottom: 6px; }
-        .budget-box .label { font-size: 8pt; color: #0284c7; }
-        .budget-box .value { font-size: 12pt; font-weight: 700; color: #0369a1; }
-        
+        /* Butce kutulari - kurumsal mavi */
+        .budget-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+        .budget-box { background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%);
+          border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px 14px; }
+        .budget-box .label { font-size: 8pt; color: #1d4ed8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+        .budget-box .value { font-size: 14pt; font-weight: 700; color: #0f2444; margin-top: 2px; }
+        .budget-box .sub { font-size: 7.5pt; color: #6b7280; margin-top: 2px; }
+
         /* Progress bar */
-        .progress-wrap { margin: 10px 0; }
-        .progress-label { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 9pt; }
-        .progress-track { height: 10px; background: #f0ede8; border-radius: 99px; overflow: hidden; }
-        .progress-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #0f2444, #1a3a6b); }
-        
-        /* Üyeler */
-        .members-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-        .member-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 10px; }
-        .member-name { font-size: 9.5pt; font-weight: 600; color: #0f2444; }
+        .progress-wrap { margin: 12px 0; }
+        .progress-label { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 9pt; }
+        .progress-track { height: 12px; background: #f0ede8; border-radius: 99px; overflow: hidden; position: relative; }
+        .progress-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #0f2444, #1a3a6b, #c8a45a); }
+
+        /* Uyeler - daha temiz */
+        .members-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .member-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; background: white; }
+        .member-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+          font-size: 9pt; font-weight: 700; color: white; flex-shrink: 0; background: linear-gradient(135deg, #1a3a6b, #0f2444); }
+        .member-info { flex: 1; min-width: 0; }
+        .member-name { font-size: 10pt; font-weight: 600; color: #0f2444; }
         .member-role { font-size: 8pt; color: #6b7280; margin-top: 1px; }
         
         /* Raporlar */
@@ -117,16 +143,61 @@ export default function ProjectPrintPage() {
         .meta-box .label { font-size: 7.5pt; color: #9ca3af; font-weight: 600; }
         .meta-box .value { font-size: 8.5pt; color: #1a1a1a; margin-top: 1px; }
         
-        /* Altbilgi */
-        .footer { margin-top: 24px; padding-top: 10px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; font-size: 8pt; color: #9ca3af; }
-        
-        /* Baskı ayarları */
+        /* Is Zekasi Skorlari */
+        .intel-scores { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+        .intel-score-box { padding: 12px 10px; border-radius: 10px; text-align: center; }
+        .intel-score-box.main { background: linear-gradient(135deg, #0f2444 0%, #1a3a6b 100%); color: white; }
+        .intel-score-box.dim { background: white; border: 1px solid #e5e7eb; }
+        .intel-score-label { font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.85; }
+        .intel-score-value { font-size: 22pt; font-weight: 700; line-height: 1.1; margin-top: 2px; }
+        .intel-score-suffix { font-size: 7.5pt; opacity: 0.7; }
+        .intel-score-bar { height: 4px; background: #f0ede8; border-radius: 99px; margin-top: 6px; overflow: hidden; }
+        .intel-score-bar-fill { height: 100%; border-radius: 99px; }
+
+        /* Is Zekasi narrative + listeler */
+        .intel-narrative { padding: 12px 14px; background: #faf8f4; border-radius: 8px; border-left: 3px solid #c8a45a;
+          font-size: 9.5pt; color: #1f2937; line-height: 1.65; margin-bottom: 12px; }
+        .intel-narrative p + p { margin-top: 8px; }
+        .intel-lists { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+        .intel-list-card { border-radius: 8px; padding: 10px 12px; }
+        .intel-list-card.pos { background: #f0fdf4; border: 1px solid #86efac; }
+        .intel-list-card.neg { background: #fef2f2; border: 1px solid #fca5a5; }
+        .intel-list-card.act { background: #eff6ff; border: 1px solid #93c5fd; }
+        .intel-list-title { font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+        .intel-list-card.pos .intel-list-title { color: #047857; }
+        .intel-list-card.neg .intel-list-title { color: #b91c1c; }
+        .intel-list-card.act .intel-list-title { color: #1d4ed8; }
+        .intel-list-card ul { list-style: none; }
+        .intel-list-card li { font-size: 9pt; color: #1f2937; margin-bottom: 4px; padding-left: 10px; position: relative; line-height: 1.4; }
+        .intel-list-card li::before { content: '•'; position: absolute; left: 0; }
+
+        /* Ortaklar */
+        .partner-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .partner-card { padding: 8px 12px; background: #f9fafb; border-left: 3px solid #7c3aed; border-radius: 0 6px 6px 0; }
+        .partner-name { font-size: 9.5pt; font-weight: 600; color: #0f2444; }
+        .partner-meta { font-size: 8pt; color: #6b7280; margin-top: 2px; }
+
+        /* Audit timeline */
+        .audit-timeline { border-left: 2px solid #e5e7eb; padding-left: 14px; }
+        .audit-item { position: relative; padding-bottom: 8px; font-size: 8.5pt; }
+        .audit-item::before { content: ''; position: absolute; left: -19px; top: 4px; width: 8px; height: 8px;
+          border-radius: 50%; background: #c8a45a; border: 2px solid white; box-shadow: 0 0 0 1px #e5e7eb; }
+        .audit-action { font-weight: 600; color: #0f2444; }
+        .audit-meta { color: #9ca3af; font-size: 7.5pt; }
+
+        /* Altbilgi - daha kurumsal */
+        .footer { margin-top: 30px; padding-top: 14px; border-top: 2px solid #0f2444; display: grid;
+          grid-template-columns: 1fr auto; gap: 8px; font-size: 8pt; color: #6b7280; }
+        .footer .left { font-weight: 600; color: #0f2444; }
+        .footer .gen { font-style: italic; }
+
+        /* Baski ayarlari */
         @media print {
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .page { padding: 8mm 10mm; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
+          .page { padding: 10mm 12mm; box-shadow: none; }
           .no-print { display: none !important; }
-          .report-item { break-inside: avoid; }
-          @page { size: A4; margin: 8mm 10mm; }
+          .report-item, .section { break-inside: avoid; }
+          @page { size: A4; margin: 10mm 12mm; }
         }
         
         /* Ekran butonu */
@@ -143,16 +214,21 @@ export default function ProjectPrintPage() {
           <button className="btn-p" onClick={() => window.print()}>🖨 Yazdır / PDF Kaydet</button>
         </div>
 
-        {/* Başlık */}
+        {/* Baslik - kapak gibi */}
         <div className="header">
           <div className="header-left">
-            <div className="mku-logo">MKÜ Teknoloji Transfer Ofisi</div>
+            <div className="mku-logo">MKÜ · Teknoloji Transfer Ofisi</div>
             <h1>{project.title}</h1>
-            <p>{getProjectTypeLabel(project.type)}{project.faculty ? ` · ${project.faculty}` : ''}</p>
+            <p className="subtitle">
+              {getProjectTypeLabel(project.type)}
+              {project.faculty ? ` · ${project.faculty}` : ''}
+              {project.department ? ` · ${project.department}` : ''}
+            </p>
+            <p className="doc-id">Belge No: TTO-{project.id?.slice(0, 8).toUpperCase()} · v{(reports.length || 0) + 1}</p>
           </div>
           <div className="header-right">
             <div className="status" style={{ background: sc }}>{PROJECT_STATUS_LABELS[project.status]}</div>
-            <div className="date">Rapor tarihi: {new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+            <div className="date">{new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
           </div>
         </div>
 
@@ -203,46 +279,156 @@ export default function ProjectPrintPage() {
           </div>
         )}
 
-        {/* Bütçe */}
+        {/* Butce - daha zengin */}
         {project.budget && (
           <div className="section">
-            <div className="section-title">Bütçe</div>
-            <div>
+            <div className="section-title">Bütçe ve İlerleme</div>
+            <div className="budget-row">
               <div className="budget-box">
                 <div className="label">Toplam Bütçe</div>
                 <div className="value">{formatCurrency(project.budget)}</div>
+                {project.fundingSource && <div className="sub">{project.fundingSource}</div>}
               </div>
-              {latestProgress > 0 && (
-                <div style={{ marginTop: 10 }}>
-                  <div className="progress-wrap">
-                    <div className="progress-label">
-                      <span style={{ fontWeight: 600, color: '#0f2444' }}>Son Bildirilen İlerleme</span>
-                      <span style={{ fontWeight: 700, color: '#0f2444' }}>%{latestProgress}</span>
+              {project.startDate && project.endDate && (() => {
+                const start = new Date(project.startDate).getTime();
+                const end   = new Date(project.endDate).getTime();
+                const now   = Date.now();
+                const total = end - start;
+                const pct   = total > 0 ? Math.min(100, Math.max(0, ((now - start) / total) * 100)) : 0;
+                const months = total / (1000 * 60 * 60 * 24 * 30.44);
+                return (
+                  <>
+                    <div className="budget-box">
+                      <div className="label">Süre</div>
+                      <div className="value">{months.toFixed(0)} ay</div>
+                      <div className="sub">{formatDate(project.startDate)} → {formatDate(project.endDate)}</div>
                     </div>
-                    <div className="progress-track">
-                      <div className="progress-fill" style={{ width: `${latestProgress}%` }} />
+                    <div className="budget-box">
+                      <div className="label">Geçen Süre</div>
+                      <div className="value">%{pct.toFixed(0)}</div>
+                      <div className="sub">Aylık ort. {formatCurrency(project.budget / Math.max(1, months))}</div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+            {latestProgress > 0 && (
+              <div className="progress-wrap" style={{ marginTop: 14 }}>
+                <div className="progress-label">
+                  <span style={{ fontWeight: 600, color: '#0f2444' }}>Son Bildirilen İlerleme</span>
+                  <span style={{ fontWeight: 700, color: '#0f2444' }}>%{latestProgress}</span>
+                </div>
+                <div className="progress-track">
+                  <div className="progress-fill" style={{ width: `${latestProgress}%` }} />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* IS ZEKASI RAPORU - localStorage cache'den okunur, varsa yazdirilir */}
+        {intelligence && (
+          <div className="section">
+            <div className="section-title">İş Zekası Raporu</div>
+            <p className="section-subtitle">
+              13 akademik kaynaktan sentezlenmiş yönetici özeti
+              {intelligence.source === 'ai' ? ' · Claude AI' : ' · Kural tabanlı'}
+            </p>
+            <div className="intel-scores">
+              <div className="intel-score-box main">
+                <div className="intel-score-label">Genel Skor</div>
+                <div className="intel-score-value">{intelligence.overallScore}</div>
+                <div className="intel-score-suffix">/ 100</div>
+              </div>
+              {[
+                { k: 'originalityScore',   label: 'Özgünlük' },
+                { k: 'competitionScore',   label: 'Rekabet' },
+                { k: 'fitScore',           label: 'Dergi Uyumu' },
+                { k: 'successProbability', label: 'Başarı' },
+              ].map(d => {
+                const v = intelligence[d.k] || 0;
+                const c = v >= 70 ? '#059669' : v >= 50 ? '#c8a45a' : v >= 30 ? '#d97706' : '#dc2626';
+                return (
+                  <div key={d.k} className="intel-score-box dim">
+                    <div className="intel-score-label" style={{ color: '#6b7280' }}>{d.label}</div>
+                    <div className="intel-score-value" style={{ color: c }}>%{v}</div>
+                    <div className="intel-score-bar">
+                      <div className="intel-score-bar-fill" style={{ width: `${v}%`, background: c }} />
                     </div>
                   </div>
+                );
+              })}
+            </div>
+            {intelligence.narrative && (
+              <div className="intel-narrative">
+                {intelligence.narrative.split('\n').map((p: string, i: number) => <p key={i}>{p}</p>)}
+              </div>
+            )}
+            <div className="intel-lists">
+              {intelligence.highlights?.length > 0 && (
+                <div className="intel-list-card pos">
+                  <div className="intel-list-title">Güçlü Yönler</div>
+                  <ul>{intelligence.highlights.slice(0, 5).map((h: string, i: number) => <li key={i}>{h}</li>)}</ul>
+                </div>
+              )}
+              {intelligence.risks?.length > 0 && (
+                <div className="intel-list-card neg">
+                  <div className="intel-list-title">Riskler</div>
+                  <ul>{intelligence.risks.slice(0, 5).map((r: string, i: number) => <li key={i}>{r}</li>)}</ul>
+                </div>
+              )}
+              {intelligence.recommendations?.length > 0 && (
+                <div className="intel-list-card act">
+                  <div className="intel-list-title">Öneriler</div>
+                  <ul>{intelligence.recommendations.slice(0, 5).map((r: string, i: number) => <li key={i}>{r}</li>)}</ul>
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* Ekip */}
-        {project.members && project.members.length > 0 && (
+        {/* Ekip - avatar + isim + rol */}
+        {((project.members && project.members.length > 0) || project.owner) && (
           <div className="section">
-            <div className="section-title">Proje Ekibi ({project.members.length + 1} kişi)</div>
+            <div className="section-title">Proje Ekibi ({(project.members?.length || 0) + 1} kişi)</div>
             <div className="members-grid">
-              {/* Yürütücü */}
               <div className="member-card" style={{ borderColor: '#c8a45a', background: '#fffbeb' }}>
-                <div className="member-name">{project.owner?.title} {project.owner?.firstName} {project.owner?.lastName}</div>
-                <div className="member-role" style={{ color: '#92651a' }}>Yürütücü</div>
+                <div className="member-avatar" style={{ background: 'linear-gradient(135deg, #c8a45a, #92651a)' }}>
+                  {getInitials(`${project.owner?.firstName || ''} ${project.owner?.lastName || ''}`)}
+                </div>
+                <div className="member-info">
+                  <div className="member-name">{project.owner?.title} {project.owner?.firstName} {project.owner?.lastName}</div>
+                  <div className="member-role" style={{ color: '#92651a', fontWeight: 600 }}>Yürütücü</div>
+                </div>
               </div>
-              {project.members.map(m => (
+              {(project.members || []).map(m => (
                 <div key={m.id} className="member-card">
-                  <div className="member-name">{m.user?.title} {m.user?.firstName} {m.user?.lastName}</div>
-                  <div className="member-role">{m.role === 'researcher' ? 'Araştırmacı' : m.role === 'advisor' ? 'Danışman' : m.role === 'assistant' ? 'Asistan' : m.role}</div>
+                  <div className="member-avatar">
+                    {getInitials(`${m.user?.firstName || ''} ${m.user?.lastName || ''}`)}
+                  </div>
+                  <div className="member-info">
+                    <div className="member-name">{m.user?.title} {m.user?.firstName} {m.user?.lastName}</div>
+                    <div className="member-role">{m.role === 'researcher' ? 'Araştırmacı' : m.role === 'advisor' ? 'Danışman' : m.role === 'assistant' ? 'Asistan' : m.role}{m.user?.department ? ` · ${m.user.department}` : ''}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Ortaklar */}
+        {partners.length > 0 && (
+          <div className="section">
+            <div className="section-title">Proje Ortakları ({partners.length})</div>
+            <div className="partner-grid">
+              {partners.map((p: any) => (
+                <div key={p.id} className="partner-card">
+                  <div className="partner-name">{p.name}</div>
+                  <div className="partner-meta">
+                    {p.role || 'Ortak'}
+                    {p.sector ? ` · ${p.sector}` : ''}
+                    {p.contactName ? ` · ${p.contactName}` : ''}
+                  </div>
                 </div>
               ))}
             </div>
@@ -475,10 +661,41 @@ export default function ProjectPrintPage() {
           </div>
         )}
 
+        {/* Audit Timeline - son 10 olay */}
+        {auditLogs.length > 0 && (
+          <div className="section">
+            <div className="section-title">Olay Geçmişi (Son {Math.min(10, auditLogs.length)})</div>
+            <div className="audit-timeline">
+              {auditLogs.slice(0, 10).map((a: any) => {
+                const ACTION_TR: Record<string, string> = {
+                  create: 'Oluşturuldu', update: 'Güncellendi', delete: 'Silindi',
+                  upload: 'Belge yüklendi', report: 'Rapor eklendi', member_add: 'Üye eklendi',
+                  member_remove: 'Üye çıkarıldı', status_change: 'Durum değişti',
+                };
+                const action = ACTION_TR[a.action] || a.action;
+                const who = a.user ? `${a.user.firstName} ${a.user.lastName}` : 'Sistem';
+                return (
+                  <div key={a.id} className="audit-item">
+                    <span className="audit-action">{action}</span>
+                    <span style={{ color: '#6b7280' }}> · {who}</span>
+                    <div className="audit-meta">{new Date(a.createdAt).toLocaleString('tr-TR')}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Altbilgi */}
         <div className="footer">
-          <span>MKÜ Teknoloji Transfer Ofisi · Proje Yönetim Sistemi</span>
-          <span>Olusturma: {new Date().toLocaleString('tr-TR')}</span>
+          <div>
+            <div className="left">MKÜ Teknoloji Transfer Ofisi · Proje Yönetim Sistemi</div>
+            <div>Belge No: TTO-{project.id?.slice(0, 8).toUpperCase()} · Hatay Mustafa Kemal Üniversitesi</div>
+          </div>
+          <div className="gen" style={{ textAlign: 'right' }}>
+            Oluşturma: {new Date().toLocaleString('tr-TR')}<br />
+            Bu belge resmi proje arşivi içindir.
+          </div>
         </div>
       </div>
     </>
