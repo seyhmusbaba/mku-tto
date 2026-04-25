@@ -219,6 +219,10 @@ export class ScopusService {
     keywords?: string[];
     limit?: number;
   }) {
+    // Yapilandirma kontrolu: anahtar yoksa frontend ozel mesaj gostersin
+    if (!this.isConfigured()) {
+      return { total: 0, results: [], notConfigured: true, error: 'Scopus API anahtari yapilandirilmamis' };
+    }
     const limit = opts.limit || 10;
     const cacheKey = `similar:${opts.title.substring(0, 40)}:${(opts.keywords || []).slice(0,2).join(',')}`;
     const cached = cache.get(cacheKey) as any;

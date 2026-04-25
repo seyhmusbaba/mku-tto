@@ -61,14 +61,24 @@ function ScopusWizardPanel({ title, description, projectText, keywords }: {
   const [result, setResult]     = useState<any>(null);
   const [loading, setLoading]   = useState(false);
   const [searched, setSearched] = useState(false);
+  const [notConfigured, setNotConfigured] = useState(false);
 
   const search = async () => {
-    if (!title.trim()) { toast.error('Önce proje başlığı girin'); return; }
+    if (!title.trim() || title.trim().length < 8) {
+      toast.error('Önce proje başlığını yazın (en az 8 karakter)');
+      return;
+    }
     setLoading(true);
     setSearched(true);
+    setNotConfigured(false);
     try {
       const r = await scopusApi.findSimilarResearch({ title, description, projectText, keywords });
-      setResult(r.data);
+      if (r.data?.notConfigured) {
+        setNotConfigured(true);
+        setResult(null);
+      } else {
+        setResult(r.data);
+      }
     } catch { setResult(null); }
     finally { setLoading(false); }
   };
@@ -92,9 +102,19 @@ function ScopusWizardPanel({ title, description, projectText, keywords }: {
         </div>
       )}
 
-      {searched && !loading && !result && (
+      {searched && !loading && notConfigured && (
+        <div className="text-xs p-3 rounded-xl flex items-start gap-2"
+          style={{ background: '#fef3c7', border: '1px solid #fde68a', color: '#92400e' }}>
+          <NPIcon name="alert" className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <div>
+            <strong>Scopus entegrasyonu yapılandırılmamış.</strong> Literatür taraması için Scopus API anahtarı gerekli - admin Railway → Backend → Variables ekranından <code>SCOPUS_API_KEY</code> ekleyince bu özellik aktif olur. Bu adımı atlayıp devam edebilirsiniz.
+          </div>
+        </div>
+      )}
+
+      {searched && !loading && !notConfigured && !result && (
         <div className="py-6 text-center text-sm text-muted">
-          Scopus bağlantısı kurulamadı veya sonuç bulunamadı.
+          Scopus bağlantısı kurulamadı veya sonuç bulunamadı. Anahtar kelime ekleyip tekrar deneyin.
         </div>
       )}
 
@@ -259,11 +279,17 @@ export default function NewProjectPage() {
   const set  = (k: string, v: any)  => setForm(f => ({ ...f, [k]: v }));
   const setD = (k: string, v: any)  => setForm(f => ({ ...f, dynamicFields: { ...f.dynamicFields, [k]: v } }));
 
-  // Mevcut kullanıcıdan fakülte/bölüm otomatik doldur
+  // Mevcut kullanicidan fakulte/bolum bir kez otomatik doldur (sonradan kullanici degisirse uzerine yazma)
+  const [didAutoFillUser, setDidAutoFillUser] = useState(false);
   useEffect(() => {
-    if (user?.faculty)     set('faculty', user.faculty);
-    if (user?.department)  set('department', user.department);
-  }, [user]);
+    if (didAutoFillUser || !user) return;
+    setForm(f => ({
+      ...f,
+      faculty:    f.faculty    || user.faculty    || '',
+      department: f.department || user.department || '',
+    }));
+    setDidAutoFillUser(true);
+  }, [user, didAutoFillUser]);
 
   useEffect(() => {
     facultiesApi.getActive().then(r => setFaculties((r.data || []).map((f: any) => f.name))).catch(() => {});
@@ -272,26 +298,40 @@ export default function NewProjectPage() {
     usersApi.getAll({ limit: 200 }).then(r => setAllUsers(r.data.data || [])).catch(() => {});
   }, []);
 
-  // İçerik adımından SKH adımına geçince SKH öner
+  // Icerik degisirse SDG onerileri gecersiz - kullanici geri donup metni degistirebilir
+  // Hash uretimi: title + description + projectText degisirse stale flag
+  const contentHash = `${form.title}|${form.description}|${form.projectText}`.length + ':'
+    + form.title.slice(0, 30) + form.projectText.slice(0, 30);
+  const [lastSdgHash, setLastSdgHash] = useState('');
+
+  // Icerik adimindan SKH adimina gecince SKH oner (icerik degistiyse yeniden cagir)
   useEffect(() => {
     if (PHASES[phase].key !== 'classify') return;
-    if (sdgSuggestions.length || sdgLoading) return;
+    if (sdgLoading) return;
     if (!form.title && !form.description) return;
+    if (sdgSuggestions.length > 0 && lastSdgHash === contentHash) return;  // ayni icerik
     setSdgLoading(true);
+    setSdgSuggestions([]);
+    setSdgReasons({});
     api.post('/ai/suggest-sdg', { title: form.title, description: form.description, projectText: form.projectText })
       .then(r => {
         if (r.data?.suggestions?.length) {
           setSdgSuggestions(r.data.suggestions);
           setSdgReasons(r.data.reasons || {});
         }
+        setLastSdgHash(contentHash);
       })
       .catch(() => {})
       .finally(() => setSdgLoading(false));
-  }, [phase]);
+  }, [phase, contentHash]);
 
-  // Son aşamada belge incelemesi
+  // Son asamada belge incelemesi - belgeler veya icerik degisirse yeniden cagir
+  const docHash = `${form.title}|${selectedType}|${form.ipStatus}|${acceptanceFile?.name || ''}|${ipFile?.name || ''}`;
+  const [lastDocHash, setLastDocHash] = useState('');
   useEffect(() => {
     if (PHASES[phase].key !== 'finalize') return;
+    if (docReviewLoading) return;
+    if (docReview && lastDocHash === docHash) return;
     const docs: any[] = [];
     if (acceptanceFile) docs.push({ name: acceptanceFile.name, type: 'acceptance', size: acceptanceFile.size });
     if (ipFile) docs.push({ name: ipFile.name, type: 'ip', size: ipFile.size });
@@ -299,18 +339,49 @@ export default function NewProjectPage() {
     api.post('/ai/review-documents', {
       projectTitle: form.title, projectType: selectedType, documents: docs,
       ipStatus: form.ipStatus, ethicsRequired: true, ethicsApproved: false,
-    }).then(r => setDocReview(r.data))
+    }).then(r => { setDocReview(r.data); setLastDocHash(docHash); })
       .catch(() => setDocReview(null))
       .finally(() => setDocReviewLoading(false));
-  }, [phase]);
+  }, [phase, docHash]);
 
 
-  // Doğrulama
+  // Dogrulama - her adim cikisinda mantiksal kontrol
   const canGoNext = (): boolean => {
     const key = PHASES[phase].key;
     if (key === 'type'    && !selectedType)         { toast.error('Proje türü seçin'); return false; }
-    if (key === 'basic'   && !form.title.trim())    { toast.error('Proje adı zorunlu'); return false; }
-    if (key === 'content' && !complianceDone)       { toast.error('YZ Uygunluk Kontrolü zorunlu'); return false; }
+    if (key === 'basic') {
+      if (!form.title.trim())                       { toast.error('Proje adı zorunlu'); return false; }
+      if (form.title.trim().length < 8)             { toast.error('Proje adı en az 8 karakter olmalı'); return false; }
+      // Zorunlu dinamik alanlar - basic adimda gosteriliyor
+      const missing = dynamicFields
+        .filter(f => f.required)
+        .filter(f => {
+          const v = form.dynamicFields[f.key];
+          return v === undefined || v === null || (typeof v === 'string' && v.trim() === '');
+        });
+      if (missing.length > 0) {
+        toast.error(`Zorunlu alan eksik: ${missing.map(f => f.label || f.name).join(', ')}`);
+        return false;
+      }
+    }
+    if (key === 'content') {
+      if (!form.projectText || form.projectText.trim().length < 50) {
+        toast.error('Proje metni en az 50 karakter olmalı (YZ analizi için)');
+        return false;
+      }
+      if (!complianceDone)                          { toast.error('YZ Uygunluk Kontrolü zorunlu'); return false; }
+    }
+    if (key === 'classify') {
+      // IP "yok" disinda secildiyse tip zorunlu
+      if (form.ipStatus !== 'none' && !form.ipType) {
+        toast.error('Fikri mülkiyet türünü seçin (Patent / Faydalı Model / vb.)');
+        return false;
+      }
+      if (['registered','published'].includes(form.ipStatus) && !form.ipRegistrationNo && !ipFile) {
+        toast.error('Tescilli/Yayımlı IP için tescil numarası veya belge gerekli');
+        return false;
+      }
+    }
     return true;
   };
 
@@ -327,20 +398,46 @@ export default function NewProjectPage() {
     await documentsApi.upload(pid, fd);
   };
 
-  // Form düzeyinde doğrulama
+  // Son submit dogrulamasi - tum mantiksal tutarlilik
   const validateBeforeSubmit = (): string | null => {
     if (!form.title.trim()) return 'Proje adı zorunlu';
+    if (form.title.trim().length < 8) return 'Proje adı en az 8 karakter olmalı';
     if (!complianceDone) return 'YZ Uygunluk Kontrolü zorunludur';
+
+    // Butce mantik kontrolu
     if (form.budget) {
       const b = Number(form.budget);
       if (!Number.isFinite(b) || b < 0) return 'Bütçe negatif olamaz';
+      if (b > 1_000_000_000) return 'Bütçe çok yüksek - lütfen kontrol edin (max 1 milyar TL)';
     }
+
+    // Tarih mantik kontrolu
     if (form.startDate && form.endDate && form.endDate < form.startDate) {
       return 'Bitiş tarihi başlangıçtan önce olamaz';
+    }
+    if (form.startDate) {
+      const yr = +form.startDate.slice(0, 4);
+      if (yr < 1990 || yr > 2100) return 'Başlangıç tarihi yılı geçersiz';
+    }
+    if (form.endDate) {
+      const yr = +form.endDate.slice(0, 4);
+      if (yr < 1990 || yr > 2100) return 'Bitiş tarihi yılı geçersiz';
+    }
+
+    // Aktif proje mantik kontrolu
+    if (form.status === 'active') {
+      if (!form.startDate) return 'Aktif proje için başlangıç tarihi zorunlu';
+      if (!acceptanceFile) return 'Aktif proje için Başvuru Kabul Belgesi zorunlu (Belgeler bölümüne yükleyin)';
+    }
+
+    // IP mantik kontrolu
+    if (form.ipStatus !== 'none' && !form.ipType) {
+      return 'Fikri mülkiyet türünü seçin';
     }
     if (['registered', 'published'].includes(form.ipStatus) && !ipFile && !form.ipRegistrationNo) {
       return 'Tescilli/Yayımlı IP için belge veya başvuru numarası gerekli';
     }
+
     return null;
   };
 
@@ -573,7 +670,10 @@ export default function NewProjectPage() {
                 <p className="text-xs font-semibold text-muted uppercase tracking-wider">Ek Alanlar</p>
                 {dynamicFields.map(field => (
                   <div key={field.id}>
-                    <label className="label">{field.label || field.name}</label>
+                    <label className="label">
+                      {field.label || field.name}
+                      {field.required ? <span className="text-red-500 ml-1">*</span> : null}
+                    </label>
                     {field.type === 'textarea'
                       ? <textarea className="input" value={form.dynamicFields[field.key] || ''} onChange={e => setD(field.key, e.target.value)} />
                       : field.type === 'select'
@@ -697,12 +797,19 @@ export default function NewProjectPage() {
 
             <div className="p-3 rounded-xl text-xs flex items-start gap-2" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8' }}>
               <NPIcon name="info" className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <span>Proje metni, özetten farklı olarak projenin tüm detaylarını içerir. <strong>YZ Uygunluk Kontrolü zorunludur</strong> - devam etmek için yapın.</span>
+              <span>Proje metni, özetten farklı olarak projenin tüm detaylarını içerir. <strong>YZ Uygunluk Kontrolü zorunludur</strong> - devam etmek için yapın. Anlamlı analiz için en az 200 karakter önerilir.</span>
             </div>
 
             <textarea className="input" style={{ minHeight: 280, lineHeight: 1.8 }} value={form.projectText}
               onChange={e => { set('projectText', e.target.value); setComplianceDone(false); }}
               placeholder={'Detaylı proje açıklaması...\n\n• Projenin amacı ve önemi\n• Araştırma sorusu / hipotez\n• Yöntem ve yaklaşım\n• Beklenen çıktılar ve hedefler\n• Zaman çizelgesi'} />
+
+            {form.projectText && form.projectText.trim().length < 200 && (
+              <p className="text-xs text-amber-700 inline-flex items-center gap-1">
+                <NPIcon name="alert" className="w-3.5 h-3.5" />
+                Mevcut: {form.projectText.trim().length} karakter - YZ analizi için en az 200 karakter önerilir
+              </p>
+            )}
 
             {/* YZ Uygunluk */}
             <div className="p-4 rounded-xl" style={{
@@ -903,7 +1010,6 @@ export default function NewProjectPage() {
       );
 
       /* FAZ 5 - SCOPUS LİTERATÜR TARAMA */
-      /* FAZ 5 - SCOPUS LİTERATÜR TARAMA */
       case 'scopus': return (
         <ScopusLiteraturePhase
           title={form.title}
@@ -931,8 +1037,21 @@ export default function NewProjectPage() {
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="label">Bütçe (₺)</label>
-                <input type="number" className="input" value={form.budget} onChange={e => set('budget', e.target.value)} placeholder="0" />
+                <label className="label">
+                  Bütçe (₺)
+                  {form.status === 'active' && <span className="text-xs text-muted ml-1 font-normal">(aktif proje)</span>}
+                </label>
+                <input
+                  type="number" min={0} max={1_000_000_000} step={1000}
+                  className="input" value={form.budget}
+                  onChange={e => {
+                    const v = e.target.value;
+                    if (v === '' || +v >= 0) set('budget', v);
+                  }}
+                  placeholder="0" />
+                {form.budget && +form.budget < 0 && (
+                  <p className="text-xs text-red-600 mt-1">Bütçe negatif olamaz</p>
+                )}
               </div>
               <div>
                 <label className="label">Fon Kaynağı</label>
@@ -942,12 +1061,25 @@ export default function NewProjectPage() {
             <BudgetEstimator type={selectedType} faculty={form.faculty} />
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="label">Başlangıç Tarihi</label>
-                <input type="date" className="input" value={form.startDate} onChange={e => set('startDate', e.target.value)} />
+                <label className="label">
+                  Başlangıç Tarihi
+                  {form.status === 'active' && <span className="text-red-500 ml-1">*</span>}
+                </label>
+                <input
+                  type="date" min="1990-01-01" max="2100-12-31"
+                  className="input" value={form.startDate}
+                  onChange={e => set('startDate', e.target.value)} />
               </div>
               <div>
                 <label className="label">Bitiş Tarihi</label>
-                <input type="date" className="input" value={form.endDate} onChange={e => set('endDate', e.target.value)} />
+                <input
+                  type="date"
+                  min={form.startDate || '1990-01-01'} max="2100-12-31"
+                  className="input" value={form.endDate}
+                  onChange={e => set('endDate', e.target.value)} />
+                {form.startDate && form.endDate && form.endDate < form.startDate && (
+                  <p className="text-xs text-red-600 mt-1">Bitiş tarihi başlangıçtan önce olamaz</p>
+                )}
               </div>
             </div>
           </div>
@@ -972,13 +1104,29 @@ export default function NewProjectPage() {
               <NPIcon name="paperclip" className="w-4 h-4 text-navy" />
               Belgeler
             </h3>
+            {form.status === 'active' && !acceptanceFile && (
+              <div className="text-xs p-3 rounded-xl flex items-start gap-2"
+                style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#991b1b' }}>
+                <NPIcon name="alert" className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <div>
+                  <strong>Aktif proje için Başvuru Kabul Belgesi zorunludur.</strong> Yüklemezseniz "Başvuru Sürecinde" durumuna almanız veya bu belgeyi eklemeniz gerekir.
+                </div>
+              </div>
+            )}
             {form.status === 'active' && (
               <FileField label="Başvuru Kabul Belgesi" file={acceptanceFile} onChange={setAcceptanceFile}
-                required={form.status === 'active'} hint="Aktif proje için zorunlu" />
+                required hint="Aktif proje için zorunlu - resmi kabul/onay yazısı" />
             )}
             {form.ipStatus !== 'none' && !ipFile && (
               <FileField label="Fikri Mülkiyet Belgesi" file={ipFile} onChange={setIpFile}
                 hint="Daha önce eklemediyseniz buradan yükleyebilirsiniz" />
+            )}
+            {form.ipStatus !== 'none' && ipFile && (
+              <div className="text-xs p-2 rounded-lg inline-flex items-center gap-2"
+                style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534' }}>
+                <NPIcon name="check" className="w-3.5 h-3.5" strokeWidth={2.4} />
+                Fikri Mülkiyet Belgesi yüklendi: <strong>{ipFile.name}</strong>
+              </div>
             )}
             {form.status !== 'active' && form.ipStatus === 'none' && (
               <p className="text-xs text-muted text-center py-2">Proje kaydedildikten sonra Belgeler sekmesinden dosya yükleyebilirsiniz.</p>
