@@ -504,6 +504,9 @@ export class PublicService {
       wosHIndex: u.wosHIndex,
       wosCitedBy: u.wosCitedBy,
       wosDocCount: u.wosDocCount,
+      // ARBİS — TÜBİTAK projeleri (manuel) + profil URL
+      arbisProfileUrl: (u as any).arbisProfileUrl,
+      arbisProjectsJson: (u as any).arbisProjectsJson,
       // Yeni kaynaklar — AVESİS tarzı
       openAlexAuthorId: (u as any).openAlexAuthorId,
       openAlexDocCount: (u as any).openAlexDocCount,

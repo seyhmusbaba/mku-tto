@@ -10,6 +10,7 @@ import { User, Project } from '@/types';
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_COLORS, getProjectTypeLabel, formatDate, formatCurrency, getInitials, ROLE_COLORS, MEMBER_ROLE_LABELS } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import { AvesisMetricsGrid } from '@/components/AvesisMetricsGrid';
+import { ArbisProjectsList, ArbisProjectsEditor } from '@/components/ArbisProjects';
 import { showBibliometrics, subscribeSettings, getSettings, loadSettings } from '@/lib/settings-store';
 
 const TITLES = ['Prof. Dr.', 'Doç. Dr.', 'Dr. Öğr. Üyesi', 'Arş. Gör. Dr.', 'Arş. Gör.', 'Öğr. Gör.', 'Dr.'];
@@ -156,6 +157,8 @@ export default function UserProfilePage() {
         faculty: editForm.faculty, department: editForm.department,
         orcidId: editForm.orcidId, googleScholarId: editForm.googleScholarId,
         researchGateUrl: editForm.researchGateUrl,
+        arbisProfileUrl: editForm.arbisProfileUrl,
+        arbisProjectsJson: editForm.arbisProjectsJson,
         expertiseArea: editForm.expertiseArea, bio: editForm.bio,
         scopusAuthorId: editForm.scopusAuthorId,
         openAlexAuthorId: editForm.openAlexAuthorId,
@@ -375,6 +378,14 @@ export default function UserProfilePage() {
                 <input className="input" placeholder="https://www.researchgate.net/profile/..." value={editForm.researchGateUrl||''} onChange={e => set('researchGateUrl', e.target.value)} />
               </div>
               <div>
+                <label className="label flex items-center gap-1">
+                  <span className="w-4 h-4 rounded text-white text-[8px] font-bold flex items-center justify-center flex-shrink-0" style={{ background: '#003e7e' }}>TB</span>
+                  ARBİS Profil URL
+                </label>
+                <input className="input" placeholder="https://arbis.tubitak.gov.tr/sorgu/..." value={editForm.arbisProfileUrl||''} onChange={e => set('arbisProfileUrl', e.target.value)} />
+                <p className="text-xs text-muted mt-1">TÜBİTAK ARBİS profilinizin URL'si — vitrinde "ARBİS Profili" rozetinde görünür.</p>
+              </div>
+              <div>
                 <label className="label">Uzmanlık Alanı</label>
                 <input className="input" placeholder="Makine öğrenmesi, IoT, Biyomedikal..." value={editForm.expertiseArea||''} onChange={e => set('expertiseArea', e.target.value)} />
               </div>
@@ -547,6 +558,15 @@ export default function UserProfilePage() {
               </div>
             </div>
             )}
+
+            {/* ARBIS projeleri */}
+            <div className="card p-5 space-y-3 md:col-span-2">
+              <SectionTitle icon="folder">TÜBİTAK ARBİS Projeleri</SectionTitle>
+              <ArbisProjectsEditor
+                value={editForm.arbisProjectsJson}
+                onChange={json => set('arbisProjectsJson', json)}
+              />
+            </div>
 
             {/* Sağ: Biyografi + Kaydet */}
             <div className="card p-5 space-y-4">
@@ -871,6 +891,14 @@ export default function UserProfilePage() {
                     thesisAdvising={(user as any).thesisAdvisorCount}
                   />
                 </div>
+                )}
+
+                {/* ARBİS Projeleri — TÜBİTAK kayıtlı */}
+                {(user as any).arbisProjectsJson && (
+                  <ArbisProjectsList
+                    projectsJson={(user as any).arbisProjectsJson}
+                    arbisProfileUrl={(user as any).arbisProfileUrl}
+                  />
                 )}
 
                 {/* Yürütücü Projeleri */}
