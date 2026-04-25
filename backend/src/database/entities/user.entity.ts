@@ -48,16 +48,6 @@ export class User {
   @Column({ nullable: true })
   academiaUrl: string;
 
-  // ARBİS — TÜBİTAK Araştırmacı Bilgi Sistemi
-  // Kullanıcının ARBİS profil URL'si (cross-link için)
-  @Column({ nullable: true })
-  arbisProfileUrl: string;
-
-  // ARBİS'ten kullanıcı tarafından kopyalanan projeler — JSON array
-  // Her item: { title, role, year, budget?, type?, partner? }
-  @Column({ type: 'text', nullable: true })
-  arbisProjectsJson: string;
-
   @Column({ type: 'text', nullable: true })
   bio: string;
 

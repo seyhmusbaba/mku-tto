@@ -6,7 +6,6 @@ import { PublicLayout } from '@/components/layout/PublicLayout';
 import { publicApi } from '@/lib/api';
 import { getInitials } from '@/lib/utils';
 import { SourceLogo } from '@/components/AvesisMetricsGrid';
-import { ArbisProjectsList } from '@/components/ArbisProjects';
 import { showBibliometrics, loadSettings, subscribeSettings } from '@/lib/settings-store';
 
 interface Profile {
@@ -28,8 +27,6 @@ interface Profile {
   otherCitedBy?: number;
   thesisAdvisorCount?: number;
   memberSince?: string;
-  arbisProfileUrl?: string;
-  arbisProjectsJson?: string;
 }
 
 interface Publication {
@@ -442,18 +439,10 @@ export default function ProfilePage() {
         )}
 
         {tab === 'projects' && (
-          <div className="space-y-8">
-            {/* ARBİS projeleri — manuel girilmiş */}
-            {profile.arbisProjectsJson && (
-              <ArbisProjectsList
-                projectsJson={profile.arbisProjectsJson}
-                arbisProfileUrl={profile.arbisProfileUrl}
-              />
-            )}
-
-            {projects.length === 0 && !profile.arbisProjectsJson ? (
+          <div>
+            {projects.length === 0 ? (
               <EmptyBlock text="Araştırmacının kamuya açık projesi yok. Proje sahibi açmadıkça projeler kapalı tutulur." />
-            ) : projects.length === 0 ? null : (
+            ) : (
               <>
                 <p className="text-[11px] tracking-[0.25em] uppercase font-bold mb-4" style={{ color: '#8a7a52' }}>
                   Projeler
