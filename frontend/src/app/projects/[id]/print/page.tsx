@@ -394,7 +394,7 @@ export default function ProjectPrintPage() {
             <div className="members-grid">
               <div className="member-card" style={{ borderColor: '#c8a45a', background: '#fffbeb' }}>
                 <div className="member-avatar" style={{ background: 'linear-gradient(135deg, #c8a45a, #92651a)' }}>
-                  {getInitials(`${project.owner?.firstName || ''} ${project.owner?.lastName || ''}`)}
+                  {getInitials(project.owner?.firstName || '', project.owner?.lastName || '')}
                 </div>
                 <div className="member-info">
                   <div className="member-name">{project.owner?.title} {project.owner?.firstName} {project.owner?.lastName}</div>
@@ -404,7 +404,7 @@ export default function ProjectPrintPage() {
               {(project.members || []).map(m => (
                 <div key={m.id} className="member-card">
                   <div className="member-avatar">
-                    {getInitials(`${m.user?.firstName || ''} ${m.user?.lastName || ''}`)}
+                    {getInitials(m.user?.firstName || '', m.user?.lastName || '')}
                   </div>
                   <div className="member-info">
                     <div className="member-name">{m.user?.title} {m.user?.firstName} {m.user?.lastName}</div>
