@@ -107,6 +107,22 @@ export class Project {
   @Column({ type: 'text', nullable: true })
   linkedPublicationsJson: string;
 
+  // ── PROJE ZEKASI RAPORU ──────────────────────────────────────
+  // /intelligence/synthesis cıktısı - oluşturma anında bir kez hesaplanıp saklanır
+  // Detay/Edit/PDF sayfalarında bu kayıtlı sonuç gosterilir, yeniden hesaplanmaz
+  @Column({ type: 'text', nullable: true })
+  intelligenceReportJson: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  intelligenceReportAt: Date;
+
+  get intelligenceReport(): any | null {
+    try { return this.intelligenceReportJson ? JSON.parse(this.intelligenceReportJson) : null; } catch { return null; }
+  }
+  set intelligenceReport(val: any | null) {
+    this.intelligenceReportJson = val ? JSON.stringify(val) : null;
+  }
+
   // ── GETTER / SETTER ───────────────────────────────────────────
   get dynamicFields(): Record<string, any> {
     try { return this.dynamicFieldsJson ? JSON.parse(this.dynamicFieldsJson) : {}; } catch { return {}; }

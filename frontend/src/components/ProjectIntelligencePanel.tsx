@@ -25,6 +25,8 @@ export interface PipProps {
   type?: string;
   budget?: number;
   faculty?: string;
+  /** Synthesis hesaplandığında callback - oluşturma anında raporu yakalamak için */
+  onSynthesisReady?: (data: any) => void;
 }
 
 /* ─── Icons ─── */
@@ -108,7 +110,7 @@ function InfoTip({ text }: { text: string }) {
 
 /* ═══════════════════════════════════════════════════════════════════════ */
 
-export function ProjectIntelligencePanel({ title, description, keywords = [], type, budget, faculty }: PipProps) {
+export function ProjectIntelligencePanel({ title, description, keywords = [], type, budget, faculty, onSynthesisReady }: PipProps) {
   const dTitle = useDebounced(title, 900);
   const dDesc = useDebounced(description, 900);
   const dKw = useDebounced(keywords.join(','), 900);
@@ -155,7 +157,7 @@ export function ProjectIntelligencePanel({ title, description, keywords = [], ty
       </div>
 
       {/* ═══ HERO: AI Synthesis + 4 Score ═══ */}
-      <SynthesisHero title={dTitle} description={dDesc} keywords={kw} type={dType} budget={dBudget} faculty={dFaculty} />
+      <SynthesisHero title={dTitle} description={dDesc} keywords={kw} type={dType} budget={dBudget} faculty={dFaculty} onReady={onSynthesisReady} />
 
       {/* ═══ Üst grid: 3 ana widget ═══ */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
@@ -196,7 +198,7 @@ export function ProjectIntelligencePanel({ title, description, keywords = [], ty
  *  HERO - AI Synthesis + 4-dim Composite Score
  * ═══════════════════════════════════════════════════════════════════════ */
 
-function SynthesisHero({ title, description, keywords, type, budget, faculty }: any) {
+function SynthesisHero({ title, description, keywords, type, budget, faculty, onReady }: any) {
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -205,7 +207,10 @@ function SynthesisHero({ title, description, keywords, type, budget, faculty }: 
     setLoading(true);
     const params: any = { title, description, keywords: keywords.join(','), type, budget, faculty };
     api.get('/intelligence/synthesis', { params })
-      .then(r => setData(r.data))
+      .then(r => {
+        setData(r.data);
+        if (onReady && r.data) onReady(r.data);
+      })
       .catch(() => setData(null))
       .finally(() => setLoading(false));
   }, [title, description, keywords.join(','), type, budget, faculty]);

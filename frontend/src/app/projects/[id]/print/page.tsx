@@ -15,7 +15,6 @@ export default function ProjectPrintPage() {
   const [project, setProject]     = useState<Project | null>(null);
   const [reports, setReports]     = useState<ProjectReport[]>([]);
   const [linkedPubs, setLinkedPubs] = useState<any[]>([]);
-  const [intelligence, setIntelligence] = useState<any | null>(null);
   const [partners, setPartners]     = useState<any[]>([]);
   const [auditLogs, setAuditLogs]   = useState<any[]>([]);
   const [loading, setLoading]     = useState(true);
@@ -24,15 +23,6 @@ export default function ProjectPrintPage() {
     const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
     const token = sessionStorage.getItem('tto_print_token') || localStorage.getItem('tto_token') || '';
     const headers = { Authorization: `Bearer ${token}` };
-
-    // Onceden hesaplanmis Is Zekasi raporu varsa localStorage'dan al
-    try {
-      const cached = localStorage.getItem(`intel_report_${id}`);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (parsed?.data) setIntelligence(parsed.data);
-      }
-    } catch {}
 
     Promise.all([
       axios.get(`${base}/projects/${id}`, { headers }).then(r => setProject(r.data)),
@@ -44,6 +34,9 @@ export default function ProjectPrintPage() {
       setLoading(false);
     });
   }, [id]);
+
+  // Is Zekasi raporu artik project entity'sinde - localStorage'a gerek yok
+  const intelligence = (project as any)?.intelligenceReport || null;
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', fontFamily: 'system-ui' }}>

@@ -20,6 +20,7 @@ import { ScopusPublications } from '@/components/ScopusPublications';
 import { FundingMatchPanel } from '@/components/FundingMatchPanel';
 import { SimilarResearchPanel } from '@/components/SimilarResearchPanel';
 import { ProjectLifecyclePanel } from '@/components/ProjectLifecyclePanel';
+import { SavedIntelligenceReport } from '@/components/SavedIntelligenceReport';
 
 type Tab = 'overview' | 'members' | 'documents' | 'reports' | 'partners' | 'publications' | 'lifecycle' | 'history';
 
@@ -601,8 +602,22 @@ export default function ProjectDetailPage() {
               />
             </div>
 
-            {/* Is Zekasi Raporu - lazy load, butona basinca hesaplanir */}
-            <IntelligenceReportSection project={project} />
+            {/* Is Zekasi Raporu - olusturma aninda kaydedildi, sadece okuma */}
+            <div className="card p-5 mt-4" style={{ background: 'linear-gradient(135deg, #faf8f4 0%, #ffffff 100%)' }}>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: '#0f2444', color: 'white' }}>
+                  <Icon name="sparkles" className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-display text-base font-bold text-navy">İş Zekası Raporu</h3>
+                  <p className="text-xs text-muted">Proje oluşturulurken hesaplanan strateji raporu · PDF'e dahil olur</p>
+                </div>
+              </div>
+              <SavedIntelligenceReport
+                report={(project as any).intelligenceReport}
+                reportAt={(project as any).intelligenceReportAt}
+              />
+            </div>
           </div>
         )}
 
@@ -1522,187 +1537,3 @@ export default function ProjectDetailPage() {
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────
- *  IS ZEKASI RAPORU - lazy load, butona basinca hesaplanir.
- *  PDF'e dahil olur (print sayfasi window.opener uzerinden okur).
- *  Sonuc localStorage'da cachelenir (proje bazinda).
- * ───────────────────────────────────────────────────────────────── */
-function IntelligenceReportSection({ project }: { project: Project }) {
-  const [data, setData] = useState<any | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-
-  const cacheKey = `intel_report_${project.id}`;
-
-  // Sayfayi acinca cache'den yukle (auto-fetch yapma)
-  useEffect(() => {
-    try {
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (parsed && Date.now() - (parsed._ts || 0) < 7 * 24 * 60 * 60 * 1000) {
-          setData(parsed.data);
-          setExpanded(true);
-        }
-      }
-    } catch {}
-  }, [cacheKey]);
-
-  const fetchReport = async () => {
-    setLoading(true); setError(false);
-    try {
-      const keywords = [
-        ...((project as any).keywords || []),
-        ...((project as any).tags || []),
-      ].filter(Boolean);
-      const r = await api.get('/intelligence/synthesis', {
-        params: {
-          title: project.title,
-          description: project.description,
-          keywords: keywords.join(','),
-          type: project.type,
-          budget: project.budget,
-          faculty: project.faculty,
-        },
-      });
-      setData(r.data);
-      setExpanded(true);
-      try {
-        localStorage.setItem(cacheKey, JSON.stringify({ data: r.data, _ts: Date.now() }));
-      } catch {}
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const aiBadge = data?.source === 'ai'
-    ? { label: 'Claude AI', color: '#7c3aed' }
-    : { label: 'Kural tabanlı', color: '#6b7280' };
-
-  return (
-    <div className="card p-5 mt-4" style={{ background: 'linear-gradient(135deg, #faf8f4 0%, #ffffff 100%)' }}>
-      <div className="flex items-start justify-between gap-3 flex-wrap mb-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: '#0f2444', color: 'white' }}>
-            <Icon name="sparkles" className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="font-display text-base font-bold text-navy">İş Zekası Raporu</h3>
-            <p className="text-xs text-muted">Proje hakkında stratejik özet · 13 akademik kaynaktan sentez · PDF'e dahil olur</p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          {data && (
-            <span className="text-[10px] font-bold px-2 py-1 rounded-full inline-flex items-center gap-1"
-              style={{ background: aiBadge.color + '20', color: aiBadge.color }}>
-              {aiBadge.label}
-            </span>
-          )}
-          <button onClick={fetchReport} disabled={loading}
-            className="btn-primary text-xs inline-flex items-center gap-1.5">
-            {loading
-              ? <><span className="spinner w-3 h-3" />Hesaplanıyor...</>
-              : data
-                ? <><Icon name="refresh" className="w-3.5 h-3.5" />Yenile</>
-                : <><Icon name="sparkles" className="w-3.5 h-3.5" />Raporu Oluştur</>}
-          </button>
-          {data && expanded && (
-            <button onClick={() => setExpanded(false)}
-              className="btn-secondary text-xs">Gizle</button>
-          )}
-        </div>
-      </div>
-
-      {!data && !loading && !error && (
-        <p className="text-xs text-muted text-center py-4">
-          "Raporu Oluştur" butonuna basarak proje konusu hakkında 13 akademik kaynaktan sentezlenmiş yöneticı raporunu görüntüleyin.
-          Sonuç 7 gün cachelenir ve PDF çıktısına eklenir.
-        </p>
-      )}
-
-      {error && !loading && (
-        <div className="text-xs p-3 rounded-xl flex items-start gap-2"
-          style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#991b1b' }}>
-          <Icon name="alert" className="w-4 h-4 flex-shrink-0 mt-0.5" />
-          <span><strong>Rapor oluşturulamadı.</strong> İnternet bağlantısı veya servis kesintisi olabilir, birazdan tekrar deneyin.</span>
-        </div>
-      )}
-
-      {data && expanded && (
-        <div className="space-y-4 mt-4">
-          {/* Skor satiri */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <div className="col-span-2 md:col-span-1 flex flex-col items-center justify-center p-4 rounded-2xl"
-              style={{ background: 'linear-gradient(135deg, #0f2444 0%, #1a3a6b 100%)', color: 'white' }}>
-              <p className="text-[10px] uppercase tracking-wider opacity-70">Genel Skor</p>
-              <p className="font-display text-4xl font-bold my-1">{data.overallScore}</p>
-              <p className="text-[10px] opacity-70">/ 100</p>
-            </div>
-            {[
-              { k: 'originalityScore',    label: 'Özgünlük' },
-              { k: 'competitionScore',    label: 'Rekabet' },
-              { k: 'fitScore',            label: 'Dergi Uyumu' },
-              { k: 'successProbability',  label: 'Başarı' },
-            ].map(d => {
-              const v = data[d.k] || 0;
-              const color = v >= 70 ? '#059669' : v >= 50 ? '#c8a45a' : v >= 30 ? '#d97706' : '#dc2626';
-              return (
-                <div key={d.k} className="p-3 rounded-xl border" style={{ borderColor: '#e8e4dc', background: 'white' }}>
-                  <p className="text-xs font-semibold text-navy">{d.label}</p>
-                  <p className="font-display text-2xl font-bold mt-1" style={{ color }}>%{v}</p>
-                  <div className="h-1.5 rounded-full mt-1.5" style={{ background: '#f0ede8' }}>
-                    <div className="h-1.5 rounded-full" style={{ width: `${v}%`, background: color }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Anlatim */}
-          {data.narrative && (
-            <div className="p-4 rounded-xl text-sm leading-relaxed text-navy" style={{ background: 'white', border: '1px solid #e8e4dc' }}>
-              {data.narrative.split('\n').map((p: string, i: number) => <p key={i} className={i > 0 ? 'mt-2' : ''}>{p}</p>)}
-            </div>
-          )}
-
-          {/* Highlights / Risks / Recommendations */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {data.highlights?.length > 0 && (
-              <div className="p-3 rounded-xl" style={{ background: '#f0fdf4', border: '1px solid #86efac' }}>
-                <p className="text-xs font-bold text-green-700 mb-2">GÜÇLÜ YÖNLER</p>
-                <ul className="space-y-1">
-                  {data.highlights.map((h: string, i: number) => (
-                    <li key={i} className="text-xs text-green-900 flex gap-1.5"><span>•</span><span>{h}</span></li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {data.risks?.length > 0 && (
-              <div className="p-3 rounded-xl" style={{ background: '#fef2f2', border: '1px solid #fca5a5' }}>
-                <p className="text-xs font-bold text-red-700 mb-2">RİSKLER</p>
-                <ul className="space-y-1">
-                  {data.risks.map((r: string, i: number) => (
-                    <li key={i} className="text-xs text-red-900 flex gap-1.5"><span>•</span><span>{r}</span></li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {data.recommendations?.length > 0 && (
-              <div className="p-3 rounded-xl" style={{ background: '#eff6ff', border: '1px solid #93c5fd' }}>
-                <p className="text-xs font-bold text-blue-700 mb-2">ÖNERİLER</p>
-                <ul className="space-y-1">
-                  {data.recommendations.map((r: string, i: number) => (
-                    <li key={i} className="text-xs text-blue-900 flex gap-1.5"><span>•</span><span>{r}</span></li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}

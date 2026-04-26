@@ -151,6 +151,7 @@ export class ProjectsService {
     obj.keywords = p.keywords;
     obj.sdgGoals = p.sdgGoals;
     obj.dynamicFields = p.dynamicFields;
+    obj.intelligenceReport = p.intelligenceReport;
     return obj;
   }
 
@@ -202,6 +203,12 @@ export class ProjectsService {
       'aiComplianceScore','aiComplianceResult'];
     for (const f of extraFields) {
       if (dto[f] !== undefined) (proj as any)[f] = dto[f];
+    }
+
+    // Proje Zekasi raporu (oluşturma anında hesaplanmış olabilir)
+    if (dto.intelligenceReport && typeof dto.intelligenceReport === 'object') {
+      proj.intelligenceReport = dto.intelligenceReport;
+      proj.intelligenceReportAt = new Date();
     }
 
     const saved = await this.projectRepo.save(proj);

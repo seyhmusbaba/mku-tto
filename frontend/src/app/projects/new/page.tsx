@@ -260,6 +260,9 @@ export default function NewProjectPage() {
     ipStatus: 'none', ipType: '', ipRegistrationNo: '', ipDate: '', ipNotes: '',
   });
 
+  // Proje Zekasi sonucu - finalize fazinda hesaplanir, save'de payload'a eklenir
+  const [intelligenceReport, setIntelligenceReport] = useState<any | null>(null);
+
   // YZ durumları
   const [complianceResult, setComplianceResult] = useState<any>(null);
   const [complianceDone,   setComplianceDone]   = useState(false);
@@ -463,6 +466,8 @@ export default function NewProjectPage() {
         ethicsRequired: true, ethicsApproved: false,
         aiComplianceScore:  complianceResult?.score || null,
         aiComplianceResult: complianceResult ? JSON.stringify(complianceResult) : null,
+        // Proje Zekasi raporu - finalize fazinda hesaplandi, kaydet
+        intelligenceReport: intelligenceReport || null,
       };
 
       const res = await projectsApi.create(payload);
@@ -1189,6 +1194,7 @@ export default function NewProjectPage() {
               type={selectedType}
               budget={form.budget ? Number(form.budget) : undefined}
               faculty={form.faculty}
+              onSynthesisReady={setIntelligenceReport}
             />
           </div>
         </div>

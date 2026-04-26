@@ -6,7 +6,7 @@ import { Header } from '@/components/layout/Header';
 import { api, projectsApi, documentsApi, facultiesApi } from '@/lib/api';
 import { BudgetEstimator } from '@/components/BudgetEstimator';
 import { SdgPicker } from '@/components/SdgPicker';
-import { ProjectIntelligencePanel } from '@/components/ProjectIntelligencePanel';
+import { SavedIntelligenceReport } from '@/components/SavedIntelligenceReport';
 import { useAuth } from '@/lib/auth-context';
 import toast from 'react-hot-toast';
 
@@ -579,91 +579,24 @@ export default function EditProjectPage() {
         </div>
       </div>
 
-      {/* Proje Zekasi Dashboard - varsayilan kapali, kullanici acarsa hesapla */}
-      <ProjectIntelligenceToggle form={form} />
-    </DashboardLayout>
-  );
-}
-
-/* ─── Proje Zekasi Toggle ──────────────────────────────────
- * Edit sayfasinda otomatik calismaz - kullanici "Hesapla" butonuna basinca
- * o anki form degerleriyle ProjectIntelligencePanel render edilir.
- * Bu sayede sayfayi her actiginda 13 kaynaga ag istegi atilmaz.
- */
-function ProjectIntelligenceToggle({ form }: { form: any }) {
-  const [open, setOpen] = useState(false);
-  const [snapshot, setSnapshot] = useState<any | null>(null);
-
-  const compute = () => {
-    setSnapshot({
-      title: form.title,
-      description: form.description,
-      keywords: [
-        ...(form.tags ? form.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : []),
-        ...(form.keywords ? form.keywords.split(',').map((k: string) => k.trim()).filter(Boolean) : []),
-      ],
-      type: form.type,
-      budget: form.budget ? Number(form.budget) : undefined,
-      faculty: form.faculty,
-    });
-    setOpen(true);
-  };
-
-  return (
-    <div className="px-6 pb-10 pt-4 border-t" style={{ borderColor: '#e8e4dc', background: '#faf8f4' }}>
-      <div className="max-w-[1400px] mx-auto">
-        {!open ? (
-          <div className="card p-6 flex flex-col items-center text-center gap-3"
-            style={{ background: 'linear-gradient(135deg, #faf8f4 0%, #ffffff 100%)' }}>
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: '#0f2444', color: 'white' }}>
-              <EPIcon name="beaker" className="w-6 h-6" />
+      {/* Proje Zekasi Raporu - olusturma aninda kaydedilen sonuc */}
+      <div className="px-6 pb-10 pt-4 border-t" style={{ borderColor: '#e8e4dc', background: '#faf8f4' }}>
+        <div className="max-w-[1400px] mx-auto">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: '#0f2444', color: 'white' }}>
+              <EPIcon name="beaker" className="w-5 h-5" />
             </div>
             <div>
               <h3 className="font-display text-lg font-bold text-navy">Proje Zekası Raporu</h3>
-              <p className="text-sm text-muted max-w-xl mt-1">
-                13 akademik kaynak (OpenAlex, Scopus, Web of Science, CORDIS, SCImago, EPO, ...) paralel
-                taranır. Her açılışta otomatik çalışmaz - değişiklik yaptıysanız aşağıdaki butona basın.
-              </p>
+              <p className="text-xs text-muted">Proje oluşturulurken kaydedilen rapor (yeniden hesaplama yapılmaz)</p>
             </div>
-            <button onClick={compute}
-              className="btn-primary inline-flex items-center gap-2 mt-2">
-              <EPIcon name="beaker" className="w-4 h-4" />
-              Proje Zekasını Hesapla
-            </button>
           </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <p className="text-xs text-muted">
-                Hesaplama anlık form değerleriyle yapılır. Yeniden hesaplamak için form alanlarını değiştirip butona basın.
-              </p>
-              <div className="flex gap-2">
-                <button onClick={compute}
-                  className="btn-secondary text-xs inline-flex items-center gap-1.5">
-                  <EPIcon name="beaker" className="w-3.5 h-3.5" />
-                  Yeniden Hesapla
-                </button>
-                <button onClick={() => { setOpen(false); setSnapshot(null); }}
-                  className="btn-secondary text-xs inline-flex items-center gap-1.5">
-                  <EPIcon name="x" className="w-3.5 h-3.5" />
-                  Kapat
-                </button>
-              </div>
-            </div>
-            {snapshot && (
-              <ProjectIntelligencePanel
-                title={snapshot.title}
-                description={snapshot.description}
-                keywords={snapshot.keywords}
-                type={snapshot.type}
-                budget={snapshot.budget}
-                faculty={snapshot.faculty}
-              />
-            )}
-          </div>
-        )}
+          <SavedIntelligenceReport
+            report={project?.intelligenceReport}
+            reportAt={project?.intelligenceReportAt}
+          />
+        </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
