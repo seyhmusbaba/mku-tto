@@ -167,6 +167,8 @@ export const scopusApi = {
 export const auditApi = {
   getByProject: (projectId: string) => api.get(`/audit/project/${projectId}`),
   getRecent: (limit?: number) => api.get('/audit/recent', { params: limit ? { limit } : {} }),
+  /** Role-based feed: akademisyen->kendi, bölüm başkanı->bölüm, dekan->fakülte, admin/rektör->tümü */
+  getFeed: (limit?: number) => api.get('/audit/feed', { params: limit ? { limit } : {} }),
   search: (params: any) => api.get('/audit/search', { params }),
 };
 

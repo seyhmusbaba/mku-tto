@@ -167,7 +167,14 @@ function PublicationRow({ pub, action, linked }: {
     <div className="flex items-start gap-3 p-3 rounded-xl"
       style={{ background: linked ? '#f0fdf4' : '#faf8f4', border: `1px solid ${linked ? '#86efac' : '#e8e4dc'}` }}>
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold text-navy leading-snug line-clamp-2">{pub.title}</p>
+        {pub.title && pub.title.trim() ? (
+          <p className="text-xs font-semibold text-navy leading-snug line-clamp-2">{pub.title}</p>
+        ) : (
+          <p className="text-xs font-semibold text-amber-700 leading-snug">
+            ⚠ Yayın başlığı alınamadı
+            {pub.scopusId && <span className="text-muted font-normal"> · Scopus ID: {pub.scopusId}</span>}
+          </p>
+        )}
         <div className="flex items-center gap-3 mt-1 flex-wrap">
           {pub.firstAuthor && <span className="text-xs text-muted">{pub.firstAuthor}</span>}
           {pub.journal && <span className="text-xs text-muted truncate max-w-[160px]">📖 {pub.journal}</span>}
@@ -175,10 +182,15 @@ function PublicationRow({ pub, action, linked }: {
           {pub.citedBy > 0 && (
             <span className="text-xs font-semibold" style={{ color: '#059669' }}>🔗 {pub.citedBy}</span>
           )}
-          {pub.doi && (
+          {pub.doi ? (
             <a href={`https://doi.org/${pub.doi}`} target="_blank" rel="noopener noreferrer"
               className="text-xs font-medium hover:underline" style={{ color: '#1a3a6b' }}>
               DOI ↗
+            </a>
+          ) : pub.scopusId && (
+            <a href={`https://www.scopus.com/record/display.uri?eid=2-s2.0-${pub.scopusId}&origin=resultslist`} target="_blank" rel="noopener noreferrer"
+              className="text-xs font-medium hover:underline" style={{ color: '#e07a2b' }}>
+              Scopus ↗
             </a>
           )}
         </div>

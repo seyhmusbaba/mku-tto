@@ -239,7 +239,7 @@ export class ScopusController {
   @Post('project/:projectId/link-publication')
   async linkPublication(
     @Param('projectId') projectId: string,
-    @Body() dto: { scopusId: string; title: string; year: string; journal: string; doi?: string; citedBy?: number },
+    @Body() dto: { scopusId: string; title?: string; year?: string; journal?: string; doi?: string; citedBy?: number },
     @Request() req: any,
   ) {
     const project = await this.projectRepo.findOne({ where: { id: projectId } });
@@ -249,20 +249,70 @@ export class ScopusController {
     const alreadyLinked = existing.some((p: any) => p.scopusId === dto.scopusId);
     if (alreadyLinked) return { error: 'Bu yayın zaten bağlı' };
 
-    existing.push({ ...dto, linkedAt: new Date().toISOString(), linkedBy: req.user.userId });
+    // Title yoksa Scopus'tan zenginlestir (titleless bug fix)
+    let enriched = { ...dto };
+    if (!dto.title || !dto.title.trim()) {
+      const fetched = await this.scopus.getPublicationByScopusId(dto.scopusId).catch(() => null);
+      if (fetched) {
+        enriched = {
+          scopusId: dto.scopusId,
+          title:    dto.title    || fetched.title    || '',
+          year:     dto.year     || fetched.year     || '',
+          journal:  dto.journal  || fetched.journal  || '',
+          doi:      dto.doi      || fetched.doi      || '',
+          citedBy:  dto.citedBy  ?? fetched.citedBy  ?? 0,
+        };
+      }
+    }
+
+    existing.push({ ...enriched, linkedAt: new Date().toISOString(), linkedBy: req.user.userId });
     await this.projectRepo.update(projectId, { linkedPublicationsJson: JSON.stringify(existing) } as any);
     return { success: true, linked: existing };
   }
 
-  // Projeye bağlı yayınları getir
+  // Projeye bağlı yayınları getir + eksik title'lari arka planda zenginleştir
   @UseGuards(JwtAuthGuard)
   @Get('project/:projectId/linked-publications')
   async getLinkedPublications(@Param('projectId') projectId: string) {
     const project = await this.projectRepo.findOne({ where: { id: projectId } });
     if (!project) return [];
+    let pubs: any[] = [];
     try {
-      return JSON.parse((project as any).linkedPublicationsJson || '[]');
+      pubs = JSON.parse((project as any).linkedPublicationsJson || '[]');
     } catch { return []; }
+
+    // Title eksik kayitlari zenginlestir (eski/bozuk veriler icin)
+    const missing = pubs.filter(p => p.scopusId && (!p.title || !String(p.title).trim()));
+    if (missing.length > 0 && missing.length <= 5) {
+      const fetched = await Promise.all(
+        missing.map(p => this.scopus.getPublicationByScopusId(p.scopusId).catch(() => null))
+      );
+      let touched = false;
+      pubs = pubs.map(p => {
+        if (!p.title || !String(p.title).trim()) {
+          const i = missing.findIndex(m => m.scopusId === p.scopusId);
+          const f = i >= 0 ? fetched[i] : null;
+          if (f) {
+            touched = true;
+            return {
+              ...p,
+              title:   p.title   || f.title   || `Yayın ${p.scopusId}`,
+              journal: p.journal || f.journal || '',
+              year:    p.year    || f.year    || '',
+              doi:     p.doi     || f.doi     || '',
+              citedBy: p.citedBy ?? f.citedBy ?? 0,
+            };
+          }
+          // Scopus erişilemezse en azından placeholder göster
+          return { ...p, title: p.title || `Scopus Yayın #${p.scopusId}` };
+        }
+        return p;
+      });
+      if (touched) {
+        await this.projectRepo.update(projectId, { linkedPublicationsJson: JSON.stringify(pubs) } as any).catch(() => {});
+      }
+    }
+    return pubs;
   }
 
   // Yayın bağlantısını kaldır

@@ -9,20 +9,18 @@ import { Project, ProjectReport, User } from '@/types';
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_COLORS, SDG_MAP, getProjectTypeLabel, formatDate, formatCurrency, getInitials, MEMBER_ROLE_LABELS } from '@/lib/utils';
 import { useAuth } from '@/lib/auth-context';
 import toast from 'react-hot-toast';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { ProjectQRCode } from '@/components/ProjectQRCode';
 import { PartnersPanel } from '@/components/PartnersPanel';
 import { ProjectIpEthicsPanel } from '@/components/ProjectIpEthicsPanel';
 import { EthicsStatusPanel2 } from '@/components/EthicsStatusPanel2';
-import { ReportTemplateDownloader } from '@/components/ReportTemplateDownloader';
 import { AiSummaryPanel } from '@/components/AiSummaryPanel';
 import { ScopusPublications } from '@/components/ScopusPublications';
 import { FundingMatchPanel } from '@/components/FundingMatchPanel';
 import { SimilarResearchPanel } from '@/components/SimilarResearchPanel';
-import { ProjectLifecyclePanel } from '@/components/ProjectLifecyclePanel';
 import { SavedIntelligenceReport } from '@/components/SavedIntelligenceReport';
+import { ReportsTabSection } from '@/components/ReportsTabSection';
 
-type Tab = 'overview' | 'members' | 'documents' | 'reports' | 'partners' | 'publications' | 'lifecycle' | 'history';
+type Tab = 'overview' | 'members' | 'documents' | 'reports' | 'partners' | 'publications' | 'history';
 
 type IconName =
   | 'clock' | 'alert' | 'check' | 'x' | 'plus' | 'trash' | 'edit' | 'refresh'
@@ -247,7 +245,6 @@ export default function ProjectDetailPage() {
     ['reports',      'Raporlar'],
     ['partners',     'Ortaklar'],
     ['publications', 'Yayinlar'],
-    ['lifecycle',    'Yaşam Döngüsü'],
     ['history',      'Geçmiş'],
   ];
 
@@ -800,226 +797,27 @@ export default function ProjectDetailPage() {
           </div>
         )}
 
-        {/* ===== REPORTS ===== */}
+        {/* ===== REPORTS - yeniden tasarlandi: filtre cipi + ozet kart + okunakli liste ===== */}
         {tab === 'reports' && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-muted">{reports.length} rapor · Son güncelleme: {reports[0] ? formatDate(reports[0].createdAt) : '-'}</div>
-              <div className="flex items-center gap-2">
-                <ReportTemplateDownloader projectTitle={project.title} />
-                {(canEdit || myMembership) && (
-                  <button onClick={() => { setEditReport(null); setReportForm({ title: '', content: '', type: 'progress', progressPercent: 0 }); setShowReportModal(true); }} className="btn-primary text-sm">
-                    + Rapor Ekle
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Progress chart */}
-            {reportChartData.length > 1 && (
-              <div className="card">
-                <h3 className="font-display text-sm font-semibold text-navy mb-4">İlerleme Trendi</h3>
-                <ResponsiveContainer width="100%" height={180}>
-                  <LineChart data={reportChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0ede8" />
-                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                    <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} unit="%" />
-                    <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e8e4dc', fontSize: 12 }} formatter={(v: any) => [`%${v}`, 'İlerleme']} />
-                    <Line type="monotone" dataKey="progress" stroke="#1a3a6b" strokeWidth={2.5} dot={{ fill: '#1a3a6b', r: 4 }} activeDot={{ r: 6 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-
-            {/* Bar chart by type */}
-            {reports.length > 0 && (
-              <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-                {[
-                  { label: 'Toplam Rapor', value: reports.length, color: '#1a3a6b' },
-                  { label: 'Son İlerleme', value: `%${latestProgress}`, color: latestProgress >= 75 ? '#059669' : latestProgress >= 50 ? '#d97706' : '#1a3a6b' },
-                  { label: 'Raporlayan', value: Array.from(new Set(reports.map(r => r.author?.id))).length, color: '#c8a45a' },
-                  { label: 'İlk Rapor', value: reports.length > 0 ? new Date(reports[reports.length - 1].createdAt).toLocaleDateString('tr-TR', { month: 'short', year: 'numeric' }) : '-', color: '#7c3aed' },
-                ].map(s => (
-                  <div key={s.label} className="card py-4 text-center">
-                    <p className="font-display text-xl font-bold" style={{ color: s.color }}>{s.value}</p>
-                    <p className="text-xs text-muted mt-1">{s.label}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Report list - zengin görüntüleme */}
-            <div className="space-y-4">
-              {reports.map((r, idx) => {
-                const rt = reportTypes.find(x => x.key === r.type);
-                const rtColor = rt?.color || '#1a3a6b';
-                const rtLabel = rt?.label || r.type;
-                const meta = (() => { try { return JSON.parse((r as any).metadata || '{}'); } catch { return {}; } })();
-                const PROB_LABELS: Record<string,string> = { low:'Düşük', medium:'Orta', high:'Yüksek', very_high:'Çok Yüksek' };
-                const IMPACT_LABELS: Record<string,string> = { low:'Düşük', medium:'Orta', high:'Yüksek', critical:'Kritik' };
-                const RISK_STATUS: Record<string,string> = { open:'🔴 Açık', monitoring:'🟡 İzleniyor', mitigated:'🟢 Azaltıldı', closed:'⚫ Kapatıldı' };
-                const MILE_STATUS: Record<string,{label:string,color:string}> = {
-                  achieved:{label:'✅ Başarıldı',color:'#059669'}, planned:{label:'📅 Planlandı',color:'#1a3a6b'},
-                  delayed:{label:'⚠️ Ertelendi',color:'#d97706'}, cancelled:{label:'❌ İptal',color:'#dc2626'}
-                };
-                const EVAL: Record<string,string> = { excellent:'Mükemmel 🌟', good:'İyi 👍', average:'Orta', below:'Beklentinin Altı' };
-
-                return (
-                <div key={r.id} className="card overflow-hidden" style={{ borderLeft: `4px solid ${rtColor}` }}>
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5"
-                        style={{ background: rtColor + '18', color: rtColor }}>{reports.length - idx}</div>
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-display font-semibold text-navy">{r.title}</h4>
-                          <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: rtColor + '18', color: rtColor }}>{rtLabel}</span>
-                        </div>
-                        <p className="text-xs text-muted mt-1">
-                          {r.author?.firstName} {r.author?.lastName} · {formatDate(r.createdAt)}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {r.progressPercent > 0 && (
-                        <span className="font-display text-2xl font-bold" style={{ color: r.progressPercent >= 75 ? '#059669' : r.progressPercent >= 50 ? '#d97706' : '#1a3a6b' }}>
-                          %{r.progressPercent}
-                        </span>
-                      )}
-                      {canEdit && (
-                        <div className="flex gap-1">
-                          <button onClick={() => {
-                            setEditReport(r);
-                            setReportForm({ title: r.title, content: r.content, type: r.type, progressPercent: r.progressPercent, metadata: meta });
-                            setShowReportModal(true);
-                          }} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: '#f0ede8', color: '#6b7280' }}>
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                          </button>
-                          <button onClick={() => handleDeleteReport(r.id)} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: '#fff0f0', color: '#dc2626' }}>
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Progress bar (varsa) */}
-                  {r.progressPercent > 0 && (
-                    <div className="progress-bar h-2 mb-4"><div className="progress-fill h-2" style={{ width:`${r.progressPercent}%`, background: rtColor }} /></div>
-                  )}
-
-                  {/* Ana içerik */}
-                  {r.content && <p className="text-sm text-muted leading-relaxed mb-4">{r.content}</p>}
-
-                  {/* ─── Tür bazlı detaylar ─── */}
-                  {Object.keys(meta).length > 0 && (
-                    <div className="border-t pt-4 space-y-3" style={{ borderColor: '#f5f2ee' }}>
-
-                      {/* İlerleme */}
-                      {r.type === 'progress' && (
-                        <div className="grid grid-cols-2 gap-3">
-                          {meta.nextSteps && <div className="p-3 rounded-xl" style={{background:'#f0fdf4',border:'1px solid #bbf7d0'}}>
-                            <p className="text-xs font-bold text-green-700 mb-1">📋 Sonraki Adımlar</p>
-                            <p className="text-xs text-green-800">{meta.nextSteps}</p>
-                          </div>}
-                          {meta.challenges && <div className="p-3 rounded-xl" style={{background:'#fffbeb',border:'1px solid #fde68a'}}>
-                            <p className="text-xs font-bold text-amber-700 mb-1">⚠️ Zorluklar</p>
-                            <p className="text-xs text-amber-800">{meta.challenges}</p>
-                          </div>}
-                        </div>
-                      )}
-
-                      {/* Kilometre Taşı */}
-                      {r.type === 'milestone' && (
-                        <div className="flex flex-wrap gap-3">
-                          {meta.status && <span className="text-xs font-bold px-3 py-1.5 rounded-full" style={{ background: (MILE_STATUS[meta.status]?.color||'#6b7280')+'18', color: MILE_STATUS[meta.status]?.color||'#6b7280' }}>{MILE_STATUS[meta.status]?.label||meta.status}</span>}
-                          {meta.plannedDate && <span className="text-xs px-3 py-1.5 rounded-full bg-slate-100 text-slate-700">📅 Planlanan: {new Date(meta.plannedDate).toLocaleDateString('tr-TR')}</span>}
-                          {meta.actualDate && <span className="text-xs px-3 py-1.5 rounded-full bg-green-50 text-green-700">✅ Gerçekleşen: {new Date(meta.actualDate).toLocaleDateString('tr-TR')}</span>}
-                          {meta.impact && <span className="text-xs px-3 py-1.5 rounded-full bg-purple-50 text-purple-700">Etki: {IMPACT_LABELS[meta.impact]||meta.impact}</span>}
-                          {meta.responsible && <span className="text-xs px-3 py-1.5 rounded-full" style={{background:'#faf8f4',border:'1px solid #e8e4dc',color:'#6b7280'}}>👤 {meta.responsible}</span>}
-                        </div>
-                      )}
-
-                      {/* Finansal */}
-                      {r.type === 'financial' && (
-                        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-                          {meta.totalBudget && <div className="p-3 rounded-xl text-center" style={{background:'#eff6ff',border:'1px solid #bfdbfe'}}>
-                            <p className="text-xs text-blue-500 font-semibold mb-0.5">Toplam Bütçe</p>
-                            <p className="font-display font-bold text-blue-700 text-sm">{formatCurrency(+meta.totalBudget)}</p>
-                          </div>}
-                          {meta.spent && <div className="p-3 rounded-xl text-center" style={{background:'#fef3c7',border:'1px solid #fde68a'}}>
-                            <p className="text-xs text-amber-600 font-semibold mb-0.5">Bu Dönem</p>
-                            <p className="font-display font-bold text-amber-700 text-sm">{formatCurrency(+meta.spent)}</p>
-                          </div>}
-                          {meta.cumulativeSpent && <div className="p-3 rounded-xl text-center" style={{background:'#fff1f2',border:'1px solid #fecaca'}}>
-                            <p className="text-xs text-red-500 font-semibold mb-0.5">Kümülatif</p>
-                            <p className="font-display font-bold text-red-600 text-sm">{formatCurrency(+meta.cumulativeSpent)}</p>
-                          </div>}
-                          {meta.remaining && <div className="p-3 rounded-xl text-center" style={{background:'#f0fdf4',border:'1px solid #bbf7d0'}}>
-                            <p className="text-xs text-green-600 font-semibold mb-0.5">Kalan</p>
-                            <p className="font-display font-bold text-green-700 text-sm">{formatCurrency(+meta.remaining)}</p>
-                          </div>}
-                          {meta.period && <div className="col-span-2 xl:col-span-4 text-xs text-muted">📆 Dönem: <span className="font-semibold text-navy">{meta.period}</span></div>}
-                        </div>
-                      )}
-
-                      {/* Teknik */}
-                      {r.type === 'technical' && (
-                        <div className="space-y-2">
-                          {meta.topic && <p className="text-xs"><span className="font-bold text-navy">🔬 Konu:</span> <span className="text-muted">{meta.topic}</span></p>}
-                          {meta.methodology && <p className="text-xs"><span className="font-bold text-navy">🛠 Yöntem:</span> <span className="text-muted">{meta.methodology}</span></p>}
-                          {meta.conclusions && <div className="p-3 rounded-xl" style={{background:'#faf5ff',border:'1px solid #ede9fe'}}><p className="text-xs font-bold text-purple-700 mb-1">💡 Sonuçlar</p><p className="text-xs text-purple-900">{meta.conclusions}</p></div>}
-                          {meta.recommendations && <p className="text-xs"><span className="font-bold text-navy">📌 Öneriler:</span> <span className="text-muted">{meta.recommendations}</span></p>}
-                          {meta.references && <p className="text-xs text-muted border-t pt-2" style={{borderColor:'#f5f2ee'}}>📚 {meta.references}</p>}
-                        </div>
-                      )}
-
-                      {/* Risk */}
-                      {r.type === 'risk' && (
-                        <div className="space-y-3">
-                          <div className="flex flex-wrap gap-2">
-                            {meta.probability && <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{background:'#fff1f2',color:'#dc2626',border:'1px solid #fecaca'}}>🎲 Olasılık: {PROB_LABELS[meta.probability]||meta.probability}</span>}
-                            {meta.impact && <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{background:'#fff7ed',color:'#ea580c',border:'1px solid #fed7aa'}}>💥 Etki: {IMPACT_LABELS[meta.impact]||meta.impact}</span>}
-                            {meta.category && <span className="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">{meta.category}</span>}
-                            {meta.riskStatus && <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-50 text-slate-700">{RISK_STATUS[meta.riskStatus]||meta.riskStatus}</span>}
-                          </div>
-                          {meta.mitigation && <div className="p-3 rounded-xl" style={{background:'#f0fdf4',border:'1px solid #bbf7d0'}}><p className="text-xs font-bold text-green-700 mb-1">🛡 Önlem</p><p className="text-xs text-green-800">{meta.mitigation}</p></div>}
-                          {meta.contingency && <div className="p-3 rounded-xl" style={{background:'#fffbeb',border:'1px solid #fde68a'}}><p className="text-xs font-bold text-amber-700 mb-1">🚨 Acil Plan</p><p className="text-xs text-amber-800">{meta.contingency}</p></div>}
-                          {meta.owner && <p className="text-xs text-muted">👤 Sorumlu: <span className="font-semibold text-navy">{meta.owner}</span></p>}
-                        </div>
-                      )}
-
-                      {/* Final */}
-                      {r.type === 'final' && (
-                        <div className="space-y-3">
-                          <div className="flex flex-wrap gap-2">
-                            {meta.evaluation && <span className="text-xs font-bold px-3 py-1.5 rounded-full" style={{background:'#c8a45a18',color:'#92651a',border:'1px solid #f5d78e'}}>{EVAL[meta.evaluation]||meta.evaluation}</span>}
-                            {meta.publications && meta.publications !== 'no' && <span className="text-xs px-3 py-1.5 rounded-full bg-blue-50 text-blue-700">📄 Yayın: {meta.publications}</span>}
-                            {meta.sustainability && <span className="text-xs px-3 py-1.5 rounded-full bg-green-50 text-green-700">♻️ Sürdürülebilirlik: {meta.sustainability}</span>}
-                          </div>
-                          <div className="grid grid-cols-2 gap-3">
-                            {meta.achievements && <div className="p-3 rounded-xl" style={{background:'#f0fdf4',border:'1px solid #bbf7d0'}}><p className="text-xs font-bold text-green-700 mb-1">🏆 Başarılar</p><p className="text-xs text-green-800">{meta.achievements}</p></div>}
-                            {meta.lessons && <div className="p-3 rounded-xl" style={{background:'#eff6ff',border:'1px solid #bfdbfe'}}><p className="text-xs font-bold text-blue-700 mb-1">📖 Öğrenilen Dersler</p><p className="text-xs text-blue-800">{meta.lessons}</p></div>}
-                            {meta.recommendations && <div className="p-3 rounded-xl" style={{background:'#faf5ff',border:'1px solid #ede9fe'}}><p className="text-xs font-bold text-purple-700 mb-1">💡 Öneriler</p><p className="text-xs text-purple-800">{meta.recommendations}</p></div>}
-                            {meta.openItems && <div className="p-3 rounded-xl" style={{background:'#fffbeb',border:'1px solid #fde68a'}}><p className="text-xs font-bold text-amber-700 mb-1">📋 Açık Maddeler</p><p className="text-xs text-amber-800">{meta.openItems}</p></div>}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                );
-              })}
-              {!reports.length && (
-                <div className="empty-state">
-                  <div className="empty-state-icon"><svg className="w-7 h-7 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg></div>
-                  <p className="text-sm">Henüz rapor eklenmemiş</p>
-                </div>
-              )}
-            </div>
-          </div>
+          <ReportsTabSection
+            project={project}
+            reports={reports}
+            reportTypes={reportTypes}
+            reportChartData={reportChartData}
+            latestProgress={latestProgress}
+            canEdit={canEdit}
+            myMembership={!!myMembership}
+            onAddReport={() => { setEditReport(null); setReportForm({ title: '', content: '', type: 'progress', progressPercent: 0 }); setShowReportModal(true); }}
+            onEditReport={(r) => {
+              const meta = (() => { try { return JSON.parse((r as any).metadata || '{}'); } catch { return {}; } })();
+              setEditReport(r);
+              setReportForm({ title: r.title, content: r.content, type: r.type, progressPercent: r.progressPercent, metadata: meta });
+              setShowReportModal(true);
+            }}
+            onDeleteReport={handleDeleteReport}
+          />
         )}
+
       </div>
 
       {/* Add Member Modal */}
@@ -1404,17 +1202,6 @@ export default function ProjectDetailPage() {
 
       {tab === 'partners' && (
         <PartnersPanel projectId={id} canEdit={canEdit} />
-      )}
-
-      {/* ── YAŞAM DÖNGÜSÜ ── */}
-      {tab === 'lifecycle' && (
-        <div className="space-y-3">
-          <div>
-            <h3 className="font-display text-base font-semibold text-navy">Yaşam Döngüsü Yönetimi</h3>
-            <p className="text-xs text-muted mt-0.5">Kilometre taşları, teslimatlar ve risklerin takibi</p>
-          </div>
-          <ProjectLifecyclePanel projectId={id} readonly={!canEdit} />
-        </div>
       )}
 
       {/* ── GEÇMİŞ / AUDIT LOG ── */}

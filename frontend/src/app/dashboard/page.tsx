@@ -180,12 +180,25 @@ const ACTION_META: Record<string, { label: string; icon: IconName; color: string
   partner_added:       { label: 'Ortak eklendi',       icon: 'users',       color: '#059669' },
 };
 
-function ActivityFeed({ logs }: { logs: any[] }) {
+function ActivityFeed({ logs, scope }: { logs: any[]; scope?: string }) {
+  const scopeLabel = scope === 'global' ? 'Tüm sistem'
+    : scope === 'faculty' ? 'Fakültem'
+    : scope === 'department' ? 'Bölümüm'
+    : scope === 'own' ? 'Kendi projelerim'
+    : '';
+  const scopeColor = scope === 'global' ? '#dc2626'
+    : scope === 'faculty' ? '#7c3aed'
+    : scope === 'department' ? '#0891b2'
+    : '#059669';
+
   if (!logs?.length) {
     return (
       <div className="card text-center py-10">
         <Icon name="activity" className="w-10 h-10 mx-auto text-muted" strokeWidth={1.4} />
         <p className="text-sm font-medium text-navy mt-3">Henüz aktivite yok</p>
+        {scopeLabel && (
+          <p className="text-xs text-muted mt-1">Kapsam: {scopeLabel}</p>
+        )}
       </div>
     );
   }
@@ -196,6 +209,12 @@ function ActivityFeed({ logs }: { logs: any[] }) {
           <Icon name="activity" className="w-4 h-4 text-navy" />
           Son Aktivite
         </h3>
+        {scopeLabel && (
+          <span className="text-[10px] font-bold px-2 py-1 rounded-full"
+            style={{ background: scopeColor + '18', color: scopeColor, border: `1px solid ${scopeColor}33` }}>
+            {scopeLabel}
+          </span>
+        )}
       </div>
       <div className="divide-y max-h-[420px] overflow-y-auto" style={{ borderColor: '#f5f2ee' }}>
         {logs.slice(0, 10).map(log => {
@@ -253,7 +272,7 @@ function StatusDistribution({ items, total }: { items: Array<{ label: string; va
 }
 
 /* ─── Kişisel dashboard ──────────────────────────────────── */
-function PersonalDashboard({ stats, user, auditLogs }: { stats: any; user: any; auditLogs: any[] }) {
+function PersonalDashboard({ stats, user, auditLogs, auditScope }: { stats: any; user: any; auditLogs: any[]; auditScope?: string }) {
   const total = stats.totalProjects || 0;
   const statusItems = [
     { label: 'Aktif',       value: stats.activeProjects    || 0, color: STATUS_COLORS.active },
@@ -390,14 +409,14 @@ function PersonalDashboard({ stats, user, auditLogs }: { stats: any; user: any; 
           )}
         </div>
 
-        <ActivityFeed logs={auditLogs} />
+        <ActivityFeed logs={auditLogs} scope={auditScope} />
       </div>
     </div>
   );
 }
 
 /* ─── Yönetici dashboard ─────────────────────────────────── */
-function AdminDashboard({ stats, user, auditLogs }: { stats: any; user: any; auditLogs: any[] }) {
+function AdminDashboard({ stats, user, auditLogs, auditScope }: { stats: any; user: any; auditLogs: any[]; auditScope?: string }) {
   const total = stats.totalProjects || 0;
   const isGlobal = stats.scope === 'global';
   const scopeLabel = stats.scope === 'faculty' ? `Fakülte · ${stats.scopeValue}`
@@ -664,7 +683,7 @@ function AdminDashboard({ stats, user, auditLogs }: { stats: any; user: any; aud
           </div>
         </div>
 
-        <ActivityFeed logs={auditLogs} />
+        <ActivityFeed logs={auditLogs} scope={auditScope} />
       </div>
     </div>
   );
@@ -675,6 +694,7 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const [stats, setStats] = useState<any>(null);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [auditScope, setAuditScope] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -685,7 +705,13 @@ export default function DashboardPage() {
       .then(r => setStats(r.data))
       .catch(e => setError(e?.response?.data?.message || 'Veriler yüklenemedi'))
       .finally(() => setLoading(false));
-    auditApi.getRecent(15).then(r => setAuditLogs(r.data || [])).catch(() => setAuditLogs([]));
+    // Role-based audit feed: akademisyen->kendi, bolum baskani->bolum, dekan->fakulte
+    auditApi.getFeed(15)
+      .then(r => {
+        setAuditLogs(r.data?.items || []);
+        setAuditScope(r.data?.scope || '');
+      })
+      .catch(() => setAuditLogs([]));
   }, []);
 
   const openPrint = () => {
@@ -734,8 +760,8 @@ export default function DashboardPage() {
         )}
       />
       {isAdminView
-        ? <AdminDashboard stats={stats} user={user} auditLogs={auditLogs} />
-        : <PersonalDashboard stats={stats} user={user} auditLogs={auditLogs} />
+        ? <AdminDashboard stats={stats} user={user} auditLogs={auditLogs} auditScope={auditScope} />
+        : <PersonalDashboard stats={stats} user={user} auditLogs={auditLogs} auditScope={auditScope} />
       }
     </DashboardLayout>
   );

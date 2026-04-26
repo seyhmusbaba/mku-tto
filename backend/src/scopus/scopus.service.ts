@@ -158,6 +158,33 @@ export class ScopusService {
     }
   }
 
+  // ── TEK YAYIN GETIR (scopusId ile) ────────────────────────────
+  // linkPublication / getLinkedPublications icin title zenginlestirme
+  async getPublicationByScopusId(scopusId: string): Promise<{ title: string; journal: string; year: string; doi: string; citedBy: number } | null> {
+    if (!this.isConfigured() || !scopusId) return null;
+    const cacheKey = `pub:${scopusId}`;
+    const cached = cache.get(cacheKey) as any;
+    if (cached) return cached;
+    try {
+      const url = `${this.BASE}/content/abstract/scopus_id/${scopusId}?field=dc:title,prism:publicationName,prism:coverDate,citedby-count,prism:doi`;
+      const res = await fetch(url, { headers: this.headers(), signal: AbortSignal.timeout(10000) });
+      if (!res.ok) return null;
+      const data = await res.json();
+      const core = data?.['abstracts-retrieval-response']?.['coredata'] || {};
+      const out = {
+        title:   core['dc:title'] || '',
+        journal: core['prism:publicationName'] || '',
+        year:    core['prism:coverDate']?.substring(0, 4) || '',
+        doi:     core['prism:doi'] || '',
+        citedBy: +(core['citedby-count'] || 0),
+      };
+      if (out.title) cache.set(cacheKey, out, 86400); // 24 saat
+      return out;
+    } catch {
+      return null;
+    }
+  }
+
   // ── PROJE İÇİN ALAKALI YAYINLAR ──────────────────────────────
   // Proje başlığı + anahtar kelime + yazar listesine göre Scopus'ta arama
   async findRelatedPublications(opts: {
