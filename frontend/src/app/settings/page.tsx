@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Header } from '@/components/layout/Header';
 import { loadSettings } from '@/lib/settings-store';
-import { settingsApi, dynamicFieldsApi, projectTypesApi, facultiesApi, reportTypesApi } from '@/lib/api';
+import { api, settingsApi, dynamicFieldsApi, projectTypesApi, facultiesApi, reportTypesApi } from '@/lib/api';
 import { DynamicField, ProjectTypeItem, FacultyItem } from '@/types';
 import { useAuth } from '@/lib/auth-context';
 
