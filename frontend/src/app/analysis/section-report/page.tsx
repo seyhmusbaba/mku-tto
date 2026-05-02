@@ -72,6 +72,8 @@ function SectionReportContent() {
   const [data, setData] = useState<any>(null);
   const [institutionName, setInstitutionName] = useState('Hatay Mustafa Kemal Üniversitesi');
   const [rectorName, setRectorName] = useState('Prof. Dr. Veysel EREN');
+  const [logoUrl, setLogoUrl] = useState<string>('');
+  const [bibliometricsEnabled, setBibliometricsEnabled] = useState<boolean>(true);
   const [currentUser, setCurrentUser] = useState<{ name: string; role?: string } | null>(null);
   const year = new Date().getFullYear();
 
@@ -131,23 +133,37 @@ function SectionReportContent() {
       }
     };
 
-    Promise.all([
-      fetchTabData(),
-      axios.get(`${base}/settings`, { headers }).then(r => {
+    // Once ayarlari al - bibliyometri kapaliysa "bibliometrics" tab'inde uyari goster
+    axios.get(`${base}/settings`, { headers })
+      .then(r => {
         if (r.data?.institution_name) setInstitutionName(r.data.institution_name);
         if (r.data?.rector_name) setRectorName(r.data.rector_name);
-      }).catch(() => {}),
-      axios.get(`${base}/users/me`, { headers }).then(r => {
-        const u = r.data;
-        if (u) {
-          const fullName = [u.title, u.firstName, u.lastName].filter(Boolean).join(' ').trim();
-          setCurrentUser({ name: fullName || u.email, role: u.role?.name });
+        if (r.data?.logo_url) setLogoUrl(r.data.logo_url);
+        const showBib = r.data?.show_bibliometrics;
+        const enabled = !(showBib === 'false' || showBib === false);
+        setBibliometricsEnabled(enabled);
+        return enabled;
+      })
+      .catch(() => true)
+      .then((enabled) => {
+        // Bibliyometri kapaliysa bibliometrics tab'i bos data ile gosterilir
+        if (tab === 'bibliometrics' && !enabled) {
+          setData({ disabled: true });
+          return;
         }
-      }).catch(() => {}),
-    ])
-      .then(([d]) => { setData(d); })
+        return fetchTabData().then(d => setData(d));
+      })
       .catch(() => setError('Rapor hazırlanamadı'))
       .finally(() => setLoading(false));
+
+    // Kullanici bilgisi paralel
+    axios.get(`${base}/users/me`, { headers }).then(r => {
+      const u = r.data;
+      if (u) {
+        const fullName = [u.title, u.firstName, u.lastName].filter(Boolean).join(' ').trim();
+        setCurrentUser({ name: fullName || u.email, role: u.role?.name });
+      }
+    }).catch(() => {});
   }, [tab]);
 
   useEffect(() => {
@@ -198,10 +214,14 @@ function SectionReportContent() {
               <p style={s.coverInst}>{institutionName}</p>
             </div>
             <div style={s.coverLogoBox}>
-              <svg viewBox="0 0 60 60" width="60" height="60" style={{ display: 'block' }}>
-                <circle cx="30" cy="30" r="28" fill="none" stroke="#c8a45a" strokeWidth="1.5" />
-                <text x="30" y="36" textAnchor="middle" fill="#c8a45a" fontSize="18" fontWeight="700" fontFamily="system-ui">MKÜ</text>
-              </svg>
+              {logoUrl ? (
+                <img src={logoUrl} alt={institutionName + ' logosu'} style={{ display: 'block', maxWidth: 60, maxHeight: 60, objectFit: 'contain' }} />
+              ) : (
+                <svg viewBox="0 0 60 60" width="60" height="60" style={{ display: 'block' }}>
+                  <circle cx="30" cy="30" r="28" fill="none" stroke="#c8a45a" strokeWidth="1.5" />
+                  <text x="30" y="36" textAnchor="middle" fill="#c8a45a" fontSize="18" fontWeight="700" fontFamily="system-ui">MKÜ</text>
+                </svg>
+              )}
             </div>
           </div>
           <div style={s.coverMid}>
@@ -219,7 +239,11 @@ function SectionReportContent() {
         {/* Sekmeye göre ilgili bölümü render et */}
         {tab === 'overview' && <OverviewSection data={data} />}
         {tab === 'institutional' && <InstitutionalSection data={data} />}
-        {tab === 'bibliometrics' && <BibliometricsSection data={data} />}
+        {tab === 'bibliometrics' && (
+          bibliometricsEnabled
+            ? <BibliometricsSection data={data} />
+            : <BibliometricsDisabledNotice />
+        )}
         {tab === 'faculty' && <FacultySection data={data} />}
         {tab === 'researcher' && <ResearcherSection data={data} />}
         {tab === 'funding' && <FundingSection data={data} />}
@@ -237,8 +261,18 @@ function SectionReportContent() {
               <div style={s.signCell}>
                 <div style={s.signLine}></div>
                 <p style={s.signLbl}>Hazırlayan</p>
-                <p style={s.signName}>{currentUser?.name || 'TTO Direktörlüğü'}</p>
-                {currentUser?.role && <p style={s.signRole}>{currentUser.role}</p>}
+                {/* Sistem Yoneticisi (Super Admin) raporlarda gorunmesin */}
+                {(() => {
+                  const isSuperAdmin = currentUser?.role === 'Süper Admin';
+                  const showName = !isSuperAdmin && currentUser?.name;
+                  const showRole = !isSuperAdmin && currentUser?.role;
+                  return (
+                    <>
+                      <p style={s.signName}>{showName ? currentUser!.name : 'TTO Direktörlüğü'}</p>
+                      {showRole && <p style={s.signRole}>{currentUser!.role}</p>}
+                    </>
+                  );
+                })()}
               </div>
               <div style={s.signCell}>
                 <div style={s.signLine}></div>
@@ -675,6 +709,26 @@ function BibliometricsSection({ data }: { data: any }) {
 
 // Placeholder helper (only used in BibliometricsSection JSX string interpolation)
 function institutionName() { return 'Kurumumuz'; }
+
+function BibliometricsDisabledNotice() {
+  return (
+    <div style={{
+      padding: 20, borderRadius: 8,
+      background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e',
+      fontSize: 12, lineHeight: 1.6,
+    }}>
+      <p style={{ fontWeight: 700, marginBottom: 6, fontSize: 14, color: '#78350f' }}>
+        Bibliyometri Gösterimi Kapatılmış
+      </p>
+      <p style={{ margin: 0 }}>
+        Sistem yöneticisi tarafından bibliyometri (yayın, atıf, h-index, FWCI, SCImago kuartil)
+        gösterimi tüm sistemde kapatıldığı için bu rapor üretilmemektedir.
+        Aktif etmek için <strong>Sistem Ayarları → Bibliyometri Görünümü</strong> seçeneğini
+        açmak gerekir.
+      </p>
+    </div>
+  );
+}
 
 function FacultySection({ data }: { data: any }) {
   const radar = data?.radar || [];

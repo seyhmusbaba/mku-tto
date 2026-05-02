@@ -91,6 +91,7 @@ export default function AnnualReportPage() {
   const [siteName, setSiteName] = useState('MKÜ TTO');
   const [institutionName, setInstitutionName] = useState('Hatay Mustafa Kemal Üniversitesi');
   const [rectorName, setRectorName] = useState('Prof. Dr. Veysel EREN');
+  const [logoUrl, setLogoUrl] = useState<string>('');
   const [currentUser, setCurrentUser] = useState<{ name: string; title?: string; role?: string } | null>(null);
   const year = new Date().getFullYear();
 
@@ -111,6 +112,7 @@ export default function AnnualReportPage() {
         if (settings.site_name) setSiteName(settings.site_name);
         if (settings.institution_name) setInstitutionName(settings.institution_name);
         if (settings.rector_name) setRectorName(settings.rector_name);
+        if (settings.logo_url) setLogoUrl(settings.logo_url);
         const showBib = settings.show_bibliometrics;
         // 'false' string disinda her sey acik kabul edilir
         const enabled = !(showBib === 'false' || showBib === false);
@@ -345,10 +347,14 @@ export default function AnnualReportPage() {
               <p style={s.coverInst}>{institutionName}</p>
             </div>
             <div style={s.coverLogoBox} aria-label="Kurum logosu">
-              <svg viewBox="0 0 60 60" width="60" height="60" style={{ display: 'block' }}>
-                <circle cx="30" cy="30" r="28" fill="none" stroke="#c8a45a" strokeWidth="1.5" />
-                <text x="30" y="36" textAnchor="middle" fill="#c8a45a" fontSize="18" fontWeight="700" fontFamily="system-ui">MKÜ</text>
-              </svg>
+              {logoUrl ? (
+                <img src={logoUrl} alt={institutionName + ' logosu'} style={{ display: 'block', maxWidth: 60, maxHeight: 60, objectFit: 'contain' }} />
+              ) : (
+                <svg viewBox="0 0 60 60" width="60" height="60" style={{ display: 'block' }}>
+                  <circle cx="30" cy="30" r="28" fill="none" stroke="#c8a45a" strokeWidth="1.5" />
+                  <text x="30" y="36" textAnchor="middle" fill="#c8a45a" fontSize="18" fontWeight="700" fontFamily="system-ui">MKÜ</text>
+                </svg>
+              )}
             </div>
           </div>
           <div style={s.coverMid}>
@@ -2083,8 +2089,19 @@ export default function AnnualReportPage() {
             </>
           )}
           <p style={s.p}>
-            <strong>Başarı oranı:</strong> Sadece karara bağlanmış projeler (tamamlanan + iptal edilen)
-            üzerinden hesaplanır; aktif projeler dahil edilmez.
+            <strong>Başarı oranı:</strong> Karara bağlanmış (tamamlanmış + iptal edilmiş) projeler
+            arasında tamamlananların payıdır.
+            <br/>
+            <code style={{ background: '#f3f4f6', padding: '1px 5px', borderRadius: 3, fontSize: 10 }}>
+              Başarı Oranı = Tamamlanan / (Tamamlanan + İptal) × 100
+            </code>
+            <br/>
+            Henüz devam etmekte olan (aktif) ve başvuru aşamasındaki projeler dahil edilmez,
+            çünkü bunların sonucu belirsizdir. Bu kıstas TÜBİTAK ve AB başvuru başarı raporlarıyla aynıdır.
+          </p>
+          <p style={s.p}>
+            <strong>Aktif oran / Tamamlanma oranı / Başvuru oranı:</strong> Tüm proje portföyü
+            (kararlaşmamışlar dahil) içinde her durum kategorisinin yüzdesidir.
           </p>
           <p style={s.p}>
             <strong>Etik onay oranı:</strong> Etik kurul gerektiren projeler arasında onay almış olanların
@@ -2166,8 +2183,18 @@ export default function AnnualReportPage() {
               <div style={s.signCell}>
                 <div style={s.signLine}></div>
                 <p style={s.signLbl}>Hazırlayan</p>
-                <p style={s.signName}>{currentUser?.name || 'TTO Direktörlüğü'}</p>
-                {currentUser?.role && <p style={s.signRole}>{currentUser.role}</p>}
+                {/* Sistem Yoneticisi (Super Admin) raporlarda gorunmesin */}
+                {(() => {
+                  const isSuperAdmin = currentUser?.role === 'Süper Admin';
+                  const showName = !isSuperAdmin && currentUser?.name;
+                  const showRole = !isSuperAdmin && currentUser?.role;
+                  return (
+                    <>
+                      <p style={s.signName}>{showName ? currentUser!.name : 'TTO Direktörlüğü'}</p>
+                      {showRole && <p style={s.signRole}>{currentUser!.role}</p>}
+                    </>
+                  );
+                })()}
               </div>
               <div style={s.signCell}>
                 <div style={s.signLine}></div>

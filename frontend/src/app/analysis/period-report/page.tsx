@@ -55,7 +55,10 @@ function PeriodReportContent() {
   const [funding, setFunding] = useState<any>(null);
   const [institutionName, setInstitutionName] = useState('Hatay Mustafa Kemal Üniversitesi');
   const [rectorName, setRectorName] = useState('Prof. Dr. Veysel EREN');
+  const [logoUrl, setLogoUrl] = useState<string>('');
   const [currentUser, setCurrentUser] = useState<{ name: string; role?: string } | null>(null);
+  // Admin ayarindan bibliyometri durumu - kapaliysa hicbir bibliyometri bolumu gosterilmez
+  const [bibliometricsEnabled, setBibliometricsEnabled] = useState<boolean>(true);
 
   const days = from && to ? Math.ceil((new Date(to).getTime() - new Date(from).getTime()) / 86400000) : 0;
 
@@ -70,34 +73,51 @@ function PeriodReportContent() {
     if (!token) { setError('Oturum bulunamadı'); setLoading(false); return; }
     const headers = { Authorization: 'Bearer ' + token };
 
-    Promise.all([
-      axios.get(`${base}/analytics/overview`, { headers, params: { from, to } }).then(r => r.data).catch(() => null),
-      axios.get(`${base}/analytics/institutional/faculty-radar`, { headers }).then(r => r.data).catch(() => []),
-      axios.get(`${base}/analytics/timeline`, { headers }).then(r => r.data).catch(() => []),
-      axios.get(`${base}/analytics/researcher-productivity`, { headers, params: { limit: 20 } }).then(r => r.data).catch(() => []),
-      // Bibliyometri de dönem filtresi uygulasın - startDate değil, publicationYear bazında
-      axios.get(`${base}/analytics/bibliometrics/institutional`, {
-        headers,
-        params: {
-          fromYear: from ? new Date(from).getFullYear() : undefined,
-          toYear: to ? new Date(to).getFullYear() : undefined,
-        },
-      }).then(r => r.data).catch(() => null),
-      axios.get(`${base}/integrations/cordis/organization`, { headers, params: { name: 'Mustafa Kemal University', limit: 15 } }).then(r => r.data).catch(() => []),
-      axios.get(`${base}/analytics/funding-success`, { headers }).then(r => r.data).catch(() => null),
-      axios.get(`${base}/settings`, { headers }).then(r => {
+    // Once ayarlari cek - bibliyometri AÇIK mı?
+    axios.get(`${base}/settings`, { headers })
+      .then(r => {
         if (r.data?.institution_name) setInstitutionName(r.data.institution_name);
         if (r.data?.rector_name) setRectorName(r.data.rector_name);
-      }).catch(() => {}),
-      axios.get(`${base}/users/me`, { headers }).then(r => {
-        const u = r.data;
-        if (u) {
-          const fullName = [u.title, u.firstName, u.lastName].filter(Boolean).join(' ').trim();
-          setCurrentUser({ name: fullName || u.email, role: u.role?.name });
-        }
-      }).catch(() => {}),
-    ])
-      .then(([ov, rad, tml, res, inst, cord, fnd]) => {
+        if (r.data?.logo_url) setLogoUrl(r.data.logo_url);
+        const showBib = r.data?.show_bibliometrics;
+        const enabled = !(showBib === 'false' || showBib === false);
+        setBibliometricsEnabled(enabled);
+        return enabled;
+      })
+      .catch(() => true)
+      .then((enabled) => {
+        const projectCalls = [
+          axios.get(`${base}/analytics/overview`, { headers, params: { from, to } }).then(r => r.data).catch(() => null),
+          axios.get(`${base}/analytics/institutional/faculty-radar`, { headers }).then(r => r.data).catch(() => []),
+          axios.get(`${base}/analytics/timeline`, { headers }).then(r => r.data).catch(() => []),
+          axios.get(`${base}/analytics/researcher-productivity`, { headers, params: { limit: 20 } }).then(r => r.data).catch(() => []),
+          axios.get(`${base}/integrations/cordis/organization`, { headers, params: { name: 'Mustafa Kemal University', limit: 15 } }).then(r => r.data).catch(() => []),
+          axios.get(`${base}/analytics/funding-success`, { headers }).then(r => r.data).catch(() => null),
+        ];
+        // Bibliyometri yalnizca acikken cagrilir
+        const bibCall = enabled
+          ? axios.get(`${base}/analytics/bibliometrics/institutional`, {
+              headers,
+              params: {
+                fromYear: from ? new Date(from).getFullYear() : undefined,
+                toYear: to ? new Date(to).getFullYear() : undefined,
+              },
+            }).then(r => r.data).catch(() => null)
+          : Promise.resolve(null);
+
+        // Kullanici bilgisi paralel
+        axios.get(`${base}/users/me`, { headers }).then(r => {
+          const u = r.data;
+          if (u) {
+            const fullName = [u.title, u.firstName, u.lastName].filter(Boolean).join(' ').trim();
+            setCurrentUser({ name: fullName || u.email, role: u.role?.name });
+          }
+        }).catch(() => {});
+
+        return Promise.all([...projectCalls, bibCall]);
+      })
+      .then((all) => {
+        const [ov, rad, tml, res, cord, fnd, inst] = all;
         setOverview(ov); setRadar(rad); setTimeline(tml || []); setResearchers(res);
         setInstitutional(inst); setCordisProjects(cord || []); setFunding(fnd);
       })
@@ -161,10 +181,14 @@ function PeriodReportContent() {
               <p style={s.coverInst}>{institutionName}</p>
             </div>
             <div style={s.coverLogoBox}>
-              <svg viewBox="0 0 60 60" width="60" height="60" style={{ display: 'block' }}>
-                <circle cx="30" cy="30" r="28" fill="none" stroke="#c8a45a" strokeWidth="1.5" />
-                <text x="30" y="36" textAnchor="middle" fill="#c8a45a" fontSize="18" fontWeight="700" fontFamily="system-ui">MKÜ</text>
-              </svg>
+              {logoUrl ? (
+                <img src={logoUrl} alt="Kurum Logosu" style={{ display: 'block', maxWidth: 60, maxHeight: 60, objectFit: 'contain' }} />
+              ) : (
+                <svg viewBox="0 0 60 60" width="60" height="60" style={{ display: 'block' }}>
+                  <circle cx="30" cy="30" r="28" fill="none" stroke="#c8a45a" strokeWidth="1.5" />
+                  <text x="30" y="36" textAnchor="middle" fill="#c8a45a" fontSize="18" fontWeight="700" fontFamily="system-ui">MKÜ</text>
+                </svg>
+              )}
             </div>
           </div>
           <div style={s.coverMid}>
@@ -320,7 +344,7 @@ function PeriodReportContent() {
         )}
 
         {/* BİBLİYOMETRİK GÖSTERGELER (DÖNEM FİLTRELİ) */}
-        {institutional && institutional.configured !== false && (
+        {bibliometricsEnabled && institutional && institutional.configured !== false && (
           <div style={s.section}>
             <h2 style={s.h2}>BİBLİYOMETRİK GÖSTERGELER {institutional.isPeriodFiltered ? `(${institutional.periodLabel})` : '(KURUM GENEL)'}</h2>
             <p style={s.p}>
@@ -599,8 +623,18 @@ function PeriodReportContent() {
               <div style={s.signCell}>
                 <div style={s.signLine}></div>
                 <p style={s.signLbl}>Hazırlayan</p>
-                <p style={s.signName}>{currentUser?.name || 'TTO Direktörlüğü'}</p>
-                {currentUser?.role && <p style={s.signRole}>{currentUser.role}</p>}
+                {/* Sistem Yoneticisi (Super Admin) raporlarda gorunmesin - genel "TTO Direktorlugu" gosterilir */}
+                {(() => {
+                  const isSuperAdmin = currentUser?.role === 'Süper Admin';
+                  const showName = !isSuperAdmin && currentUser?.name;
+                  const showRole = !isSuperAdmin && currentUser?.role;
+                  return (
+                    <>
+                      <p style={s.signName}>{showName ? currentUser!.name : 'TTO Direktörlüğü'}</p>
+                      {showRole && <p style={s.signRole}>{currentUser!.role}</p>}
+                    </>
+                  );
+                })()}
               </div>
               <div style={s.signCell}>
                 <div style={s.signLine}></div>
