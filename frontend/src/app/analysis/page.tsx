@@ -675,12 +675,20 @@ export default function AnalysisPage() {
               </div>
             )}
 
-            {/* ── GANTT CHART ── */}
+            {/* ── GANTT CHART - profesyonel versiyon ── */}
             {tab === 'gantt' && (
               <div className="card p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-display text-sm font-semibold text-navy">Proje Zaman Çizelgesi</h3>
-                  <span className="text-xs text-muted">{allProjects.filter((p: any) => p.startDate && p.endDate).length} proje gösteriliyor</span>
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                  <div>
+                    <h3 className="font-display text-base font-bold text-navy">Proje Zaman Çizelgesi</h3>
+                    <p className="text-xs text-muted mt-0.5">
+                      Filtre, gruplama, hover detayı ve gecikme/yaklaşan teslim uyarılarıyla profesyonel Gantt görünümü
+                    </p>
+                  </div>
+                  <span className="text-xs text-muted">
+                    Tarihli: <strong>{allProjects.filter((p: any) => p.startDate && p.endDate).length}</strong> /
+                    Toplam: <strong>{allProjects.length}</strong>
+                  </span>
                 </div>
                 <GanttChart projects={allProjects.map((p: any) => ({
                   id: p.id,
@@ -690,6 +698,11 @@ export default function AnalysisPage() {
                   status: p.status,
                   type: p.type,
                   progress: p.latestProgress,
+                  faculty: p.faculty,
+                  department: p.department,
+                  owner: p.owner || (p.ownerName) || (p.ownerFirstName && p.ownerLastName ? `${p.ownerFirstName} ${p.ownerLastName}` : undefined),
+                  budget: p.budget,
+                  memberCount: p.memberCount,
                 }))} />
               </div>
             )}

@@ -175,13 +175,28 @@ export class InstitutionalService {
       relations: ['owner', 'members', 'members.user'],
     });
 
-    // Proje lookup (id → özet bilgi)
-    const projectLookup = new Map<string, { id: string; name: string; code?: string; status?: string }>();
+    // Proje lookup (id → ozet bilgi + yurutucu + ortaklar)
+    const projectLookup = new Map<string, any>();
     for (const p of projects) {
+      const ownerName = p.owner ? `${p.owner.title || ''} ${p.owner.firstName || ''} ${p.owner.lastName || ''}`.trim() : '-';
+      const ownerFaculty = p.owner?.faculty || p.faculty || '-';
+      // Ortak yurutuculer/uyeler (farkli fakultelerden)
+      const collaborators = (p.members || [])
+        .filter(m => m.user)
+        .map(m => ({
+          name: `${m.user.title || ''} ${m.user.firstName || ''} ${m.user.lastName || ''}`.trim(),
+          faculty: m.user.faculty || '-',
+          role: m.role || 'researcher',
+        }));
       projectLookup.set(p.id, {
         id: p.id,
         name: p.title || '(İsimsiz proje)',
         status: p.status,
+        owner: ownerName,
+        ownerFaculty,
+        type: p.type,
+        budget: p.budget,
+        collaborators,
       });
     }
 
@@ -239,28 +254,36 @@ export class InstitutionalService {
    * SDG × Fakülte ısı haritası.
    */
   async getSdgHeatmap(): Promise<{ faculties: string[]; sdgs: string[]; cells: SdgHeatmapCell[] }> {
-    const raw = await this.projectRepo
+    // Owner bilgisini de cek - SKH tablosunda yurutucu adi yazilsin
+    const projects = await this.projectRepo
       .createQueryBuilder('p')
-      .select(['p.id as id', 'p.title as title', 'p.status as status', 'p.faculty as faculty', 'p."sdgGoalsJson" as sdg'])
+      .leftJoinAndSelect('p.owner', 'owner')
       .where('p.faculty IS NOT NULL AND p.faculty != \'\'')
       .andWhere('p."sdgGoalsJson" IS NOT NULL')
-      .getRawMany();
+      .getMany();
 
     const facultySet = new Set<string>();
     const sdgSet = new Set<string>();
-    const cellMap = new Map<string, { faculty: string; sdgCode: string; projects: Array<{ id: string; name: string; code?: string; status?: string }> }>();
+    const cellMap = new Map<string, { faculty: string; sdgCode: string; projects: any[] }>();
 
-    for (const r of raw) {
-      const faculty = r.faculty;
+    for (const p of projects) {
+      const faculty = p.faculty;
       facultySet.add(faculty);
+      const ownerName = p.owner
+        ? `${p.owner.title || ''} ${p.owner.firstName || ''} ${p.owner.lastName || ''}`.trim()
+        : '-';
       try {
-        const arr = JSON.parse(r.sdg) as string[];
+        const arr = (p as any).sdgGoals || [];
         for (const s of arr) {
           if (!s) continue;
           sdgSet.add(s);
           const key = `${faculty}||${s}`;
           const cur = cellMap.get(key);
-          const proj = { id: r.id, name: r.title || '(İsimsiz)', status: r.status };
+          const proj = {
+            id: p.id, name: p.title || '(İsimsiz)', status: p.status,
+            faculty: p.faculty, department: p.department,
+            owner: ownerName, type: p.type, budget: p.budget,
+          };
           if (cur) {
             cur.projects.push(proj);
           } else {

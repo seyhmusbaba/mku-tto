@@ -11,6 +11,24 @@ const STATUS_LABELS: Record<string, string> = {
   application: 'Başvuru', pending: 'Beklemede', active: 'Aktif',
   completed: 'Tamamlandı', suspended: 'Askıda', cancelled: 'İptal',
 };
+function statusTr(s: string) { return STATUS_LABELS[s] || s || '-'; }
+
+const TYPE_LABELS: Record<string, string> = {
+  tubitak: 'TÜBİTAK', bap: 'BAP', eu: 'AB Projesi',
+  industry: 'Sanayi', international: 'Uluslararası',
+  other: 'Diğer', '': 'Belirtilmemiş',
+};
+function typeTr(t: string) { return TYPE_LABELS[t] || t || 'Belirtilmemiş'; }
+
+const IP_STATUS_LABELS: Record<string, string> = {
+  pending: 'Başvuru Aşamasında', registered: 'Tescilli',
+  published: 'Yayımlandı', none: 'Yok',
+};
+const IP_TYPE_LABELS: Record<string, string> = {
+  patent: 'Patent', faydali_model: 'Faydalı Model', marka: 'Marka',
+  tasarim: 'Tasarım', telif: 'Telif Hakkı', ticari_sir: 'Ticari Sır',
+  belirtilmemis: 'Belirtilmemiş',
+};
 const STATUS_COLORS: Record<string, string> = {
   application: '#d97706', pending: '#d97706', active: '#059669',
   completed: '#2563eb', suspended: '#6b7280', cancelled: '#dc2626',
@@ -597,7 +615,7 @@ export default function AnnualReportPage() {
                   <tbody>
                     {overview.byType.map((t: any) => (
                       <tr key={t.type}>
-                        <td style={s.td}>{t.type}</td>
+                        <td style={s.td}>{typeTr(t.type)}</td>
                         <td style={s.tdR}>{t.count}</td>
                         <td style={s.tdR}>%{overview.total > 0 ? Math.round((t.count / overview.total) * 100) : 0}</td>
                       </tr>
@@ -1214,13 +1232,15 @@ export default function AnnualReportPage() {
                   <div key={sdg} style={{ marginTop: 14, pageBreakInside: 'avoid' }}>
                     <h3 style={s.h3}>
                       <span style={{ ...s.sdgNumSmall, background: color, marginRight: 6 }}>{num}</span>
-                      SDG {num} - Projeler ({projs.length} katkı)
+                      SKH {num} - Projeler ({projs.length} katkı)
                     </h3>
                     <table style={s.table}>
                       <thead>
                         <tr>
                           <th style={s.th}>#</th>
                           <th style={s.th}>Proje</th>
+                          <th style={s.th}>Yürütücü</th>
+                          <th style={s.th}>Fakülte / Bölüm</th>
                           <th style={s.thR}>Durum</th>
                         </tr>
                       </thead>
@@ -1229,7 +1249,12 @@ export default function AnnualReportPage() {
                           <tr key={p.id || i}>
                             <td style={s.td}>{i + 1}</td>
                             <td style={s.tdSmall}>{p.name}</td>
-                            <td style={s.tdR}>{p.status || '-'}</td>
+                            <td style={s.tdSmall}>{p.owner || '-'}</td>
+                            <td style={s.tdSmall}>
+                              {p.faculty || '-'}
+                              {p.department && <span style={{ color: '#6b7280' }}> / {p.department}</span>}
+                            </td>
+                            <td style={s.tdR}>{statusTr(p.status)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1283,17 +1308,31 @@ export default function AnnualReportPage() {
                       <tr>
                         <th style={s.th}>#</th>
                         <th style={s.th}>Proje</th>
+                        <th style={s.th}>Yürütücü</th>
+                        <th style={s.th}>Diğer Ortak Yürütücüler</th>
                         <th style={s.thR}>Durum</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {c.projects.slice(0, 10).map((p: any, i: number) => (
-                        <tr key={p.id || i}>
-                          <td style={s.td}>{i + 1}</td>
-                          <td style={s.tdSmall}>{p.name}</td>
-                          <td style={s.tdR}>{p.status || '-'}</td>
-                        </tr>
-                      ))}
+                      {c.projects.slice(0, 10).map((p: any, i: number) => {
+                        const others = (p.collaborators || [])
+                          .filter((x: any) => x.faculty === c.facultyA || x.faculty === c.facultyB)
+                          .map((x: any) => `${x.name} (${x.faculty})`)
+                          .slice(0, 4)
+                          .join(', ');
+                        return (
+                          <tr key={p.id || i}>
+                            <td style={s.td}>{i + 1}</td>
+                            <td style={s.tdSmall}>{p.name}</td>
+                            <td style={s.tdSmall}>
+                              {p.owner || '-'}
+                              {p.ownerFaculty && <span style={{ color: '#6b7280' }}> · {p.ownerFaculty}</span>}
+                            </td>
+                            <td style={s.tdSmall}>{others || '-'}</td>
+                            <td style={s.tdR}>{statusTr(p.status)}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1399,14 +1438,17 @@ export default function AnnualReportPage() {
           </div>
         )}
 
-        {/* ═══ ETİK KURUL SÜREÇLERİ ═══ */}
+        {/* ═══ ETİK KURUL SÜREÇLERİ - GENİŞLETİLMİŞ ═══ */}
         {reportExtras?.ethics && reportExtras.ethics.total > 0 && (
           <div style={s.section}>
             <h2 style={s.h2}>16. ETİK KURUL SÜREÇLERİ</h2>
             <p style={s.p}>
-              Kurum projelerinin etik kurul süreçlerine girip girmediği, onay durumu ve bekleyen başvuruların özeti.
-              Etik onay, özellikle insan ve hayvan denek içeren çalışmalar için kritik bir gereksinimdir.
+              Kurum projelerinin etik kurul süreçlerine girip girmediği, onay durumu, fakülte ve proje
+              türü bazlı detaylar ile bekleyen kritik başvurular. Etik onay, özellikle insan ve hayvan denek
+              içeren çalışmalar ile sosyal araştırmalar için yasal bir gerekliliktir.
             </p>
+
+            <h3 style={s.h3}>Genel Durum</h3>
             <div style={s.kpiGrid}>
               <Kpi label="Toplam Proje" value={formatNum(reportExtras.ethics.total)} color="#1a3a6b" />
               <Kpi label="Etik Gerekli" value={formatNum(reportExtras.ethics.required)} color="#d97706" sub={`%${reportExtras.ethics.total > 0 ? Math.round((reportExtras.ethics.required / reportExtras.ethics.total) * 100) : 0}`} />
@@ -1420,6 +1462,102 @@ export default function AnnualReportPage() {
                 sub="onay/gerekli"
               />
             </div>
+
+            {reportExtras.ethics.byFaculty?.length > 0 && (
+              <>
+                <h3 style={s.h3}>Fakülte Bazlı Etik Süreçler</h3>
+                <table style={s.table}>
+                  <thead>
+                    <tr>
+                      <th style={s.th}>Fakülte</th>
+                      <th style={s.thR}>Etik Gerekli</th>
+                      <th style={s.thR}>Onaylanmış</th>
+                      <th style={s.thR}>Bekleyen</th>
+                      <th style={s.thR}>Onay Oranı</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reportExtras.ethics.byFaculty.map((f: any) => (
+                      <tr key={f.faculty}>
+                        <td style={s.td}>{f.faculty}</td>
+                        <td style={s.tdR}>{f.required}</td>
+                        <td style={{ ...s.tdR, color: '#059669', fontWeight: 700 }}>{f.approved}</td>
+                        <td style={{ ...s.tdR, color: f.pending > 0 ? '#dc2626' : '#6b7280' }}>{f.pending}</td>
+                        <td style={{ ...s.tdR, fontWeight: 700 }}>%{f.approvalRate}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+
+            {reportExtras.ethics.byType?.length > 0 && (
+              <>
+                <h3 style={s.h3}>Proje Türüne Göre Etik Süreç</h3>
+                <table style={s.table}>
+                  <thead>
+                    <tr>
+                      <th style={s.th}>Proje Türü</th>
+                      <th style={s.thR}>Etik Gerekli</th>
+                      <th style={s.thR}>Onaylanmış</th>
+                      <th style={s.thR}>Bekleyen</th>
+                      <th style={s.thR}>Onay Oranı</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reportExtras.ethics.byType.map((t: any) => (
+                      <tr key={t.type}>
+                        <td style={s.td}>{typeTr(t.type)}</td>
+                        <td style={s.tdR}>{t.required}</td>
+                        <td style={{ ...s.tdR, color: '#059669', fontWeight: 700 }}>{t.approved}</td>
+                        <td style={{ ...s.tdR, color: t.pending > 0 ? '#dc2626' : '#6b7280' }}>{t.pending}</td>
+                        <td style={{ ...s.tdR, fontWeight: 700 }}>%{t.approvalRate}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+
+            {reportExtras.ethics.pendingProjects?.length > 0 && (
+              <>
+                <h3 style={s.h3}>Onay Bekleyen Projeler (En Eski 10)</h3>
+                <p style={s.pSmall}>
+                  <em>Bu projeler etik kurul kararını bekliyor. Eski tarihli olanların öncelikle ele alınması önerilir.</em>
+                </p>
+                <table style={s.table}>
+                  <thead>
+                    <tr>
+                      <th style={s.th}>#</th>
+                      <th style={s.th}>Proje</th>
+                      <th style={s.th}>Yürütücü</th>
+                      <th style={s.th}>Fakülte</th>
+                      <th style={s.th}>Tür</th>
+                      <th style={s.thR}>Açılış</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reportExtras.ethics.pendingProjects.map((p: any, i: number) => {
+                      const ageDays = Math.floor((Date.now() - new Date(p.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+                      return (
+                        <tr key={p.id}>
+                          <td style={s.td}>{i + 1}</td>
+                          <td style={s.tdSmall}>{p.title}</td>
+                          <td style={s.tdSmall}>{p.owner}</td>
+                          <td style={s.td}>{p.faculty || '-'}</td>
+                          <td style={s.td}>{typeTr(p.type)}</td>
+                          <td style={{ ...s.tdR, color: ageDays > 90 ? '#dc2626' : ageDays > 30 ? '#d97706' : '#6b7280' }}>
+                            {new Date(p.createdAt).toLocaleDateString('tr-TR')}
+                            <br/>
+                            <span style={{ fontSize: 8 }}>{ageDays} gün</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </>
+            )}
           </div>
         )}
 
@@ -1473,24 +1611,76 @@ export default function AnnualReportPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {reportExtras.ip.byType.map((it: any) => {
-                        const labels: Record<string, string> = {
-                          patent: 'Patent', faydali_model: 'Faydalı Model',
-                          marka: 'Marka', tasarim: 'Tasarım', telif: 'Telif Hakkı',
-                          ticari_sir: 'Ticari Sır', belirtilmemis: 'Belirtilmemiş',
-                        };
-                        return (
-                          <tr key={it.key}>
-                            <td style={s.td}>{labels[it.key] || it.key}</td>
-                            <td style={{ ...s.tdR, fontWeight: 700 }}>{it.count}</td>
-                          </tr>
-                        );
-                      })}
+                      {reportExtras.ip.byType.map((it: any) => (
+                        <tr key={it.key}>
+                          <td style={s.td}>{IP_TYPE_LABELS[it.key] || it.key}</td>
+                          <td style={{ ...s.tdR, fontWeight: 700 }}>{it.count}</td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
               )}
             </div>
+
+            {reportExtras.ip.byFaculty?.length > 0 && (
+              <>
+                <h3 style={s.h3}>Fakülteye Göre Fikri Mülkiyet</h3>
+                <table style={s.table}>
+                  <thead>
+                    <tr>
+                      <th style={s.th}>Fakülte</th>
+                      <th style={s.thR}>FM Sayısı</th>
+                      <th style={s.thR}>Pay</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reportExtras.ip.byFaculty.map((f: any) => {
+                      const pct = reportExtras.ip.total > 0 ? Math.round((f.count / reportExtras.ip.total) * 100) : 0;
+                      return (
+                        <tr key={f.faculty}>
+                          <td style={s.td}>{f.faculty}</td>
+                          <td style={{ ...s.tdR, fontWeight: 700 }}>{f.count}</td>
+                          <td style={s.tdR}>%{pct}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </>
+            )}
+
+            {reportExtras.ip.details?.length > 0 && (
+              <>
+                <h3 style={s.h3}>Fikri Mülkiyet Detay Listesi (Top {reportExtras.ip.details.length})</h3>
+                <table style={s.table}>
+                  <thead>
+                    <tr>
+                      <th style={s.th}>#</th>
+                      <th style={s.th}>Proje</th>
+                      <th style={s.th}>Yürütücü</th>
+                      <th style={s.th}>Fakülte</th>
+                      <th style={s.th}>Tür</th>
+                      <th style={s.th}>Durum</th>
+                      <th style={s.th}>Tescil No</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reportExtras.ip.details.map((d: any, i: number) => (
+                      <tr key={d.id}>
+                        <td style={s.td}>{i + 1}</td>
+                        <td style={s.tdSmall}>{d.title}</td>
+                        <td style={s.tdSmall}>{d.owner}</td>
+                        <td style={s.td}>{d.faculty || '-'}</td>
+                        <td style={s.td}>{IP_TYPE_LABELS[d.ipType] || d.ipType}</td>
+                        <td style={s.td}>{IP_STATUS_LABELS[d.ipStatus] || d.ipStatus}</td>
+                        <td style={s.td}>{d.ipRegistrationNo || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
           </div>
         )}
 
@@ -1558,57 +1748,106 @@ export default function AnnualReportPage() {
           </div>
         )}
 
-        {/* ═══ DEMOGRAFİK DAĞILIM ═══ */}
+        {/* ═══ DEMOGRAFİK DAĞILIM - GENİŞLETİLMİŞ ═══ */}
         {reportExtras?.demographics && reportExtras.demographics.totalActive > 0 && (
           <div style={s.section}>
             <h2 style={s.h2}>19. AKADEMİK PERSONEL DEMOGRAFİSİ</h2>
             <p style={s.p}>
-              Sistemde aktif olan akademik personelin unvan ve rol dağılımı.
-              Toplam <strong>{reportExtras.demographics.totalActive}</strong> aktif kullanıcı.
+              Sistemde aktif <strong>{reportExtras.demographics.totalActive}</strong> akademik personelin
+              unvan, rol ve proje üretkenliği dağılımı. Aşağıdaki tablolar her unvanın kaç proje
+              yürüttüğünü, kaçının aktif/tamamlandığını ve tür bazında dağılımını gösterir.
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-              {reportExtras.demographics.byTitle.length > 0 && (
-                <div>
-                  <h3 style={s.h3}>Unvana Göre</h3>
-                  <table style={s.table}>
-                    <thead>
-                      <tr><th style={s.th}>Unvan</th><th style={s.thR}>Sayı</th><th style={s.thR}>Pay</th></tr>
-                    </thead>
-                    <tbody>
-                      {reportExtras.demographics.byTitle.slice(0, 10).map((it: any) => {
-                        const pct = reportExtras.demographics.totalActive > 0
-                          ? Math.round((it.count / reportExtras.demographics.totalActive) * 100) : 0;
-                        return (
-                          <tr key={it.title}>
-                            <td style={s.td}>{it.title}</td>
-                            <td style={{ ...s.tdR, fontWeight: 700 }}>{it.count}</td>
-                            <td style={s.tdR}>%{pct}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              {reportExtras.demographics.byRole.length > 0 && (
-                <div>
-                  <h3 style={s.h3}>Sistem Rolüne Göre</h3>
-                  <table style={s.table}>
-                    <thead>
-                      <tr><th style={s.th}>Rol</th><th style={s.thR}>Sayı</th></tr>
-                    </thead>
-                    <tbody>
-                      {reportExtras.demographics.byRole.map((it: any) => (
-                        <tr key={it.role}>
-                          <td style={s.td}>{it.role}</td>
-                          <td style={{ ...s.tdR, fontWeight: 700 }}>{it.count}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+
+            {reportExtras.demographics.byTitle.length > 0 && (
+              <>
+                <h3 style={s.h3}>Unvan Bazlı Üretkenlik</h3>
+                <table style={s.table}>
+                  <thead>
+                    <tr>
+                      <th style={s.th}>Unvan</th>
+                      <th style={s.thR}>Personel</th>
+                      <th style={s.thR}>Toplam Proje</th>
+                      <th style={s.thR}>Aktif</th>
+                      <th style={s.thR}>Tamamlanan</th>
+                      <th style={s.thR}>Kişi Başı Ort.</th>
+                      <th style={s.thR}>Toplam Bütçe</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reportExtras.demographics.byTitle.map((it: any) => (
+                      <tr key={it.title}>
+                        <td style={{ ...s.td, fontWeight: 700 }}>{it.title}</td>
+                        <td style={s.tdR}>{it.count}</td>
+                        <td style={{ ...s.tdR, fontWeight: 700, color: '#1a3a6b' }}>{it.totalProjects}</td>
+                        <td style={{ ...s.tdR, color: '#059669' }}>{it.activeProjects}</td>
+                        <td style={{ ...s.tdR, color: '#2563eb' }}>{it.completedProjects}</td>
+                        <td style={s.tdR}>{it.avgProjectsPerPerson}</td>
+                        <td style={s.tdR}>{it.totalBudget > 0 ? formatTry(it.totalBudget) : '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p style={s.pSmall}>
+                  <em>Kişi başı ortalama: o unvana sahip kullanıcıların ortalama proje sayısı.
+                  Bir kullanıcı yürütücü ve/veya üye olarak bulunduğu her projeye 1 katkı sayar.</em>
+                </p>
+              </>
+            )}
+
+            {reportExtras.demographics.titleTypeMatrix?.length > 0 && (
+              <>
+                <h3 style={s.h3}>Unvana Göre Proje Türü Dağılımı (Yürütücü Bazlı)</h3>
+                <table style={s.table}>
+                  <thead>
+                    <tr>
+                      <th style={s.th}>Unvan</th>
+                      <th style={s.th}>Tür Dağılımı</th>
+                      <th style={s.thR}>Toplam</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reportExtras.demographics.titleTypeMatrix.map((row: any) => (
+                      <tr key={row.title}>
+                        <td style={{ ...s.td, fontWeight: 700 }}>{row.title}</td>
+                        <td style={s.tdSmall}>
+                          {row.types.map((t: any, i: number) => (
+                            <span key={t.type} style={{ marginRight: 8 }}>
+                              <strong>{typeTr(t.type)}:</strong> {t.count}
+                              {i < row.types.length - 1 ? ' ·' : ''}
+                            </span>
+                          ))}
+                        </td>
+                        <td style={{ ...s.tdR, fontWeight: 700 }}>{row.totalProjects}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+
+            {reportExtras.demographics.byRole.length > 0 && (
+              <>
+                <h3 style={s.h3}>Sistem Rolü Dağılımı</h3>
+                <table style={s.table}>
+                  <thead>
+                    <tr>
+                      <th style={s.th}>Rol</th>
+                      <th style={s.thR}>Kişi Sayısı</th>
+                      <th style={s.thR}>Toplam Proje Katkısı</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reportExtras.demographics.byRole.map((it: any) => (
+                      <tr key={it.role}>
+                        <td style={s.td}>{it.role}</td>
+                        <td style={{ ...s.tdR, fontWeight: 700 }}>{it.count}</td>
+                        <td style={s.tdR}>{it.totalProjects}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
           </div>
         )}
 
@@ -1626,8 +1865,10 @@ export default function AnnualReportPage() {
                 <tr>
                   <th style={s.th}>#</th>
                   <th style={s.th}>Proje</th>
-                  <th style={s.th}>Fakülte</th>
+                  <th style={s.th}>Yürütücü</th>
+                  <th style={s.th}>Fakülte / Bölüm</th>
                   <th style={s.th}>Tür</th>
+                  <th style={s.thR}>Ekip</th>
                   <th style={s.thR}>Bütçe</th>
                   <th style={s.thR}>Bitiş</th>
                 </tr>
@@ -1637,8 +1878,13 @@ export default function AnnualReportPage() {
                   <tr key={p.id}>
                     <td style={s.td}>{i + 1}</td>
                     <td style={{ ...s.tdSmall, fontWeight: i < 3 ? 700 : 400 }}>{p.title}</td>
-                    <td style={s.td}>{p.faculty || '-'}</td>
-                    <td style={s.td}>{p.type || '-'}</td>
+                    <td style={s.tdSmall}>{p.owner || '-'}</td>
+                    <td style={s.tdSmall}>
+                      {p.faculty || '-'}
+                      {p.department && <span style={{ color: '#6b7280' }}> / {p.department}</span>}
+                    </td>
+                    <td style={s.td}>{typeTr(p.type)}</td>
+                    <td style={s.tdR}>{(p.memberCount || 0) + 1} kişi</td>
                     <td style={s.tdR}>{p.budget ? formatTry(p.budget) : '-'}</td>
                     <td style={s.tdR}>{p.endDate ? new Date(p.endDate).toLocaleDateString('tr-TR') : '-'}</td>
                   </tr>
@@ -1648,11 +1894,55 @@ export default function AnnualReportPage() {
           </div>
         )}
 
-        {/* ═══ ZAMAN ÇİZELGESİ ═══ */}
-        {timeline.length > 0 && (
+        {/* ═══ ZAMAN ÇİZELGESİ - veriyi normalize et + boş donemleri ele + grafik ═══ */}
+        {(() => {
+          // Backend'den gelen veriyi normalize et: period | month, started | count, completed, cancelled
+          const tlNorm = (timeline || []).map((t: any) => ({
+            period: t.period || t.month || '-',
+            started: +(t.started ?? t.count ?? 0) || 0,
+            completed: +(t.completed ?? 0) || 0,
+            cancelled: +(t.cancelled ?? 0) || 0,
+            active: +(t.active ?? 0) || 0,
+          })).filter((t: any) => t.period && t.period !== '-');
+          // Bos donemleri ele: hepsi 0 olanlari atla
+          const tlMeaningful = tlNorm.filter((t: any) =>
+            t.started > 0 || t.completed > 0 || t.cancelled > 0 || t.active > 0);
+          if (tlMeaningful.length === 0) return null;
+          // Son 24 donem
+          const last24 = tlMeaningful.slice(-24);
+          const maxStarted = Math.max(1, ...last24.map(t => t.started));
+          const totalStarted = last24.reduce((s, t) => s + t.started, 0);
+          const totalCompleted = last24.reduce((s, t) => s + t.completed, 0);
+          const totalCancelled = last24.reduce((s, t) => s + t.cancelled, 0);
+
+          return (
           <div style={s.section}>
             <h2 style={s.h2}>21. PROJE ZAMAN ÇİZELGESİ</h2>
-            <p style={s.p}>Son dönemlerde başlatılan ve tamamlanan proje hacminin seyri.</p>
+            <p style={s.p}>
+              Son <strong>{last24.length}</strong> dönemde <strong>{totalStarted}</strong> proje başlatılmış,
+              <strong> {totalCompleted}</strong> proje tamamlanmış,
+              <strong> {totalCancelled}</strong> proje iptal edilmiştir.
+              Aşağıdaki grafik ve tablo dönem bazlı (aylık) hareketi gösterir.
+            </p>
+
+            {/* Bar grafik */}
+            <h3 style={s.h3}>Aylık Başlatılan Proje Trendi</h3>
+            <div style={s.trendChart}>
+              {last24.map((t) => {
+                const h = maxStarted > 0 ? (t.started / maxStarted) * 100 : 0;
+                return (
+                  <div key={t.period} style={s.trendBarCol}>
+                    <div style={s.trendBarWrap}>
+                      <span style={s.trendVal}>{t.started || ''}</span>
+                      <div style={{ ...s.trendBar, height: `${h}%`, background: '#1a3a6b' }} />
+                    </div>
+                    <p style={{ ...s.trendYear, fontSize: 7 }}>{t.period.split('-').slice(0, 2).join('-')}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            <h3 style={s.h3}>Dönem Detayı</h3>
             <table style={s.table}>
               <thead>
                 <tr>
@@ -1660,21 +1950,40 @@ export default function AnnualReportPage() {
                   <th style={s.thR}>Başlatılan</th>
                   <th style={s.thR}>Tamamlanan</th>
                   <th style={s.thR}>İptal</th>
+                  <th style={s.thR}>Net Birikim</th>
                 </tr>
               </thead>
               <tbody>
-                {timeline.slice(-24).map((t: any) => (
-                  <tr key={t.period}>
-                    <td style={s.td}>{t.period}</td>
-                    <td style={s.tdR}>{t.started || 0}</td>
-                    <td style={s.tdR}>{t.completed || 0}</td>
-                    <td style={s.tdR}>{t.cancelled || 0}</td>
-                  </tr>
-                ))}
+                {last24.map((t, i, arr) => {
+                  // Birikimli net: o doneme kadar baslatilan - tamamlanan - iptal
+                  const cumNet = arr.slice(0, i + 1).reduce((acc, x) => acc + x.started - x.completed - x.cancelled, 0);
+                  return (
+                    <tr key={t.period}>
+                      <td style={s.td}>{t.period}</td>
+                      <td style={{ ...s.tdR, fontWeight: 700, color: '#1a3a6b' }}>{t.started}</td>
+                      <td style={{ ...s.tdR, color: '#059669' }}>{t.completed}</td>
+                      <td style={{ ...s.tdR, color: '#dc2626' }}>{t.cancelled}</td>
+                      <td style={{ ...s.tdR, fontWeight: 700 }}>{cumNet}</td>
+                    </tr>
+                  );
+                })}
+                <tr style={{ background: '#f8f6f0', fontWeight: 700 }}>
+                  <td style={s.td}>TOPLAM</td>
+                  <td style={s.tdR}>{totalStarted}</td>
+                  <td style={s.tdR}>{totalCompleted}</td>
+                  <td style={s.tdR}>{totalCancelled}</td>
+                  <td style={s.tdR}>-</td>
+                </tr>
               </tbody>
             </table>
+            <p style={s.pSmall}>
+              <em>Net birikim: o dönemin sonuna kadar başlatılan projelerden tamamlananların ve iptal
+              edilenlerin çıkarılmış halidir - aktif portföyün büyüklüğünü gösterir.</em>
+            </p>
           </div>
-        )}
+          );
+        })()}
+
 
         {/* ═══ 17. EN ÜRETKEN ARAŞTIRMACILAR ═══ */}
         {researchers.length > 0 && (
@@ -1922,7 +2231,7 @@ const s: Record<string, React.CSSProperties> = {
   coverDate: { margin: 0 },
   coverInst: { margin: '4px 0 0', fontWeight: 700, fontSize: 13 },
   coverMid: { textAlign: 'center' },
-  coverTitle: { fontSize: 36, fontWeight: 700, margin: 0, lineHeight: 1.15, letterSpacing: 1 },
+  coverTitle: { fontSize: 36, fontWeight: 700, color: '#ffffff', margin: 0, lineHeight: 1.15, letterSpacing: 1 },
   coverYear: { fontSize: 64, fontWeight: 700, color: '#c8a45a', margin: '30px 0 10px' },
   coverSubtitle: { fontSize: 13, margin: '10px auto 0', maxWidth: 500, opacity: 0.85, lineHeight: 1.6 },
   coverFactBox: { display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10, maxWidth: 600, margin: '36px auto 0' },

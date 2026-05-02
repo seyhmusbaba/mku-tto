@@ -147,10 +147,18 @@ export class AnalyticsService {
       .map(([type, count]) => ({ type, count }))
       .sort((a, b) => b.count - a.count);
 
+    // Basari orani: kararlasan (tamamlanan + iptal) projelerden tamamlananlarin payi
+    // Ornek: 10 kararlasan proje - 8 tamamlanmis, 2 iptal => %80 basari
+    const decided = completed + cancelled;
+    const successRate = decided > 0 ? Math.round((completed / decided) * 100) : 0;
+
     return {
       total, byStatus, byType, totalBudget, activeBudget, avgBudget,
       // 3 ana oran
       activeRate, completedRate, pendingRate,
+      // Basari orani (kararlasan projeler bazli)
+      successRate,
+      decidedProjects: decided,
       // Durum bazlı sayılar
       activeProjects: active,
       completedProjects: completed,
@@ -437,11 +445,14 @@ export class AnalyticsService {
 
     const qb = this.projectRepo.createQueryBuilder('p')
       .select([
+        `${dateExpr} as period`,
         `${dateExpr} as month`,
         'COUNT(*) as count',
+        'COUNT(*) as started',
         'SUM(p.budget) as budget',
         `SUM(CASE WHEN p.status = 'completed' THEN 1 ELSE 0 END) as completed`,
         `SUM(CASE WHEN p.status = 'active' THEN 1 ELSE 0 END) as active`,
+        `SUM(CASE WHEN p.status = 'cancelled' THEN 1 ELSE 0 END) as cancelled`,
       ])
       .where('p."startDate" IS NOT NULL');
 
@@ -454,7 +465,18 @@ export class AnalyticsService {
     }
     this.applyProjectFilters(qb, 'p', q);
 
-    return qb.groupBy(dateExpr).orderBy('month', 'ASC').getRawMany();
+    const rows = await qb.groupBy(dateExpr).orderBy('month', 'ASC').getRawMany();
+    // Sayisal alanlari string'den number'a cevir (postgres COUNT/SUM string doner)
+    return rows.map((r: any) => ({
+      period: r.period,
+      month: r.month,
+      count: +r.count || 0,
+      started: +r.started || 0,
+      budget: +r.budget || 0,
+      completed: +r.completed || 0,
+      active: +r.active || 0,
+      cancelled: +r.cancelled || 0,
+    }));
   }
 
   async getExportData(q: any, userId: string, roleName: string) {
@@ -493,23 +515,65 @@ export class AnalyticsService {
   async getReportExtras(userId: string, roleName: string) {
     const scope = await this.resolveScope(userId, roleName);
 
-    // Tum projeleri scope ile cek
-    const qb = this.projectRepo.createQueryBuilder('p').leftJoinAndSelect('p.partners', 'pr');
+    // Tum projeleri scope ile cek - owner + members + partners (rapor icin tam veri)
+    const qb = this.projectRepo.createQueryBuilder('p')
+      .leftJoinAndSelect('p.partners', 'pr')
+      .leftJoinAndSelect('p.owner', 'owner')
+      .leftJoinAndSelect('p.members', 'm')
+      .leftJoinAndSelect('m.user', 'mu');
     this.applyScope(qb, 'p', scope);
     const projects = await qb.getMany();
 
-    // Etik durumu
+    // Etik durumu - genel + fakulte bazli + tur bazli
+    const ethicsByFaculty: Record<string, { required: number; approved: number; pending: number }> = {};
+    const ethicsByType: Record<string, { required: number; approved: number; pending: number }> = {};
+    for (const p of projects) {
+      if ((p as any).ethicsRequired) {
+        const f = p.faculty || 'Belirtilmemiş';
+        const t = p.type || 'other';
+        if (!ethicsByFaculty[f]) ethicsByFaculty[f] = { required: 0, approved: 0, pending: 0 };
+        if (!ethicsByType[t]) ethicsByType[t] = { required: 0, approved: 0, pending: 0 };
+        ethicsByFaculty[f].required++;
+        ethicsByType[t].required++;
+        if ((p as any).ethicsApproved) {
+          ethicsByFaculty[f].approved++;
+          ethicsByType[t].approved++;
+        } else {
+          ethicsByFaculty[f].pending++;
+          ethicsByType[t].pending++;
+        }
+      }
+    }
     const ethics = {
       total: projects.length,
       required: projects.filter(p => (p as any).ethicsRequired).length,
       approved: projects.filter(p => (p as any).ethicsApproved).length,
       pending: projects.filter(p => (p as any).ethicsRequired && !(p as any).ethicsApproved).length,
       notRequired: projects.filter(p => !(p as any).ethicsRequired).length,
+      // Yeni detaylar
+      byFaculty: Object.entries(ethicsByFaculty)
+        .map(([faculty, v]) => ({ faculty, ...v, approvalRate: v.required > 0 ? Math.round((v.approved / v.required) * 100) : 0 }))
+        .sort((a, b) => b.required - a.required),
+      byType: Object.entries(ethicsByType)
+        .map(([type, v]) => ({ type, ...v, approvalRate: v.required > 0 ? Math.round((v.approved / v.required) * 100) : 0 }))
+        .sort((a, b) => b.required - a.required),
+      // Onay bekleyen kritik projeler (en eski 10 - yas riskine gore)
+      pendingProjects: projects
+        .filter(p => (p as any).ethicsRequired && !(p as any).ethicsApproved)
+        .map(p => ({
+          id: p.id, title: p.title, faculty: p.faculty, type: p.type,
+          owner: p.owner ? `${p.owner.title || ''} ${p.owner.firstName} ${p.owner.lastName}`.trim() : '-',
+          createdAt: p.createdAt,
+        }))
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+        .slice(0, 10),
     };
 
-    // Fikri Mulkiyet portfoyu
+    // Fikri Mulkiyet portfoyu - genel + fakulte bazli + detayli liste
     const ipByStatus: Record<string, number> = {};
     const ipByType: Record<string, number> = {};
+    const ipByFaculty: Record<string, number> = {};
+    const ipDetails: any[] = [];
     let totalIp = 0;
     for (const p of projects) {
       const status = (p as any).ipStatus || 'none';
@@ -518,12 +582,23 @@ export class AnalyticsService {
         ipByStatus[status] = (ipByStatus[status] || 0) + 1;
         const type = (p as any).ipType || 'belirtilmemis';
         ipByType[type] = (ipByType[type] || 0) + 1;
+        const f = p.faculty || 'Belirtilmemiş';
+        ipByFaculty[f] = (ipByFaculty[f] || 0) + 1;
+        ipDetails.push({
+          id: p.id, title: p.title, faculty: p.faculty,
+          ipStatus: status, ipType: type,
+          ipRegistrationNo: (p as any).ipRegistrationNo,
+          ipDate: (p as any).ipDate,
+          owner: p.owner ? `${p.owner.title || ''} ${p.owner.firstName} ${p.owner.lastName}`.trim() : '-',
+        });
       }
     }
     const ip = {
       total: totalIp,
       byStatus: Object.entries(ipByStatus).map(([k, v]) => ({ key: k, count: v })).sort((a, b) => b.count - a.count),
       byType: Object.entries(ipByType).map(([k, v]) => ({ key: k, count: v })).sort((a, b) => b.count - a.count),
+      byFaculty: Object.entries(ipByFaculty).map(([faculty, count]) => ({ faculty, count })).sort((a, b) => b.count - a.count),
+      details: ipDetails.slice(0, 25),
     };
 
     // Ortak (partner) ozeti
@@ -547,32 +622,87 @@ export class AnalyticsService {
       top: partnersList.slice(0, 15),
     };
 
-    // Demografi - akademisyenlerin unvan/rol dagilimi (scope'a uygun)
+    // Demografi - aktif kullanicilarin unvan/rol dagilimi + her unvanin proje istatistikleri
     const userQb = this.userRepo.createQueryBuilder('u').leftJoinAndSelect('u.role', 'r').where('u.isActive = true');
     if (scope.kind === 'faculty') userQb.andWhere('u.faculty = :f', { f: scope.faculty });
     if (scope.kind === 'department') userQb.andWhere('u.department = :d', { d: scope.department });
     const users = await userQb.getMany();
-    const titleCounts: Record<string, number> = {};
-    const roleCounts: Record<string, number> = {};
+
+    // Kullanici -> proje sayisi/aktif/tamamlanan/butce hesabi
+    // Bir projedeki yurutucu + uyeler katki olarak sayilir
+    const userToProjects = new Map<string, { total: number; active: number; completed: number; budget: number }>();
+    for (const p of projects) {
+      const contributorIds = new Set<string>();
+      if (p.owner?.id) contributorIds.add(p.owner.id);
+      for (const m of (p.members || [])) if (m.userId) contributorIds.add(m.userId);
+      for (const id of contributorIds) {
+        if (!userToProjects.has(id)) userToProjects.set(id, { total: 0, active: 0, completed: 0, budget: 0 });
+        const acc = userToProjects.get(id)!;
+        acc.total++;
+        if (p.status === 'active') acc.active++;
+        if (p.status === 'completed') acc.completed++;
+        acc.budget += (p.budget || 0);
+      }
+    }
+
+    // Unvan bazli birikim
+    const titleStats: Record<string, { count: number; totalProjects: number; activeProjects: number; completedProjects: number; totalBudget: number }> = {};
     for (const u of users) {
       const t = (u.title || 'Belirtilmemiş').trim() || 'Belirtilmemiş';
-      titleCounts[t] = (titleCounts[t] || 0) + 1;
-      const rn = u.role?.name || 'Akademisyen';
-      roleCounts[rn] = (roleCounts[rn] || 0) + 1;
+      if (!titleStats[t]) titleStats[t] = { count: 0, totalProjects: 0, activeProjects: 0, completedProjects: 0, totalBudget: 0 };
+      titleStats[t].count++;
+      const ups = userToProjects.get(u.id);
+      if (ups) {
+        titleStats[t].totalProjects += ups.total;
+        titleStats[t].activeProjects += ups.active;
+        titleStats[t].completedProjects += ups.completed;
+        titleStats[t].totalBudget += ups.budget;
+      }
     }
+
+    // Rol bazli birikim
+    const roleStats: Record<string, { count: number; totalProjects: number }> = {};
+    for (const u of users) {
+      const rn = u.role?.name || 'Akademisyen';
+      if (!roleStats[rn]) roleStats[rn] = { count: 0, totalProjects: 0 };
+      roleStats[rn].count++;
+      const ups = userToProjects.get(u.id);
+      if (ups) roleStats[rn].totalProjects += ups.total;
+    }
+
+    // Tur x unvan matrisi - hangi unvanin hangi tur projeyi yaptigi
+    const titleTypeMatrix: Record<string, Record<string, number>> = {};
+    for (const p of projects) {
+      const ownerTitle = (p.owner?.title || 'Belirtilmemiş').trim() || 'Belirtilmemiş';
+      const type = p.type || 'other';
+      if (!titleTypeMatrix[ownerTitle]) titleTypeMatrix[ownerTitle] = {};
+      titleTypeMatrix[ownerTitle][type] = (titleTypeMatrix[ownerTitle][type] || 0) + 1;
+    }
+
     const demographics = {
       totalActive: users.length,
-      byTitle: Object.entries(titleCounts).map(([k, v]) => ({ title: k, count: v })).sort((a, b) => b.count - a.count),
-      byRole: Object.entries(roleCounts).map(([k, v]) => ({ role: k, count: v })).sort((a, b) => b.count - a.count),
+      byTitle: Object.entries(titleStats)
+        .map(([title, v]) => ({ title, ...v, avgProjectsPerPerson: v.count > 0 ? Math.round((v.totalProjects / v.count) * 10) / 10 : 0 }))
+        .sort((a, b) => b.totalProjects - a.totalProjects),
+      byRole: Object.entries(roleStats)
+        .map(([role, v]) => ({ role, ...v }))
+        .sort((a, b) => b.count - a.count),
+      titleTypeMatrix: Object.entries(titleTypeMatrix).map(([title, types]) => ({
+        title,
+        types: Object.entries(types).map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count),
+        totalProjects: Object.values(types).reduce((s, n) => s + n, 0),
+      })).sort((a, b) => b.totalProjects - a.totalProjects),
     };
 
-    // Bu yil tamamlanan projeler (yil-icinde-bitenler)
+    // Bu yil tamamlanan projeler - artik fakulte/bolum/yurutucu/butce ile
     const currentYear = new Date().getFullYear();
     const completedThisYear = projects
       .filter(p => p.status === 'completed' && p.endDate && p.endDate.startsWith(String(currentYear)))
       .map(p => ({
-        id: p.id, title: p.title, faculty: p.faculty, type: p.type,
+        id: p.id, title: p.title, faculty: p.faculty, department: p.department, type: p.type,
         budget: p.budget, endDate: p.endDate,
+        owner: p.owner ? `${p.owner.title || ''} ${p.owner.firstName} ${p.owner.lastName}`.trim() : '-',
+        memberCount: (p.members || []).length,
       }))
       .sort((a, b) => (b.budget || 0) - (a.budget || 0))
       .slice(0, 20);
