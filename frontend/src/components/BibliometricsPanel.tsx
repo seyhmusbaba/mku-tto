@@ -249,7 +249,7 @@ export function BibliometricsPanel({
       {/* KURUM GENELI uyari - tum metrikler kurum havuzundan */}
       {mode === 'institutional' && data.total > 0 && (
         <div className="p-4 rounded-2xl flex items-start gap-3 text-xs" style={{ background: '#f0fdf4', border: '1px solid #86efac', color: '#166534' }}>
-          <Icon name="check" className="w-4 h-4 mt-0.5 flex-shrink-0" strokeWidth={2.4} />
+          <Icon name="award" className="w-4 h-4 mt-0.5 flex-shrink-0" strokeWidth={2.4} />
           <div className="leading-relaxed">
             <strong className="font-semibold">✓ Tüm metrikler kurum genelidir.</strong> Açık Erişim oranı,
             Top %1/%10, Q1-Q4 dağılımı, FWCI ortalaması, Uluslararası Ortaklık, Yayın Türleri, Ülkeler ve
