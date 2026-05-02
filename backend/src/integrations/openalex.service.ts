@@ -469,13 +469,23 @@ export class OpenAlexService {
     };
 
     // group_by ile dagilim almak: per_page=1, group_by=field
+    // OpenAlex group_by 'key' field'ini tam URL olarak doner
+    // (orn. 'https://openalex.org/types/article'). Bunu strip edip son segmenti aliriz.
+    const stripOpenAlexUrl = (key: string): string => {
+      if (!key) return '';
+      // 'https://openalex.org/types/article' → 'article'
+      // 'https://openalex.org/countries/US' → 'us' (sonra upper)
+      // 'https://openalex.org/sources/S12345' → 'S12345'
+      const m = key.match(/openalex\.org\/[^/]+\/(.+)$/i);
+      return m ? m[1] : key;
+    };
     const groupBy = async (filter: string, field: string, limit = 50): Promise<Array<{ key: string; key_display_name?: string; count: number }>> => {
       try {
         await this.limiter.acquire();
         const url = `${this.baseUrl}/works?filter=${filter}&group_by=${field}&per_page=${limit}`;
         const data = await fetchJson(url, { headers });
         return (data?.group_by || []).map((g: any) => ({
-          key: g.key,
+          key: stripOpenAlexUrl(g.key),
           key_display_name: g.key_display_name,
           count: g.count || 0,
         }));
@@ -521,7 +531,7 @@ export class OpenAlexService {
           .filter(t => t.key && t.key !== 'unknown')
           .map(t => ({ type: t.key, count: t.count })),
         countryCollaboration: countryDist
-          .filter(c => c.key && c.key.length === 2 && c.key !== 'tr')   // TR'yi cikar - kendi kurumumuz
+          .filter(c => c.key && c.key.length === 2 && c.key.toUpperCase() !== 'TR')   // TR'yi cikar - kendi kurumumuz
           .slice(0, 50)
           .map(c => ({ code: c.key.toUpperCase(), count: c.count })),
         topJournals: journalDist

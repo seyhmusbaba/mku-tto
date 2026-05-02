@@ -363,35 +363,64 @@ export function BibliometricsPanel({
         </div>
       )}
 
-      {/* Yayın Türüne Göre Dağılım */}
-      {summary.typeDistribution && summary.typeDistribution.length > 0 && (
-        <div className="card p-5">
-          <h4 className="font-display text-sm font-semibold text-navy mb-1 inline-flex items-center gap-2">
-            <Icon name="layers" className="w-4 h-4" />
-            Yayın Türüne Göre Dağılım
-            <InfoTip text="OpenAlex'in tespit ettiği her yayın türü - makale, kitap, kitap bölümü, tez, ön baskı, bildiri, rapor, inceleme vs. Kurumsal modda: en çok atıf alan 500 yayın içindeki dağılımdır." />
-          </h4>
-          <p className="text-xs text-muted mb-4">Türe göre adet ve toplam atıf</p>
-          <div className="space-y-1.5">
-            {summary.typeDistribution.map((t: any) => {
-              const max = summary.typeDistribution[0]?.count || 1;
-              const pct = (t.count / max) * 100;
-              return (
-                <div key={t.type} className="flex items-center gap-3 p-1.5 rounded-lg">
-                  <span className="text-sm font-medium text-navy w-40 flex-shrink-0">{t.label}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="h-1.5 rounded-full" style={{ background: '#f0ede8' }}>
-                      <div className="h-1.5 rounded-full" style={{ width: `${pct}%`, background: '#1a3a6b' }} />
+      {/* Yayın Türüne Göre Dağılım - Türkçe etiketler + isteğe bağlı atıf sütunu */}
+      {summary.typeDistribution && summary.typeDistribution.length > 0 && (() => {
+        // OpenAlex tip kodlarini Turkce etiketlere cevir
+        const TYPE_LABELS: Record<string, string> = {
+          article: 'Makale', 'journal-article': 'Makale',
+          book: 'Kitap', 'book-chapter': 'Kitap Bölümü',
+          dissertation: 'Tez', thesis: 'Tez',
+          preprint: 'Ön Baskı',
+          'conference-paper': 'Bildiri', 'proceedings-article': 'Bildiri',
+          review: 'Derleme', 'peer-review': 'Hakem Değerlendirmesi',
+          report: 'Rapor', dataset: 'Veri Seti',
+          editorial: 'Editöryal', letter: 'Mektup',
+          erratum: 'Düzeltme', retraction: 'Geri Çekme',
+          standard: 'Standart', paratext: 'Yan Metin',
+          other: 'Diğer',
+        };
+        const tr = (raw: string): string => {
+          if (!raw) return 'Diğer';
+          // URL formati gelirse strip et: 'https://openalex.org/types/article' → 'article'
+          let key = raw.toLowerCase();
+          if (key.includes('/')) key = key.split('/').pop() || raw;
+          return TYPE_LABELS[key] || (key.charAt(0).toUpperCase() + key.slice(1).replace(/-/g, ' '));
+        };
+        // Citations sutunu sadece sample-bazli (aggregates'te yok)
+        const hasCitations = summary.typeDistribution.some((t: any) => (t.citations ?? 0) > 0);
+        const max = summary.typeDistribution[0]?.count || 1;
+        return (
+          <div className="card p-5">
+            <h4 className="font-display text-sm font-semibold text-navy mb-1 inline-flex items-center gap-2">
+              <Icon name="layers" className="w-4 h-4" />
+              Yayın Türüne Göre Dağılım
+              <InfoTip text="OpenAlex'in tespit ettiği yayın türleri. Kurumsal modda: tüm kurum yayınlarının agregat dağılımı (atıf sütunu agregat sorgudan elde edilemediği için gösterilmez). Yazar/Fakülte modunda: örneklem üzerinden sayım + atıf toplamı." />
+            </h4>
+            <p className="text-xs text-muted mb-4">
+              {hasCitations ? 'Türe göre adet ve toplam atıf' : 'Türe göre adet ve pay (kurum genel agregat)'}
+            </p>
+            <div className="space-y-1.5">
+              {summary.typeDistribution.map((t: any) => {
+                const pct = (t.count / max) * 100;
+                return (
+                  <div key={t.type || t.label} className="flex items-center gap-3 p-1.5 rounded-lg">
+                    <span className="text-sm font-medium text-navy w-40 flex-shrink-0">{tr(t.label || t.type)}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="h-1.5 rounded-full" style={{ background: '#f0ede8' }}>
+                        <div className="h-1.5 rounded-full" style={{ width: `${pct}%`, background: '#1a3a6b' }} />
+                      </div>
                     </div>
+                    <span className="text-sm font-bold text-navy w-12 text-right flex-shrink-0">{t.count.toLocaleString('tr-TR')}</span>
+                    {hasCitations
+                      ? <span className="text-xs text-muted w-16 text-right flex-shrink-0">{(t.citations || 0).toLocaleString('tr-TR')} atıf</span>
+                      : <span className="text-xs text-muted w-16 text-right flex-shrink-0">%{pct.toFixed(1)}</span>}
                   </div>
-                  <span className="text-sm font-bold text-navy w-10 text-right flex-shrink-0">{t.count}</span>
-                  <span className="text-xs text-muted w-16 text-right flex-shrink-0">{t.citations} atıf</span>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Q1-Q4 dağılımı + Yıllık trend */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
