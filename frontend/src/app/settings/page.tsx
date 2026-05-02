@@ -244,6 +244,9 @@ export default function SettingsPage() {
                   </p>
                 </div>
               </label>
+
+              {/* Bibliyometri rebuild butonu - "Bilinmiyor" cok cikiyorsa veya yeni SCImago CSV gelmisse */}
+              <BibliometricsRebuildButton />
             </div>
 
             <button onClick={handleSave} disabled={saving} className="btn-primary px-8 py-3 inline-flex items-center gap-1.5">
@@ -604,5 +607,64 @@ export default function SettingsPage() {
         </div>
       )}
     </DashboardLayout>
+  );
+}
+
+/* ─── Bibliyometri cache rebuild butonu ─── */
+function BibliometricsRebuildButton() {
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; loaded?: number; cleared?: number; msg?: string } | null>(null);
+
+  const handleClick = async () => {
+    if (!confirm('Tüm bibliyometri cache\'leri sıfırlanacak ve SCImago tablosu yeniden yüklenecek. Bir sonraki bibliyometri sorgusu 30-60 sn sürebilir. Devam edilsin mi?')) {
+      return;
+    }
+    setLoading(true);
+    setResult(null);
+    try {
+      const r = await api.post('/integrations/bibliometrics/rebuild-cache');
+      const d = r.data;
+      setResult({
+        ok: true,
+        loaded: d.scimago?.loaded || 0,
+        cleared: (d.openalexCacheCleared || 0) + (d.publicationsCacheCleared || 0) + (d.scimago?.openalexCacheCleared || 0),
+        msg: d.note,
+      });
+      toast.success(`SCImago: ${d.scimago?.loaded} dergi yüklendi · cache temizlendi`);
+    } catch (e: any) {
+      setResult({ ok: false, msg: e?.response?.data?.message || 'Hata oluştu' });
+      toast.error('Cache yenileme başarısız');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="p-3 rounded-lg" style={{ border: '1px solid #fde68a', background: '#fffbeb' }}>
+      <p className="text-sm font-semibold text-amber-900">Bibliyometri Cache'i Yeniden Oluştur</p>
+      <p className="text-xs text-amber-800 mt-1 leading-relaxed">
+        Yeni bir SCImago CSV commit edildikten sonra veya raporlarda "Bilinmiyor" oranı yüksekse
+        bu butonla tüm bibliyometri cache'leri (SCImago tablosu + OpenAlex venue/aggregate cache +
+        publications cache) sıfırlanır.
+      </p>
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={loading}
+        className="btn-secondary text-xs mt-2 inline-flex items-center gap-1.5"
+        style={{ borderColor: '#d97706', color: '#92400e' }}
+      >
+        {loading ? <><span className="spinner w-3 h-3" />Yenileniyor (30-60 sn)...</> : '⟳ Cache\'i Yeniden Oluştur'}
+      </button>
+      {result?.ok && (
+        <p className="text-xs text-green-700 mt-2">
+          ✓ SCImago: <strong>{result.loaded?.toLocaleString('tr-TR')}</strong> dergi yüklendi ·
+          Toplam <strong>{result.cleared}</strong> cache kaydı temizlendi
+        </p>
+      )}
+      {result && !result.ok && (
+        <p className="text-xs text-red-600 mt-2">✗ {result.msg}</p>
+      )}
+    </div>
   );
 }

@@ -547,9 +547,20 @@ export class ScimagoService implements OnModuleInit {
   }
 
   /** Operasyonel: manuel yeniden yükleme */
-  async refresh(): Promise<{ loaded: number; at: string }> {
+  async refresh(): Promise<{ loaded: number; at: string; openalexCacheCleared: number }> {
+    // 1) SCImago tablosunu yeniden oku (lokal CSV degisti mi diye)
     this.lastLoaded = 0;
+    this.table = null;
     await this.ensureLoaded();
-    return { loaded: this.getSize(), at: new Date(this.lastLoaded).toISOString() };
+    // 2) OpenAlex venue cache'i (issn:, src:, title: anahtarlari) temizle
+    //    Bu negatif cache'leri (null deger) de siler - eski "bulunamadi" sonuclari
+    //    artik yeni SCImago verisiyle yeniden hesaplanir.
+    const sizeBefore = this.openalexCache.size();
+    this.openalexCache.clear();
+    return {
+      loaded: this.getSize(),
+      at: new Date(this.lastLoaded).toISOString(),
+      openalexCacheCleared: sizeBefore,
+    };
   }
 }

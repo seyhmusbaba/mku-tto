@@ -56,6 +56,36 @@ export class IntegrationsController {
     return this.scimago.refresh();
   }
 
+  /**
+   * Bibliyometri verilerini bastan hesaplamak icin TUM bibliyometri cache'lerini sifirlar.
+   *
+   * Hangi cache'ler temizlenir:
+   *  - SCImago tablosu (CSV reload + venue lookup cache)
+   *  - OpenAlex cache (institution summary, aggregates, author works)
+   *  - Publications cache (ORCID/name/institution sorgulari)
+   *
+   * KULLANIM SENARYOLARI:
+   *  - Yeni SCImago CSV commit edildikten sonra
+   *  - Bibliyometri sonuclarinda "Bilinmiyor" coksa sifirlamak icin
+   *  - OpenAlex'ten yeni veri cekmek icin (12-24 saatlik cache atilir)
+   *
+   * Bu islem ilk istegin gec olmasina yol acar (~30-60 sn) - tipik olarak
+   * gerekirse 1-2 ayda bir manuel calistirilir.
+   */
+  @Post('bibliometrics/rebuild-cache')
+  async rebuildBibliometricsCache() {
+    const scimago = await this.scimago.refresh();
+    const openalexCleared = this.openalex.clearCache();
+    const publicationsCleared = this.publications.clearCache();
+    return {
+      ok: true,
+      scimago,
+      openalexCacheCleared: openalexCleared,
+      publicationsCacheCleared: publicationsCleared,
+      note: 'Bir sonraki bibliyometri sorgusu temiz cache ile calisacak (~30-60 sn)',
+    };
+  }
+
   // ── CROSSREF ──────────────────────────────────────────────────────────
   @Get('crossref/doi')
   async crossrefDoi(@Query('doi') doi: string) {

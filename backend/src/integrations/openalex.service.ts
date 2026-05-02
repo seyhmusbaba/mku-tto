@@ -549,4 +549,11 @@ export class OpenAlexService {
       return null;
     }
   }
+
+  /** Cache temizleme - admin/refresh endpoint'lerinden cagrilir */
+  clearCache(prefix?: string): number {
+    const before = this.cache.size();
+    this.cache.clear(prefix);
+    return before;
+  }
 }

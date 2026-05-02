@@ -93,6 +93,13 @@ export class PublicationsService {
   private readonly logger = new Logger(PublicationsService.name);
   private readonly cache = new HttpCache('publications');
 
+  /** Cache temizleme - admin/refresh endpoint'lerinden cagrilir */
+  clearCache(prefix?: string): number {
+    const before = this.cache.size();
+    this.cache.clear(prefix);
+    return before;
+  }
+
   constructor(
     private crossref: CrossrefService,
     private openalex: OpenAlexService,
