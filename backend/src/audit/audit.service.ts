@@ -5,6 +5,7 @@ import { AuditLog } from '../database/entities/audit-log.entity';
 import { Project } from '../database/entities/project.entity';
 import { ProjectMember } from '../database/entities/project-member.entity';
 import { User } from '../database/entities/user.entity';
+import { ROLES, isGlobalRole } from '../common/constants/roles';
 
 export type AuditAction =
   | 'created' | 'updated' | 'deleted'
@@ -12,9 +13,6 @@ export type AuditAction =
   | 'document_uploaded' | 'document_deleted'
   | 'report_added' | 'report_updated' | 'report_deleted'
   | 'partner_added' | 'partner_removed';
-
-// Tum projelere erisimi olan roller
-const GLOBAL_ROLES = ['Süper Admin', 'Rektör'];
 
 @Injectable()
 export class AuditService {
@@ -75,7 +73,7 @@ export class AuditService {
     if (!user) return { scope: 'none', items: [] };
 
     const roleName = user.role?.name || '';
-    const isGlobal = GLOBAL_ROLES.includes(roleName);
+    const isGlobal = isGlobalRole(roleName);
 
     // Global rol: filtre yok
     if (isGlobal) {
@@ -91,14 +89,14 @@ export class AuditService {
     let projectIds: string[] = [];
     let scope: 'faculty' | 'department' | 'own' = 'own';
 
-    if (roleName === 'Dekan' && user.faculty) {
+    if (roleName === ROLES.DEKAN && user.faculty) {
       const projects = await this.projectRepo.find({
         where: { faculty: user.faculty },
         select: ['id'],
       });
       projectIds = projects.map(p => p.id);
       scope = 'faculty';
-    } else if (roleName === 'Bölüm Başkanı' && user.department) {
+    } else if (roleName === ROLES.BOLUM_BASKANI && user.department) {
       const projects = await this.projectRepo.find({
         where: { department: user.department },
         select: ['id'],

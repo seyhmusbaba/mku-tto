@@ -5,9 +5,7 @@ import { Project } from '../database/entities/project.entity';
 import { User } from '../database/entities/user.entity';
 import { ProjectReport } from '../database/entities/project-report.entity';
 import { SystemSetting } from '../database/entities/system-setting.entity';
-
-// Global erişim rolleri - tüm sistemin analizine erişir
-const GLOBAL_ROLES = ['Süper Admin', 'Rektör'];
+import { ROLES, isGlobalRole } from '../common/constants/roles';
 
 type AnalyticsScope =
   | { kind: 'global' }
@@ -27,7 +25,7 @@ export class AnalyticsService {
   // Rol + DB ayarından scope'u çözer
   private async resolveScope(userId: string, roleName: string): Promise<AnalyticsScope> {
     const r = (roleName || '');
-    if (GLOBAL_ROLES.includes(r) || r.toLowerCase().includes('rekt')) {
+    if (isGlobalRole(r) || r.toLowerCase().includes('rekt')) {
       return { kind: 'global' };
     }
     // Ayarlarda global yetki verilmiş mi?
@@ -40,8 +38,8 @@ export class AnalyticsService {
     } catch {}
     // Dekan → kendi fakültesi, Bölüm Başkanı → kendi bölümü
     const user = await this.userRepo.findOne({ where: { id: userId } });
-    if (r === 'Dekan' && user?.faculty) return { kind: 'faculty', faculty: user.faculty };
-    if (r === 'Bölüm Başkanı' && user?.department) return { kind: 'department', department: user.department };
+    if (r === ROLES.DEKAN && user?.faculty) return { kind: 'faculty', faculty: user.faculty };
+    if (r === ROLES.BOLUM_BASKANI && user?.department) return { kind: 'department', department: user.department };
     return { kind: 'user', userId };
   }
 
@@ -71,7 +69,7 @@ export class AnalyticsService {
 
   // Geriye uyumluluk - eski signature kullanan yerler kalırsa false döner
   private async hasFullAccess(roleName: string): Promise<boolean> {
-    if (GLOBAL_ROLES.includes(roleName)) return true;
+    if (isGlobalRole(roleName)) return true;
     try {
       const setting = await this.settingRepo.findOne({ where: { key: 'analytics_full_access_roles' } });
       if (setting?.value) {

@@ -475,10 +475,12 @@ export default function AnnualReportPage() {
                       - bu değer {(+institutional.twoYearMeanCitedness) >= 1.5 ? 'global ortalamanın belirgin üstünde' : (+institutional.twoYearMeanCitedness) >= 1.0 ? 'global ortalamayla uyumlu' : 'global ortalamanın altında'}.</>
                     )}
                   </li>
-                  <li style={{ fontSize: 10, color: '#78350f' }}>
-                    <em>Not: Raporun FWCI, Top 1%/10%, açık erişim ve dergi kalite göstergeleri
-                    kurumun en çok atıf alan {institutional?.sampleSize || 500} yayını üzerinden
-                    örneklem bazlı hesaplanmıştır - doğal olarak kurumsal ortalamanın üstündedir.</em>
+                  <li style={{ fontSize: 10, color: '#374151' }}>
+                    <em>Not: Açık Erişim oranı, Top %1, Top %10, Uluslararası Ortaklık ve Yayın Türü
+                    dağılımı OpenAlex agregat sorgusuyla <strong>kurumun {formatNum(institutional?.total || 0)} yayını</strong>
+                    {' '}üzerinden hesaplanır - örneklem değildir. SCImago Q1-Q4 dergi kalite dağılımı ve
+                    sample FWCI ise en çok atıf alan {institutional?.sampleSize || 1000} yayın üzerinden
+                    hesaplandığı için ayrıca etiketlenmiştir.</em>
                   </li>
                   {pubGrowthPct !== null && (
                     <li>
@@ -561,23 +563,51 @@ export default function AnnualReportPage() {
                 )}
               </div>
 
-              <div style={{ marginTop: 14, padding: 10, background: '#fffbeb', borderLeft: '4px solid #f59e0b', borderRadius: 4 }}>
-                <p style={{ ...s.pSmall, color: '#92400e', margin: 0 }}>
-                  <strong>⚠ Aşağıdaki metrikler örneklem bazlıdır.</strong> Kurumumuzun en çok atıf alan
-                  {' '}{institutional.sampleSize || 500} yayını üzerinden hesaplanmıştır. Bu yüzden FWCI,
-                  Top 1%/10%, açık erişim oranı ve kalite dağılımı gerçek kurumsal ortalamanın üstünde
-                  görünür - sample yayınlar doğal olarak üst-tier'dandır.
+              {/* Veri kaynagi durumu - kullanicinin guvenebilecegi sekilde acikla */}
+              <div style={{ marginTop: 14, padding: 10, background: '#f0fdf4', borderLeft: '4px solid #059669', borderRadius: 4 }}>
+                <p style={{ ...s.pSmall, color: '#166534', margin: 0 }}>
+                  <strong>✓ Aşağıdaki metrikler kurum genelidir</strong> - Açık Erişim, Top %1, Top %10,
+                  Uluslararası Ortaklık değerleri OpenAlex agregat sorgularıyla
+                  <strong> {formatNum(institutional.total || 0)}</strong> yayınlık tüm kurum havuzu üzerinden hesaplanır.
                 </p>
               </div>
 
-              <h3 style={s.h3}>Örneklem Bazlı Göstergeler (top {institutional.sampleSize || 500} yayın)</h3>
+              <h3 style={s.h3}>Kurum Geneli Etki Göstergeleri</h3>
               <div style={s.kpiGrid}>
-                <Kpi label="Sample Açık Erişim" value={`%${institutional.openAccessRatio || 0}`} sub={`${formatNum(institutional.openAccessCount || 0)} yayın`} color="#0891b2" />
+                <Kpi label="Açık Erişim" value={`%${institutional.openAccessRatio || 0}`}
+                  sub={`${formatNum(institutional.openAccessCount || 0)} yayın · ${institutional.openAccessSource === 'institutional-aggregate' ? 'kurum geneli' : institutional.openAccessSource === 'sample' ? 'sample' : 'kurum'}`}
+                  color="#0891b2" />
+                <Kpi label="Top %1" value={formatNum(institutional.top1PctCount || 0)}
+                  color="#059669"
+                  sub={institutional.topPercentileSource === 'institutional-aggregate'
+                    ? `%${institutional.top1PctRatio || 0} (kurum geneli)`
+                    : `sample ${institutional.sampleSize || 1000}'de`} />
+                <Kpi label="Top %10" value={formatNum(institutional.top10PctCount || 0)}
+                  color="#2563eb"
+                  sub={institutional.topPercentileSource === 'institutional-aggregate'
+                    ? `%${institutional.top10PctRatio || 0} (kurum geneli)`
+                    : `sample ${institutional.sampleSize || 1000}'de`} />
+                <Kpi label="Uluslararası Ortaklık" value={`%${institutional.internationalCoauthorRatio || 0}`}
+                  color="#c8a45a"
+                  sub={`${formatNum(institutional.internationalCoauthorCount || 0)} yayın · ${institutional.internationalSource === 'institutional-aggregate' ? 'kurum geneli' : 'sample'}`} />
+              </div>
+
+              {/* Sample-bazli kalan metrikler ayri grup - dürüst */}
+              <div style={{ marginTop: 14, padding: 10, background: '#fffbeb', borderLeft: '4px solid #f59e0b', borderRadius: 4 }}>
+                <p style={{ ...s.pSmall, color: '#92400e', margin: 0 }}>
+                  <strong>⚠ Aşağıdaki 2 metrik örneklem bazlıdır.</strong> FWCI ve SCImago Q1-Q4 dergi
+                  kalite dağılımı için OpenAlex agregat desteği yoktur - kurumun en çok atıf alan
+                  <strong> {institutional.sampleSize || 1000}</strong> yayını üzerinden hesaplanmıştır.
+                  Bu yüzden gerçek kurumsal ortalamadan farklılaşabilir.
+                </p>
+              </div>
+
+              <h3 style={s.h3}>Örneklem Bazlı Göstergeler ({institutional.sampleSize || 1000} yayın)</h3>
+              <div style={s.kpiGrid}>
                 <Kpi label="Q1 (sample)" value={formatNum(institutional.quartileDistribution?.Q1 || 0)} color="#059669" sub={`%${quartileKnown > 0 ? Math.round(((institutional.quartileDistribution?.Q1 || 0) / quartileKnown) * 100) : 0}`} />
-                <Kpi label="Örnek. Ort. FWCI" value={institutional.avgFwci !== null && institutional.avgFwci !== undefined ? institutional.avgFwci : '-'} color="#7c3aed" sub="sample üst-tier" />
-                <Kpi label="Örnek. Top 1%" value={formatNum(institutional.top1PctCount || 0)} color="#059669" sub={`sample ${institutional.sampleSize || 500}'de`} />
-                <Kpi label="Örnek. Top 10%" value={formatNum(institutional.top10PctCount || 0)} color="#2563eb" sub={`sample ${institutional.sampleSize || 500}'de`} />
-                <Kpi label="Uluslararası Ortaklık" value={`%${institutional.internationalCoauthorRatio || 0}`} color="#c8a45a" sub={`${formatNum(institutional.internationalCoauthorCount || 0)} sample yayın`} />
+                <Kpi label="Sample Ort. FWCI"
+                  value={institutional.avgFwci !== null && institutional.avgFwci !== undefined ? institutional.avgFwci : '-'}
+                  color="#7c3aed" sub="alan-yıl normalize" />
               </div>
             </>
           )}
@@ -756,31 +786,26 @@ export default function AnnualReportPage() {
               </div>
             )}
 
-            {/* Yayın Türüne Göre Dağılım */}
+            {/* Yayın Türüne Göre Dağılım - artik kurum geneli (aggregates'ten) */}
             {institutional.typeDistribution && institutional.typeDistribution.length > 0 && (
               <>
-                <h3 style={s.h3}>Yayın Türüne Göre Dağılım (sample)</h3>
+                <h3 style={s.h3}>Yayın Türüne Göre Dağılım (Kurum Geneli)</h3>
                 <table style={s.table}>
                   <thead>
                     <tr>
                       <th style={s.th}>Tür</th>
                       <th style={s.thR}>Adet</th>
-                      <th style={s.thR}>Toplam Atıf</th>
-                      <th style={s.thR}>Ort. Atıf/Yayın</th>
                       <th style={s.thR}>Pay</th>
                     </tr>
                   </thead>
                   <tbody>
                     {institutional.typeDistribution.map((t: any) => {
-                      const totalSample = institutional.typeDistribution.reduce((x: number, y: any) => x + y.count, 0);
-                      const pct = totalSample > 0 ? (t.count / totalSample) * 100 : 0;
-                      const avgCit = t.count > 0 ? (t.citations / t.count).toFixed(1) : '-';
+                      const totalAll = institutional.typeDistribution.reduce((x: number, y: any) => x + y.count, 0);
+                      const pct = totalAll > 0 ? (t.count / totalAll) * 100 : 0;
                       return (
                         <tr key={t.type}>
-                          <td style={s.td}>{t.label}</td>
-                          <td style={{ ...s.tdR, fontWeight: 700 }}>{t.count}</td>
-                          <td style={s.tdR}>{formatNum(t.citations)}</td>
-                          <td style={s.tdR}>{avgCit}</td>
+                          <td style={s.td}>{t.label || t.type}</td>
+                          <td style={{ ...s.tdR, fontWeight: 700 }}>{formatNum(t.count)}</td>
                           <td style={s.tdR}>%{pct.toFixed(1)}</td>
                         </tr>
                       );
@@ -788,9 +813,9 @@ export default function AnnualReportPage() {
                   </tbody>
                 </table>
                 <p style={s.pSmall}>
-                  <em>Yayın türü OpenAlex'in tespit ettiği kategorilere göre - makale, kitap, kitap bölümü,
-                  tez, ön baskı, bildiri, inceleme, rapor vs. Bu tablo en çok atıf alan {institutional.sampleSize || 500}
-                  yayın sample'ı içindeki dağılımı gösterir; kurum geneli dağılımı bunun farklı olabilir.</em>
+                  <em>OpenAlex agregat sorgusu ile kurumun {formatNum(institutional.total || 0)} yayını üzerinden
+                  hesaplandı. Tür kategorileri OpenAlex'in tespitidir (makale, kitap, kitap bölümü, tez,
+                  ön baskı, bildiri, derleme, rapor vs).</em>
                 </p>
               </>
             )}

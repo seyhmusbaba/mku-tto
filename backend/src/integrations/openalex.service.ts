@@ -407,4 +407,132 @@ export class OpenAlexService {
       return null;
     }
   }
+
+  /**
+   * KURUM GENEL AGREGAT METRIKLERI - sample DEGİL, gerçek institution-wide.
+   *
+   * OpenAlex /works endpoint'ini filter+meta.count ve group_by ile kullanir.
+   * per_page=1 ile sadece toplam sayilari aliriz, yayinlari indirmeyiz.
+   * Bu sayede 11K+ yayinli bir kurum icin de hizli ve dogru sonuc verir.
+   *
+   * Donen metrikler:
+   * - openAccessCount / total → gercek OA orani
+   * - top1PctCount → gercek Top %1 yayin sayisi (cited_by_percentile_year ≥99)
+   * - top10PctCount → gercek Top %10 yayin sayisi (cited_by_percentile_year ≥90)
+   * - internationalCount → en az 2 farkli ulkeden yazarli yayin (gercek)
+   * - typeDistribution → publication type dagilimi (article/book/...)
+   * - countryCollab → ortak yazarli ulke listesi (top 50)
+   * - topJournals → en cok yayin yapilan dergiler (top 30)
+   */
+  async getInstitutionAggregates(institutionId: string, opts?: { fromYear?: number; toYear?: number }): Promise<{
+    total: number;
+    openAccessCount: number;
+    openAccessRatio: number;
+    top1PctCount: number;
+    top10PctCount: number;
+    top1PctRatio: number;
+    top10PctRatio: number;
+    internationalCount: number;
+    internationalRatio: number;
+    typeDistribution: Array<{ type: string; count: number }>;
+    countryCollaboration: Array<{ code: string; count: number }>;
+    topJournals: Array<{ id: string; name: string; count: number }>;
+    fwciAvailable: boolean;
+  } | null> {
+    if (!institutionId) return null;
+    const cleanId = institutionId.replace(/^https?:\/\/openalex\.org\//, '');
+    const yearFilter = (opts?.fromYear || opts?.toYear)
+      ? `,publication_year:${opts.fromYear || 1900}-${opts.toYear || new Date().getFullYear()}`
+      : '';
+    const cacheKey = `inst-agg:${cleanId}:${yearFilter}`;
+    const cached = this.cache.get<any>(cacheKey);
+    if (cached !== undefined) return cached;
+
+    const baseFilter = `institutions.id:${cleanId}${yearFilter}`;
+    const headers = { 'User-Agent': this.userAgent() };
+
+    // Tek bir count almak icin: per_page=1, response.meta.count okunur
+    const countOnly = async (filter: string): Promise<number> => {
+      try {
+        await this.limiter.acquire();
+        const url = `${this.baseUrl}/works?filter=${filter}&per_page=1`;
+        const data = await fetchJson(url, { headers });
+        return data?.meta?.count || 0;
+      } catch (e: any) {
+        this.logger.warn(`OpenAlex count failed (${filter.slice(0, 60)}...): ${e.message}`);
+        return 0;
+      }
+    };
+
+    // group_by ile dagilim almak: per_page=1, group_by=field
+    const groupBy = async (filter: string, field: string, limit = 50): Promise<Array<{ key: string; key_display_name?: string; count: number }>> => {
+      try {
+        await this.limiter.acquire();
+        const url = `${this.baseUrl}/works?filter=${filter}&group_by=${field}&per_page=${limit}`;
+        const data = await fetchJson(url, { headers });
+        return (data?.group_by || []).map((g: any) => ({
+          key: g.key,
+          key_display_name: g.key_display_name,
+          count: g.count || 0,
+        }));
+      } catch (e: any) {
+        this.logger.warn(`OpenAlex group_by failed (${field}): ${e.message}`);
+        return [];
+      }
+    };
+
+    try {
+      // Tum sorgulari paralel cek - 5 count + 3 group_by
+      const [
+        total,
+        openAccessCount,
+        top1PctCount,
+        top10PctCount,
+        internationalCount,
+        typeDist,
+        countryDist,
+        journalDist,
+      ] = await Promise.all([
+        countOnly(baseFilter),
+        countOnly(`${baseFilter},is_oa:true`),
+        countOnly(`${baseFilter},cited_by_percentile_year.min:99,cited_by_percentile_year.max:100`),
+        countOnly(`${baseFilter},cited_by_percentile_year.min:90,cited_by_percentile_year.max:100`),
+        countOnly(`${baseFilter},countries_distinct_count:>1`),
+        groupBy(baseFilter, 'type', 20),
+        groupBy(baseFilter, 'authorships.countries.id', 60),
+        groupBy(baseFilter, 'primary_location.source.id', 30),
+      ]);
+
+      const result = {
+        total,
+        openAccessCount,
+        openAccessRatio: total > 0 ? Math.round((openAccessCount / total) * 100) : 0,
+        top1PctCount,
+        top10PctCount,
+        top1PctRatio: total > 0 ? Math.round((top1PctCount / total) * 1000) / 10 : 0,
+        top10PctRatio: total > 0 ? Math.round((top10PctCount / total) * 1000) / 10 : 0,
+        internationalCount,
+        internationalRatio: total > 0 ? Math.round((internationalCount / total) * 100) : 0,
+        typeDistribution: typeDist
+          .filter(t => t.key && t.key !== 'unknown')
+          .map(t => ({ type: t.key, count: t.count })),
+        countryCollaboration: countryDist
+          .filter(c => c.key && c.key.length === 2 && c.key !== 'tr')   // TR'yi cikar - kendi kurumumuz
+          .slice(0, 50)
+          .map(c => ({ code: c.key.toUpperCase(), count: c.count })),
+        topJournals: journalDist
+          .filter(j => j.key && j.key_display_name)
+          .slice(0, 30)
+          .map(j => ({ id: j.key, name: j.key_display_name || '', count: j.count })),
+        fwciAvailable: false,  // FWCI sample-based kalir; OpenAlex group_by FWCI desteklemiyor
+      };
+
+      this.cache.set(cacheKey, result, 60 * 60 * 12);  // 12 saat
+      this.logger.log(`[InstitutionAgg] ${cleanId}: total=${total}, OA=${openAccessCount} (%${result.openAccessRatio}), Top1%=${top1PctCount}, Top10%=${top10PctCount}, intl=${internationalCount}`);
+      return result;
+    } catch (e: any) {
+      this.logger.warn(`OpenAlex institution aggregates failed: ${e.message}`);
+      return null;
+    }
+  }
 }

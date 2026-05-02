@@ -4,6 +4,7 @@ import { Repository, In, SelectQueryBuilder } from 'typeorm';
 import { Project } from '../database/entities/project.entity';
 import { User } from '../database/entities/user.entity';
 import { ProjectMember } from '../database/entities/project-member.entity';
+import { ROLES } from '../common/constants/roles';
 
 export type DashboardScope =
   | { kind: 'global' }
@@ -99,15 +100,15 @@ export class DashboardService {
   // Kullanıcı rolüne göre uygun scope'u döndürür
   async resolveScopeForUser(userId: string, roleName: string): Promise<DashboardScope | null> {
     const r = (roleName || '');
-    if (r === 'Süper Admin' || r.toLowerCase().includes('rektör') || r.toLowerCase().includes('rektor')) {
+    if (r === ROLES.SUPER_ADMIN || r === ROLES.REKTOR || r.toLowerCase().includes('rektör') || r.toLowerCase().includes('rektor')) {
       return { kind: 'global' };
     }
-    if (r === 'Dekan') {
+    if (r === ROLES.DEKAN) {
       const user = await this.userRepo.findOne({ where: { id: userId } });
       if (!user?.faculty) return null;
       return { kind: 'faculty', faculty: user.faculty };
     }
-    if (r === 'Bölüm Başkanı') {
+    if (r === ROLES.BOLUM_BASKANI) {
       const user = await this.userRepo.findOne({ where: { id: userId } });
       if (!user?.department) return null;
       return { kind: 'department', department: user.department };

@@ -83,7 +83,12 @@ import { BootstrapService } from './bootstrap.service';
         SystemSetting, DynamicProjectField, Notification, ProjectType, Faculty, ReportType, AuditLog, ProfileVisit, Competition, CompetitionSource, CompetitionFavorite, EthicsReview,
         Publication, ProjectMilestone, ProjectDeliverable, ProjectRisk,
       ],
-      synchronize: true,
+      // ⚠ synchronize: true production icin RİSKLİDİR.
+      // Schema farki otomatik DB'ye uygulanir - yanlis kolon adi/tipi veri kaybina yol acabilir.
+      // GUVENLI YAKLASIM: DB_SYNC env'i ile kontrol et; varsayilan true (mevcut davranis korunur),
+      // production'da DB_SYNC=false set edilirse migration moduna gecilir.
+      // GELECEK: TypeORM migration setup'i tamamlanip DB_SYNC default'u false yapilacak.
+      synchronize: process.env.DB_SYNC !== 'false',
       logging: false,
     }),
     TypeOrmModule.forFeature([Permission, Role, Project, User, SystemSetting, CompetitionSource]),

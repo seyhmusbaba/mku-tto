@@ -231,8 +231,22 @@ export class BibliometricsService {
       this.logger.log(`[Institutional] OpenAlex'ten ${instSummary.displayName}: ${instSummary.worksCount} yayın, ${instSummary.citedByCount} atıf, h=${instSummary.hIndex}`);
     }
 
-    // 2. SAMPLE - detay tablolar için en çok atıf alan yayınlar (dönem filtreli olabilir)
-    // Sample büyüklüğü 500'den 1000'e çıkarıldı - daha temsili, sample bias'ı azalır
+    // 2. KURUM GENELI AGREGAT METRIKLER - sample DEGIL (FIX #7)
+    //    OA orani, Top%1/%10, uluslararasi ortaklik, tip dagilimi, ulke dagilimi,
+    //    top dergiler artik tum kurum yayini uzerinden hesaplanir.
+    //    Quartile (Q1-Q4) ve FWCI dagilimi sample tabanli kalir cunku OpenAlex
+    //    bu alanlar icin group_by destegi yok - SCImago ISSN match gerekir.
+    const periodRange = (typeof yearOrRange === 'object' && yearOrRange)
+      ? { fromYear: yearOrRange.from, toYear: yearOrRange.to }
+      : (typeof yearOrRange === 'number' ? { fromYear: yearOrRange, toYear: yearOrRange } : undefined);
+    let aggregates = await this.openalex.getInstitutionAggregates(institutionId, periodRange).catch(() => null);
+    if (!aggregates) {
+      this.logger.warn(`[Institutional] OpenAlex aggregates başarısız - sample tabanlı fallback'e düşülecek`);
+    } else {
+      this.logger.log(`[Institutional] Aggregates: %${aggregates.openAccessRatio} OA, ${aggregates.top1PctCount} Top1%, ${aggregates.internationalCount} intl`);
+    }
+
+    // 3. SAMPLE - DETAY tablolar icin (yayin listesi, Q1-Q4 dagilimi, FWCI sample) - 1000 yayin yeterli
     const pubs = await this.publications.getInstitutionPublications(institutionId, yearOrRange, 1000);
     const sampleSummary = this.publications.summarize(pubs);
 
@@ -319,42 +333,73 @@ export class BibliometricsService {
       quartileDistribution: sampleSummary.quartileDistribution,
       sdgDistribution: sampleSummary.sdgDistribution,
 
-      // Açık erişim:
-      // - Dönem filtresi varsa → byYearReal'dan dönemsel OA toplamı
-      // - Yoksa → tüm kurum için counts_by_year toplamı
-      // - Hiçbiri yoksa → sample'dan
+      // ---------- KURUM GENELI METRIKLER (REAL - aggregates'ten, sample DEGIL) ----------
+      // OA orani: aggregates varsa o kullanilir; yoksa byYear toplam; en sonda sample
       openAccessCount:
+        aggregates ? aggregates.openAccessCount :
         periodOaCount !== undefined ? periodOaCount :
         realOaRatio !== null ? realTotalOaCount :
         sampleSummary.openAccessCount,
       openAccessRatio:
+        aggregates ? aggregates.openAccessRatio :
         periodTotal && periodTotal > 0 && periodOaCount !== undefined
           ? Math.round((periodOaCount / periodTotal) * 100)
           : realOaRatio !== null ? realOaRatio : sampleSummary.openAccessRatio,
       openAccessSource:
+        aggregates ? 'institutional-aggregate' :
         periodOaCount !== undefined ? 'period-institutional' :
         realOaRatio !== null ? 'institutional' : 'sample',
       sampleOpenAccessCount: sampleSummary.openAccessCount,
       sampleOpenAccessRatio: sampleSummary.openAccessRatio,
 
-      // FWCI ve Top Percentile - SAMPLE BAZLI - dürüst etiket
-      // Artık en fazla 1000 yayın sample (öncesinde 500'dü) - daha temsili
+      // Top %1 / %10: KURUM GENELI (aggregates'ten); yoksa sample'a fallback
+      top1PctCount: aggregates ? aggregates.top1PctCount : sampleSummary.top1PctCount,
+      top10PctCount: aggregates ? aggregates.top10PctCount : sampleSummary.top10PctCount,
+      top1PctRatio: aggregates ? aggregates.top1PctRatio : sampleSummary.top1PctRatio,
+      top10PctRatio: aggregates ? aggregates.top10PctRatio : sampleSummary.top10PctRatio,
+      topPercentileSource: aggregates ? 'institutional-aggregate' : 'sample',
+
+      // Uluslararasi ortaklik: KURUM GENELI (aggregates'ten); yoksa sample
+      internationalCoauthorCount: aggregates ? aggregates.internationalCount : sampleSummary.internationalCoauthorCount,
+      internationalCoauthorRatio: aggregates ? aggregates.internationalRatio : sampleSummary.internationalCoauthorRatio,
+      internationalSource: aggregates ? 'institutional-aggregate' : 'sample',
+
+      // Ulke dagilimi: KURUM GENELI (aggregates'ten); yoksa sample
+      countryCollaboration: aggregates && aggregates.countryCollaboration.length > 0
+        ? aggregates.countryCollaboration
+        : sampleSummary.countryCollaboration,
+
+      // Tip dagilimi: KURUM GENELI; yoksa sample
+      typeDistribution: aggregates && aggregates.typeDistribution.length > 0
+        ? aggregates.typeDistribution.map((t: any) => {
+            const labels: Record<string, string> = {
+              article: 'Makale', book: 'Kitap', 'book-chapter': 'Kitap Bölümü',
+              dissertation: 'Tez', preprint: 'Ön Baskı', dataset: 'Veri Seti',
+              report: 'Rapor', review: 'Derleme', 'conference-paper': 'Bildiri',
+              editorial: 'Editöryal', letter: 'Mektup', other: 'Diğer',
+            };
+            return { type: t.type, label: labels[t.type] || t.type, count: t.count, citations: 0 };
+          })
+        : sampleSummary.typeDistribution,
+
+      // Top dergiler: KURUM GENELI (group_by source.id); yoksa sample
+      topJournals: aggregates && aggregates.topJournals.length > 0
+        ? aggregates.topJournals.map(j => ({ name: j.name, count: j.count }))
+        : sampleSummary.topJournals,
+
+      // ---------- SAMPLE BAZLI METRIKLER ----------
+      // FWCI ve Q1-Q4 SCImago - bunlar OpenAlex group_by destegi olmadigindan sample kalir
       sampleSize: pubs.length,
-      sampleNote: `Aşağıdaki FWCI, Top 1%, Top 10%, dergi kalite, uluslararası ortaklık, ülke dağılımı ve üniversite işbirliği metrikleri kurumun en çok atıf alan ${pubs.length} yayını üzerinden hesaplanmıştır - tüm kurumsal yayın havuzu değil (kurum geneli ~11K+ yayın).`,
+      sampleNote: aggregates
+        ? `FWCI ve dergi kalite (SCImago Q1-Q4) dağılımı kurumun en çok atıf alan ${pubs.length} yayını üzerinden hesaplanmıştır. Diğer metrikler (Toplam Yayın, Atıf, OA Oranı, Top %1/%10, Uluslararası Ortaklık, Ülke Dağılımı, Yayın Türleri) ${aggregates.total} yayınlık kurum genelidir.`
+        : `Tüm bibliyometri metrikleri kurumun en çok atıf alan ${pubs.length} yayını üzerinden hesaplanmıştır - kurum genel yayın havuzu için OpenAlex bağlantısı kurulamadı.`,
       avgFwci: sampleSummary.avgFwci,
       medianFwci: sampleSummary.medianFwci,
       fwciCoverage: sampleSummary.fwciCoverage,
-      top1PctCount: sampleSummary.top1PctCount,
-      top10PctCount: sampleSummary.top10PctCount,
-      top1PctRatio: sampleSummary.top1PctRatio,
-      top10PctRatio: sampleSummary.top10PctRatio,
-      internationalCoauthorCount: sampleSummary.internationalCoauthorCount,
-      internationalCoauthorRatio: sampleSummary.internationalCoauthorRatio,
-      countryCollaboration: sampleSummary.countryCollaboration,
+      sampleTop1PctCount: sampleSummary.top1PctCount,
+      sampleTop10PctCount: sampleSummary.top10PctCount,
       avgAuthorsPerPaper: sampleSummary.avgAuthorsPerPaper,
       avgCountriesPerPaper: sampleSummary.avgCountriesPerPaper,
-      topJournals: sampleSummary.topJournals,
-      typeDistribution: sampleSummary.typeDistribution,
       universityCollaboration: sampleSummary.universityCollaboration,
 
       // Yayın listesi - sample

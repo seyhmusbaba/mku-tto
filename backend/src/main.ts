@@ -56,5 +56,19 @@ async function bootstrap() {
   const port = process.env.PORT || 3001;
   await app.listen(port, '0.0.0.0');
   console.log(`🚀 Backend çalışıyor: http://localhost:${port}/api`);
+
+  // ⚠ Production-safety check: synchronize:true production'da risklidir
+  if (process.env.NODE_ENV === 'production' && process.env.DB_SYNC !== 'false') {
+    console.warn('⚠⚠⚠ TypeORM synchronize:true PRODUCTION\'DA AÇIK ⚠⚠⚠');
+    console.warn('   Schema değişiklikleri otomatik DB\'ye uygulanır.');
+    console.warn('   Yanlış kolon değişikliği veri kaybına neden olabilir.');
+    console.warn('   Migration moduna geçmek için: DB_SYNC=false set edin.');
+  }
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.warn('⚠ ANTHROPIC_API_KEY tanımlı değil - AI özellikleri kural-tabanlı fallback kullanır.');
+  }
+  if (!process.env.SCOPUS_API_KEY) {
+    console.warn('⚠ SCOPUS_API_KEY tanımlı değil - Scopus entegrasyonu pasif.');
+  }
 }
 bootstrap();
