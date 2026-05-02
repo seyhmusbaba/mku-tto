@@ -32,6 +32,10 @@ export class AdminController {
     if (roleName !== 'Süper Admin') {
       throw new ForbiddenException('Bu işlem için Süper Admin yetkisi gereklidir');
     }
+    // PRODUCTION'DA DEMO VERI YASAK - kullanici tercihi
+    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEMO_DATA !== 'true') {
+      throw new ForbiddenException('Demo veri ekleme production ortamında devre dışıdır. Aktiflestirmek icin ALLOW_DEMO_DATA=true env degiskeni set edin (onerilmez).');
+    }
 
     // Varsayılan owner: istek atan admin
     const adminUser = await this.userRepo.findOne({ where: { id: req.user.userId } });

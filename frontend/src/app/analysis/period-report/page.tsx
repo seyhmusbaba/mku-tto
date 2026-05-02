@@ -364,7 +364,7 @@ function PeriodReportContent() {
               <Kpi label="2 Yıl Ort. Atıf" value={institutional.twoYearMeanCitedness !== undefined ? (+institutional.twoYearMeanCitedness).toFixed(2) : '-'} color="#2563eb" />
             </div>
 
-            {/* Top-cited publications örneklem */}
+            {/* En cok atif alan ilk N yayin */}
             {institutional.publications && institutional.publications.length > 0 && (() => {
               const topCited = [...institutional.publications]
                 .sort((a: any, b: any) => (b?.citedBy?.best || 0) - (a?.citedBy?.best || 0))
@@ -432,7 +432,7 @@ function PeriodReportContent() {
             {/* Dergi kalitesi */}
             {institutional.quartileDistribution && Object.values(institutional.quartileDistribution).some((v: any) => v > 0) && (
               <>
-                <h3 style={s.h3}>Dergi Kalite Dağılımı (örneklem)</h3>
+                <h3 style={s.h3}>Dergi Kalite Dağılımı (Kurum Geneli)</h3>
                 <table style={s.table}>
                   <thead>
                     <tr>
@@ -462,7 +462,7 @@ function PeriodReportContent() {
             {/* Yayın türü dağılımı */}
             {institutional.typeDistribution && institutional.typeDistribution.length > 0 && (
               <>
-                <h3 style={s.h3}>Yayın Türüne Göre Dağılım (örneklem)</h3>
+                <h3 style={s.h3}>Yayın Türüne Göre Dağılım (Kurum Geneli)</h3>
                 <table style={s.table}>
                   <thead>
                     <tr>

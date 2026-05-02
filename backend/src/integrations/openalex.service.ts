@@ -685,4 +685,55 @@ export class OpenAlexService {
       return null;
     }
   }
+
+  /**
+   * KURUM GENELI SDG dagilimi - tum yayinlar icin SDG katki sayisi.
+   *
+   * OpenAlex group_by:sustainable_development_goals.id ile kurum yayinlarinin
+   * UN SDG eslestirmeleri tek sorguda alinir. Sample yok.
+   *
+   * Cache: 24 saat.
+   */
+  async getInstitutionSdgDistribution(
+    institutionId: string,
+    opts?: { fromYear?: number; toYear?: number },
+  ): Promise<Array<{ id: string; name: string; count: number }> | null> {
+    if (!institutionId) return null;
+    const cleanId = institutionId.replace(/^https?:\/\/openalex\.org\//, '');
+    const yearFilter = (opts?.fromYear || opts?.toYear)
+      ? `,publication_year:${opts.fromYear || 1900}-${opts.toYear || new Date().getFullYear()}`
+      : '';
+    const cacheKey = `inst-sdg:${cleanId}:${yearFilter}`;
+    const cached = this.cache.get<any>(cacheKey);
+    if (cached !== undefined) return cached;
+
+    const baseFilter = `institutions.id:${cleanId}${yearFilter}`;
+    const headers = { 'User-Agent': this.userAgent() };
+
+    try {
+      await this.limiter.acquire();
+      const url = `${this.baseUrl}/works?filter=${baseFilter}&group_by=sustainable_development_goals.id&per_page=20`;
+      const data = await fetchJson(url, { headers });
+      const groups = data?.group_by || [];
+      const result = groups
+        .filter((g: any) => g.key && g.count > 0)
+        .map((g: any) => {
+          // key: 'https://metadata.un.org/sdg/X' veya 'X'
+          const m = String(g.key).match(/(?:sdg\/|^)(\d+)$/i);
+          const num = m ? parseInt(m[1]) : null;
+          return {
+            id: num ? `SDG${num}` : String(g.key),
+            name: g.key_display_name || `SDG ${num || ''}`.trim(),
+            count: g.count || 0,
+          };
+        })
+        .sort((a: any, b: any) => b.count - a.count);
+      this.cache.set(cacheKey, result, 60 * 60 * 24);
+      this.logger.log(`[InstSdg] ${cleanId}: ${result.length} SDG kategori`);
+      return result;
+    } catch (e: any) {
+      this.logger.warn(`OpenAlex SDG distribution failed: ${e.message}`);
+      return null;
+    }
+  }
 }

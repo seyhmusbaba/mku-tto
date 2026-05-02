@@ -244,10 +244,11 @@ export class BibliometricsService {
       ? { fromYear: yearOrRange.from, toYear: yearOrRange.to }
       : (typeof yearOrRange === 'number' ? { fromYear: yearOrRange, toYear: yearOrRange } : undefined);
 
-    const [aggregates, allJournals, fwciAgg] = await Promise.all([
+    const [aggregates, allJournals, fwciAgg, sdgAgg] = await Promise.all([
       this.openalex.getInstitutionAggregates(institutionId, periodRange).catch(() => null),
       this.openalex.getInstitutionAllJournals(institutionId, periodRange).catch(() => null),
       this.openalex.getInstitutionFwciAggregate(institutionId, periodRange).catch(() => null),
+      this.openalex.getInstitutionSdgDistribution(institutionId, periodRange).catch(() => null),
     ]);
 
     if (!aggregates) {
@@ -363,51 +364,47 @@ export class BibliometricsService {
       twoYearMeanCitedness: instSummary?.twoYearMeanCitedness,
       byYear: byYearReal.length > 0 ? byYearReal : sampleSummary.byYear,
 
-      // ---------- KALITE DAGILIMI - KURUM GENELI ----------
-      // Q1-Q4 dagilimi artik tum kurum dergileri icin SCImago lookup ile hesaplanir
-      // (eskiden top 1000 yayin sample idi). Yoksa sample'a fallback.
-      quartileDistribution: realQuartileDistribution || sampleSummary.quartileDistribution,
-      quartileSource: realQuartileDistribution ? 'institutional-all-journals' : 'sample',
-      // SDG dagilimi sample'dan - OpenAlex group_by:sdgs.id yok
-      sdgDistribution: sampleSummary.sdgDistribution,
+      // ---------- KALITE DAGILIMI - SADECE KURUM GENELI ----------
+      // Q1-Q4 artik kurum geneli (tum dergiler) - sample fallback YOK.
+      // Eger kurum geneli alinamadiysa null doneriz (frontend "veri yok" gosterir).
+      quartileDistribution: realQuartileDistribution || null,
+      quartileSource: realQuartileDistribution ? 'institutional-all-journals' : null,
+      // SDG dagilimi - kurum geneli (OpenAlex group_by:sustainable_development_goals.id)
+      sdgDistribution: sdgAgg || null,
+      sdgSource: sdgAgg ? 'institutional-aggregate' : null,
 
-      // ---------- KURUM GENELI METRIKLER (REAL - aggregates'ten, sample DEGIL) ----------
-      // OA orani: aggregates varsa o kullanilir; yoksa byYear toplam; en sonda sample
+      // ---------- KURUM GENELI METRIKLER - SADECE AGGREGATES'TEN ----------
+      // OA orani: aggregates yoksa byYear toplam; ikisi de yoksa null (sample YOK)
       openAccessCount:
         aggregates ? aggregates.openAccessCount :
         periodOaCount !== undefined ? periodOaCount :
-        realOaRatio !== null ? realTotalOaCount :
-        sampleSummary.openAccessCount,
+        realOaRatio !== null ? realTotalOaCount : null,
       openAccessRatio:
         aggregates ? aggregates.openAccessRatio :
         periodTotal && periodTotal > 0 && periodOaCount !== undefined
           ? Math.round((periodOaCount / periodTotal) * 100)
-          : realOaRatio !== null ? realOaRatio : sampleSummary.openAccessRatio,
+          : realOaRatio !== null ? realOaRatio : null,
       openAccessSource:
         aggregates ? 'institutional-aggregate' :
         periodOaCount !== undefined ? 'period-institutional' :
-        realOaRatio !== null ? 'institutional' : 'sample',
-      sampleOpenAccessCount: sampleSummary.openAccessCount,
-      sampleOpenAccessRatio: sampleSummary.openAccessRatio,
+        realOaRatio !== null ? 'institutional' : null,
 
-      // Top %1 / %10: kurum geneli (FWCI cursor'dan veya aggregates'ten); yoksa sample
-      top1PctCount: fwciAgg ? fwciAgg.top1PctCount : aggregates ? aggregates.top1PctCount : sampleSummary.top1PctCount,
-      top10PctCount: fwciAgg ? fwciAgg.top10PctCount : aggregates ? aggregates.top10PctCount : sampleSummary.top10PctCount,
-      top1PctRatio: aggregates ? aggregates.top1PctRatio : sampleSummary.top1PctRatio,
-      top10PctRatio: aggregates ? aggregates.top10PctRatio : sampleSummary.top10PctRatio,
-      topPercentileSource: fwciAgg ? 'institutional-cursor' : aggregates ? 'institutional-aggregate' : 'sample',
+      // Top %1 / %10: cursor (gercek) > aggregates > null (sample YOK)
+      top1PctCount: fwciAgg ? fwciAgg.top1PctCount : aggregates ? aggregates.top1PctCount : null,
+      top10PctCount: fwciAgg ? fwciAgg.top10PctCount : aggregates ? aggregates.top10PctCount : null,
+      top1PctRatio: aggregates ? aggregates.top1PctRatio : null,
+      top10PctRatio: aggregates ? aggregates.top10PctRatio : null,
+      topPercentileSource: fwciAgg ? 'institutional-cursor' : aggregates ? 'institutional-aggregate' : null,
 
-      // Uluslararasi ortaklik: KURUM GENELI (aggregates'ten); yoksa sample
-      internationalCoauthorCount: aggregates ? aggregates.internationalCount : sampleSummary.internationalCoauthorCount,
-      internationalCoauthorRatio: aggregates ? aggregates.internationalRatio : sampleSummary.internationalCoauthorRatio,
-      internationalSource: aggregates ? 'institutional-aggregate' : 'sample',
+      // Uluslararasi ortaklik: aggregates'ten (sample YOK)
+      internationalCoauthorCount: aggregates ? aggregates.internationalCount : null,
+      internationalCoauthorRatio: aggregates ? aggregates.internationalRatio : null,
+      internationalSource: aggregates ? 'institutional-aggregate' : null,
 
-      // Ulke dagilimi: KURUM GENELI (aggregates'ten); yoksa sample
-      countryCollaboration: aggregates && aggregates.countryCollaboration.length > 0
-        ? aggregates.countryCollaboration
-        : sampleSummary.countryCollaboration,
+      // Ulke dagilimi: aggregates'ten (sample YOK)
+      countryCollaboration: aggregates ? aggregates.countryCollaboration : [],
 
-      // Tip dagilimi: KURUM GENELI; yoksa sample
+      // Tip dagilimi: aggregates'ten (sample YOK)
       typeDistribution: aggregates && aggregates.typeDistribution.length > 0
         ? aggregates.typeDistribution.map((t: any) => {
             const labels: Record<string, string> = {
@@ -416,37 +413,31 @@ export class BibliometricsService {
               report: 'Rapor', review: 'Derleme', 'conference-paper': 'Bildiri',
               editorial: 'Editöryal', letter: 'Mektup', other: 'Diğer',
             };
-            return { type: t.type, label: labels[t.type] || t.type, count: t.count, citations: 0 };
+            return { type: t.type, label: labels[t.type] || t.type, count: t.count };
           })
-        : sampleSummary.typeDistribution,
+        : [],
 
-      // Top dergiler: KURUM GENELI (group_by source.id); yoksa sample
-      topJournals: aggregates && aggregates.topJournals.length > 0
-        ? aggregates.topJournals.map(j => ({ name: j.name, count: j.count }))
-        : sampleSummary.topJournals,
+      // Top dergiler: aggregates'ten (sample YOK)
+      topJournals: aggregates ? aggregates.topJournals.map(j => ({ name: j.name, count: j.count })) : [],
 
-      // ---------- FWCI - KURUM GENELI ----------
-      // FWCI ortalamasi artik tum kurum yayinlari icin cursor pagination ile hesaplanir
-      // (eskiden sample idi). Yoksa sample'a fallback.
-      avgFwci: fwciAgg ? fwciAgg.avgFwci : sampleSummary.avgFwci,
-      medianFwci: fwciAgg ? fwciAgg.medianFwci : sampleSummary.medianFwci,
-      fwciCoverage: fwciAgg ? fwciAgg.fwciCoverage : sampleSummary.fwciCoverage,
-      fwciSource: fwciAgg ? 'institutional-cursor' : 'sample',
+      // ---------- FWCI - SADECE KURUM GENELI ----------
+      // Cursor pagination ile tum kurum yayinlarinin FWCI degerlerinden ortalama.
+      // Yoksa null (sample fallback YOK).
+      avgFwci: fwciAgg ? fwciAgg.avgFwci : null,
+      medianFwci: fwciAgg ? fwciAgg.medianFwci : null,
+      fwciCoverage: fwciAgg ? fwciAgg.fwciCoverage : null,
+      fwciSource: fwciAgg ? 'institutional-cursor' : null,
 
-      // ---------- SAMPLE METADATA (sadece detay tablolar icin) ----------
-      sampleSize: pubs.length,
-      sampleNote: (realQuartileDistribution && fwciAgg && aggregates)
-        ? `Tüm metrikler (Toplam Yayın: ${aggregates.total}, OA, Top %1/%10, Q1-Q4, FWCI, Uluslararası Ortaklık, Türler, Ülkeler, Dergiler) kurum genelidir - örneklem değildir. Sadece "En Çok Atıf Alan Yayınlar" listesi top ${pubs.length} yayını gösterir (görüntüleme amaçlı).`
-        : aggregates
-        ? `Çoğu metrik kurum genelidir (${aggregates.total} yayın). Bazı dağılımlar (kalite, FWCI) en çok atıf alan ${pubs.length} yayın üzerinden hesaplanmıştır - OpenAlex erişim kısıtı.`
-        : `Bibliyometri metrikleri kurumun en çok atıf alan ${pubs.length} yayını üzerinden hesaplanmıştır - kurum genel yayın havuzu için OpenAlex bağlantısı kurulamadı.`,
-      sampleTop1PctCount: sampleSummary.top1PctCount,
-      sampleTop10PctCount: sampleSummary.top10PctCount,
+      // ---------- TOP N YAYIN LISTESI ----------
+      // En cok atif alan ilk N yayin - "sample" DEGIL, sirali listenin basi.
+      // Bu liste sadece goruntuleme icindir; tum metrikler yukarida kurum
+      // genelinden hesaplanmistir.
+      topPublicationsCount: pubs.length,
       avgAuthorsPerPaper: sampleSummary.avgAuthorsPerPaper,
       avgCountriesPerPaper: sampleSummary.avgCountriesPerPaper,
       universityCollaboration: sampleSummary.universityCollaboration,
 
-      // Yayın listesi - sample
+      // En cok atif alan ilk N yayin (sirali listenin basi - 'sample' degil)
       publications: pubs.map(p => {
         const countries = Array.from(new Set(
           (p.authors || []).flatMap(a => (a.countries || []).map(c => c.toUpperCase()))

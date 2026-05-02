@@ -476,11 +476,13 @@ export default function AnnualReportPage() {
                     )}
                   </li>
                   <li style={{ fontSize: 10, color: '#374151' }}>
-                    <em>Not: Bu raporun bibliyometrik metrikleri (Açık Erişim, Top %1/%10, Uluslararası
-                    Ortaklık, Yayın Türü, Q1-Q4 dağılımı, FWCI ortalaması) <strong>kurumun
-                    {formatNum(institutional?.total || 0)} yayınının tamamı</strong> üzerinden
-                    hesaplanmıştır - örneklem değildir. Sadece "En Çok Atıf Alan Yayınlar" listesi
-                    görüntüleme amacıyla top {institutional?.sampleSize || 1000} yayın gösterir.</em>
+                    <em>Tüm bibliyometrik metrikler (Açık Erişim, Top %1/%10, Uluslararası Ortaklık,
+                    Yayın Türü, Q1-Q4 dağılımı, FWCI ortalaması, SKH dağılımı) kurumun
+                    {' '}<strong>{formatNum(institutional?.total || 0)} yayınının tamamı</strong> üzerinden
+                    OpenAlex agregat sorguları ve cursor pagination ile hesaplanmıştır.
+                    "En Çok Atıf Alan Yayınlar" listesi sıralamanın yalnızca ilk
+                    {' '}{institutional?.topPublicationsCount || institutional?.sampleSize || 1000} yayınını gösterir
+                    (görüntüleme amaçlı; tüm metrikler kurum genelinden hesaplanır).</em>
                   </li>
                   {pubGrowthPct !== null && (
                     <li>
@@ -574,36 +576,31 @@ export default function AnnualReportPage() {
 
               <h3 style={s.h3}>Kurum Geneli Etki Göstergeleri</h3>
               <div style={s.kpiGrid}>
-                <Kpi label="Açık Erişim" value={`%${institutional.openAccessRatio || 0}`}
-                  sub={`${formatNum(institutional.openAccessCount || 0)} yayın · ${institutional.openAccessSource === 'institutional-aggregate' ? 'kurum geneli' : institutional.openAccessSource === 'sample' ? 'sample' : 'kurum'}`}
+                <Kpi label="Açık Erişim" value={`%${institutional.openAccessRatio ?? 0}`}
+                  sub={institutional.openAccessCount != null ? `${formatNum(institutional.openAccessCount)} yayın · kurum geneli` : 'Veri yok'}
                   color="#0891b2" />
-                <Kpi label="Top %1" value={formatNum(institutional.top1PctCount || 0)}
+                <Kpi label="Top %1" value={institutional.top1PctCount != null ? formatNum(institutional.top1PctCount) : '-'}
                   color="#059669"
-                  sub={institutional.topPercentileSource === 'institutional-aggregate'
-                    ? `%${institutional.top1PctRatio || 0} (kurum geneli)`
-                    : `sample ${institutional.sampleSize || 1000}'de`} />
-                <Kpi label="Top %10" value={formatNum(institutional.top10PctCount || 0)}
+                  sub={institutional.top1PctRatio != null ? `%${institutional.top1PctRatio} (kurum geneli)` : 'Veri yok'} />
+                <Kpi label="Top %10" value={institutional.top10PctCount != null ? formatNum(institutional.top10PctCount) : '-'}
                   color="#2563eb"
-                  sub={institutional.topPercentileSource === 'institutional-aggregate'
-                    ? `%${institutional.top10PctRatio || 0} (kurum geneli)`
-                    : `sample ${institutional.sampleSize || 1000}'de`} />
-                <Kpi label="Uluslararası Ortaklık" value={`%${institutional.internationalCoauthorRatio || 0}`}
+                  sub={institutional.top10PctRatio != null ? `%${institutional.top10PctRatio} (kurum geneli)` : 'Veri yok'} />
+                <Kpi label="Uluslararası Ortaklık" value={`%${institutional.internationalCoauthorRatio ?? 0}`}
                   color="#c8a45a"
-                  sub={`${formatNum(institutional.internationalCoauthorCount || 0)} yayın · ${institutional.internationalSource === 'institutional-aggregate' ? 'kurum geneli' : 'sample'}`} />
+                  sub={institutional.internationalCoauthorCount != null ? `${formatNum(institutional.internationalCoauthorCount)} yayın · kurum geneli` : 'Veri yok'} />
               </div>
 
-              {/* Q1-Q4 ve FWCI artik kurum geneli - sample disclaimer kaldirildi */}
+              {/* Q1-Q4 ve FWCI kurum geneli */}
               {(institutional.quartileSource === 'institutional-all-journals' || institutional.fwciSource === 'institutional-cursor') && (
                 <div style={{ marginTop: 14, padding: 10, background: '#f0fdf4', borderLeft: '4px solid #059669', borderRadius: 4 }}>
                   <p style={{ ...s.pSmall, color: '#166534', margin: 0 }}>
                     <strong>✓ Aşağıdaki kalite metrikleri kurum genelidir.</strong>
                     {institutional.quartileSource === 'institutional-all-journals' && (
-                      <> Q1-Q4 dağılımı kurumun yayın yaptığı tüm dergiler için SCImago lookup ile
-                      hesaplandı (örneklem değil).</>
+                      <> Q1-Q4 dağılımı kurumun yayın yaptığı tüm dergiler için SCImago lookup ile hesaplandı.</>
                     )}
                     {institutional.fwciSource === 'institutional-cursor' && (
                       <> FWCI ortalaması <strong>{formatNum(institutional.fwciCoverage || 0)}</strong> yayın
-                      üzerinden cursor pagination ile çekildi (gerçek kurum ortalaması).</>
+                      üzerinden cursor pagination ile çekildi.</>
                     )}
                   </p>
                 </div>

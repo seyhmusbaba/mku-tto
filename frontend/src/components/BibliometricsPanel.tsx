@@ -246,48 +246,46 @@ export function BibliometricsPanel({
           desc="Açık erişim (OA) yayın oranı - okuyucunun ücret ödemeden erişebildiği makaleler." />
       </div>
 
-      {/* SAMPLE UYARISI - kurumsal modda, örneklem bazlı metrikler öncesi */}
-      {mode === 'institutional' && data.sampleNote && (
-        <div className="p-4 rounded-2xl flex items-start gap-3 text-xs" style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}>
-          <Icon name="alert" className="w-4 h-4 mt-0.5 flex-shrink-0" />
+      {/* KURUM GENELI uyari - tum metrikler kurum havuzundan */}
+      {mode === 'institutional' && data.total > 0 && (
+        <div className="p-4 rounded-2xl flex items-start gap-3 text-xs" style={{ background: '#f0fdf4', border: '1px solid #86efac', color: '#166534' }}>
+          <Icon name="check" className="w-4 h-4 mt-0.5 flex-shrink-0" strokeWidth={2.4} />
           <div className="leading-relaxed">
-            <strong className="font-semibold">⚠ Aşağıdaki metrikler örneklem bazlıdır.</strong> {data.sampleNote}
-            <br />Kurumsal toplamlar (yayın sayısı, atıf, h-index) yukarıdaki KPI kartlarındadır ve OpenAlex kurumsal endpoint'inden doğrudan gelir - tüm {data.total?.toLocaleString?.('tr-TR') || data.total} yayını kapsar.
+            <strong className="font-semibold">✓ Tüm metrikler kurum genelidir.</strong> Açık Erişim oranı,
+            Top %1/%10, Q1-Q4 dağılımı, FWCI ortalaması, Uluslararası Ortaklık, Yayın Türleri, Ülkeler ve
+            Top Dergiler kurumun tüm <strong>{data.total?.toLocaleString?.('tr-TR') || data.total}</strong> yayını
+            üzerinden OpenAlex agregat sorguları ve cursor pagination ile hesaplanır - örneklem değildir.
+            Aşağıdaki "En Çok Atıf Alan Yayınlar" listesi yalnızca sıralamanın ilk
+            {' '}{data.topPublicationsCount || data.publications?.length || 0} yayınını gösterir (görüntüleme amaçlı).
           </div>
         </div>
       )}
 
-      {/* Alan-normalize metrikler - FWCI + Top 1% (SAMPLE) */}
+      {/* Alan-normalize metrikler - FWCI + Top 1% (KURUM GENELI) */}
       {(summary.avgFwci !== null && summary.avgFwci !== undefined) || summary.top1PctCount > 0 || summary.internationalCoauthorRatio !== undefined ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {summary.avgFwci !== null && summary.avgFwci !== undefined && (
             <KpiBig label="Ort. FWCI" value={summary.avgFwci} icon="trending" color="#7c3aed"
               sub={mode === 'institutional'
-                ? (data.fwciSource === 'institutional-cursor' ? `${(data.fwciCoverage || 0).toLocaleString('tr-TR')} yayın (kurum)` : `top ${data.sampleSize || 1000} (sample)`)
+                ? `${(data.fwciCoverage || 0).toLocaleString('tr-TR')} yayın · kurum geneli`
                 : (summary.avgFwci >= 1.5 ? 'global ort. çok üstü' : summary.avgFwci >= 1.0 ? 'global ort. ile uyumlu' : 'global ort. altı')}
-              desc={mode === 'institutional' && data.fwciSource === 'institutional-cursor'
-                ? `Kurumun ${(data.fwciCoverage || 0)} yayınının FWCI değerleri cursor pagination ile çekilip ortalama alındı - örneklem değil, gerçek kurumsal ortalama.`
-                : mode === 'institutional'
-                ? `FWCI en çok atıf alan ${data.sampleSize || 1000} yayın üzerinden hesaplandı (sample fallback). Cache yenileme tamamlandığında kurum genelinden hesaplanacak.`
+              desc={mode === 'institutional'
+                ? `Kurumun ${(data.fwciCoverage || 0).toLocaleString('tr-TR')} yayınının FWCI değerleri cursor pagination ile çekilip ortalama alındı - gerçek kurumsal ortalama.`
                 : "Field-Weighted Citation Impact - atıf, yayının alanı ve yılına göre normalize edilir. 1.00 global ortalamadır; 2.00 beklenenden iki kat etki demektir."} />
           )}
           {summary.top1PctCount > 0 && (
             <KpiBig label="Top %1 Yayın" value={summary.top1PctCount.toLocaleString('tr-TR')}
-              sub={mode === 'institutional'
-                ? (data.topPercentileSource === 'institutional-cursor' || data.topPercentileSource === 'institutional-aggregate' ? 'kurum geneli' : `sample`)
-                : `%${summary.top1PctRatio}`}
+              sub={mode === 'institutional' ? 'kurum geneli' : `%${summary.top1PctRatio}`}
               icon="award" color="#059669"
-              desc={mode === 'institutional' && data.topPercentileSource !== 'sample'
+              desc={mode === 'institutional'
                 ? "Tüm kurum yayınları içinde dünya alan-yıl sıralamasında üst %1'e giren yayınlar - kurum geneli."
                 : "Alan-yıl normalize atıf sıralamasında üst %1'de yer alan yayınlar - en yüksek etkili çalışmaların göstergesi."} />
           )}
           {summary.top10PctCount > 0 && (
             <KpiBig label="Top %10 Yayın" value={summary.top10PctCount.toLocaleString('tr-TR')}
-              sub={mode === 'institutional'
-                ? (data.topPercentileSource === 'institutional-cursor' || data.topPercentileSource === 'institutional-aggregate' ? 'kurum geneli' : `sample`)
-                : `%${summary.top10PctRatio}`}
+              sub={mode === 'institutional' ? 'kurum geneli' : `%${summary.top10PctRatio}`}
               icon="sparkles" color="#2563eb"
-              desc={mode === 'institutional' && data.topPercentileSource !== 'sample'
+              desc={mode === 'institutional'
                 ? "Tüm kurum yayınları içinde dünya alan-yıl sıralamasında üst %10'a giren yayınlar - kurum geneli."
                 : "Alan-yıl normalize atıf sıralamasında üst %10'da yer alan yayınlar."} />
           )}
@@ -408,7 +406,7 @@ export function BibliometricsPanel({
             <h4 className="font-display text-sm font-semibold text-navy mb-1 inline-flex items-center gap-2">
               <Icon name="layers" className="w-4 h-4" />
               Yayın Türüne Göre Dağılım
-              <InfoTip text="OpenAlex'in tespit ettiği yayın türleri. Kurumsal modda: tüm kurum yayınlarının agregat dağılımı (atıf sütunu agregat sorgudan elde edilemediği için gösterilmez). Yazar/Fakülte modunda: örneklem üzerinden sayım + atıf toplamı." />
+              <InfoTip text="OpenAlex'in tespit ettiği yayın türleri. Kurumsal modda: tüm kurum yayınlarının agregat dağılımı (atıf sütunu agregat sorgudan elde edilemediği için gösterilmez)." />
             </h4>
             <p className="text-xs text-muted mb-4">
               {hasCitations ? 'Türe göre adet ve toplam atıf' : 'Türe göre adet ve pay (kurum genel agregat)'}
@@ -829,7 +827,7 @@ function YearDrilldown({ year, publications, topCited, onClose }: {
       </div>
       {filtered.length === 0 ? (
         <p className="text-sm text-muted text-center py-6">
-          {year} yılında yayın bulunamadı (örneklem dışı kalmış olabilir - kurumsal toplam daha yüksek).
+          {year} yılında bu listede gösterilen yayın yok. Toplam kurum yayını rakamı yukarıdaki KPI kartından görünür.
         </p>
       ) : (
         <div className="divide-y" style={{ borderColor: '#f0ede8', maxHeight: 600, overflowY: 'auto' }}>
