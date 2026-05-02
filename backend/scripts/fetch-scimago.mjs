@@ -16,9 +16,11 @@
  * Tipik süre: 30-60 sn, dosya boyutu ~30 MB (sadece ihtiyaç duyulan kolonlar).
  */
 
-import { writeFileSync, mkdirSync, existsSync } from 'fs';
+import { writeFileSync, mkdirSync, existsSync, readFileSync, unlinkSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
+import { tmpdir } from 'os';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR   = join(__dirname, '..', 'assets');
@@ -38,10 +40,16 @@ async function main() {
   for (const url of CANDIDATES) {
     console.log(`\n→ Deniyor: ${url}`);
     try {
+      // Cloudflare bot bloğunu geçmek için tam Chrome browser fingerprint
       const res = await fetch(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; mku-tto fetcher)',
-          'Accept': 'text/csv, application/csv, text/plain, */*',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+          'Accept-Language': 'tr-TR,tr;q=0.9,en;q=0.8',
+          'Sec-Fetch-Dest': 'document',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'same-origin',
+          'Referer': 'https://www.scimagojr.com/journalrank.php',
         },
       });
       console.log(`  HTTP ${res.status} ${res.statusText}`);
@@ -79,9 +87,61 @@ async function main() {
   }
 
   if (!ok) {
-    console.error('\n✗ Hiçbir URL\'den indirilemedi. SCImago erişim sorunu olabilir.');
-    process.exit(1);
+    console.log('\n⚠ Node fetch başarısız - Cloudflare TLS fingerprint kontrolü.');
+    console.log('  curl ile fallback deneniyor (curl çoğu sistemde varsayılan)...');
+    if (await tryCurlFallback()) {
+      ok = true;
+    } else {
+      console.error('\n✗ curl ile de indirilemedi.');
+      console.error('  Çözüm önerileri:');
+      console.error('  1. Tarayıcıda https://www.scimagojr.com/journalrank.php aç,');
+      console.error('     "Download data" linkine tıkla, indirilen dosyayı:');
+      console.error('     ' + OUT_PATH);
+      console.error('     yoluna kaydet.');
+      console.error('  2. Sonra: git add backend/assets/scimago-sjr.csv && git commit && git push');
+      process.exit(1);
+    }
   }
+}
+
+async function tryCurlFallback() {
+  for (const url of CANDIDATES) {
+    console.log(`\n→ curl deneniyor: ${url}`);
+    const tmpFile = join(tmpdir(), `scimago-${Date.now()}.csv`);
+    try {
+      execSync([
+        'curl', '-sS', '-L', '-f',
+        '-o', `"${tmpFile}"`,
+        '-H', '"User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"',
+        '-H', '"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"',
+        '-H', '"Accept-Language: tr-TR,tr;q=0.9,en;q=0.8"',
+        '-H', '"Referer: https://www.scimagojr.com/journalrank.php"',
+        `"${url}"`,
+      ].join(' '), { stdio: ['ignore', 'pipe', 'pipe'], timeout: 90000 });
+
+      if (!existsSync(tmpFile)) continue;
+      const text = readFileSync(tmpFile, 'utf-8');
+      unlinkSync(tmpFile);
+      if (!/rank|issn|title/i.test(text.slice(0, 200))) {
+        console.log('  Beklenmeyen içerik formatı.');
+        continue;
+      }
+      const lines = text.split(/\r?\n/).filter(Boolean);
+      console.log(`  ✓ curl ile indirildi: ${(text.length / 1024 / 1024).toFixed(1)} MB, ~${lines.length} satır`);
+      const trimmed = trimCsv(text);
+      if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true });
+      writeFileSync(OUT_PATH, trimmed, 'utf-8');
+      console.log(`✓ Kaydedildi: ${OUT_PATH} (${(trimmed.length / 1024 / 1024).toFixed(1)} MB)`);
+      console.log('\nŞimdi commit + push edin:');
+      console.log('  git add backend/assets/scimago-sjr.csv');
+      console.log('  git commit -m "data: SCImago SJR snapshot"');
+      console.log('  git push');
+      return true;
+    } catch (e) {
+      console.log(`  curl hata: ${e.message}`);
+    }
+  }
+  return false;
 }
 
 /**
