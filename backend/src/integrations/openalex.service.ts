@@ -47,7 +47,7 @@ export interface OpenAlexWork {
   type?: string;
   citedBy: number;
   openAccess?: { isOa: boolean; oaStatus?: string; oaUrl?: string };
-  venue?: { displayName?: string; issn?: string[]; type?: string; publisher?: string };
+  venue?: { displayName?: string; issn?: string[]; issnL?: string; sourceId?: string; type?: string; publisher?: string };
   authors: Array<{ id?: string; displayName: string; orcid?: string; institution?: string; institutions?: string[]; countries?: string[] }>;
   concepts: Array<{ displayName: string; level: number; score: number }>;
   sdgs?: Array<{ displayName: string; id: string; score: number }>;  // UN SDG eşlemesi - AVESIS seviyesini geçer
@@ -315,6 +315,10 @@ export class OpenAlexService {
       venue: primaryLocation.source ? {
         displayName: primaryLocation.source.display_name,
         issn: primaryLocation.source.issn,
+        // ISSN-L = linking ISSN: print/electronic versionlar arasi tek kimlik
+        issnL: primaryLocation.source.issn_l,
+        // OpenAlex source ID: 'https://openalex.org/Sxxxxxxx' - en guvenilir lookup anahtari
+        sourceId: primaryLocation.source.id ? String(primaryLocation.source.id).replace(/^https?:\/\/openalex\.org\//, '') : undefined,
         type: primaryLocation.source.type,
         publisher: primaryLocation.source.host_organization_name,
       } : undefined,

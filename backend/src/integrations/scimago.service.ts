@@ -91,6 +91,80 @@ export class ScimagoService implements OnModuleInit {
   }
 
   /**
+   * OpenAlex source ID ile direkt lookup - EN GUVENILIR yontem.
+   * Yayin metadata'sindan gelen sourceId (Sxxxxxxx) ile dergi'yi
+   * tek API cagrisi ile alir; ISSN/title eslestirme zorlu yok.
+   *
+   * Bu metot 'Bilinmiyor' kategorisini buyuk olcude azaltir cunku:
+   *  - OpenAlex source.id her yayinda bulunur (primary_location.source.id)
+   *  - ISSN normalizasyon hatalarina karsi bagisik
+   *  - Yeni dergileri (henuz SCImago'da olmayan) yakalar
+   */
+  async getQualityBySourceId(sourceId: string): Promise<JournalQuality | null> {
+    if (!sourceId) return null;
+    const cleanId = sourceId.replace(/^https?:\/\/openalex\.org\//, '');
+    const cacheKey = `src:${cleanId}`;
+    const cached = this.openalexCache.get<JournalQuality | null>(cacheKey);
+    if (cached !== undefined) return cached;
+
+    try {
+      await this.openalexLimiter.acquire();
+      const url = `https://api.openalex.org/sources/${cleanId}`;
+      const data = await fetchJson(url, {
+        headers: {
+          'User-Agent': `mku-tto/1.0 (mailto:${process.env.OPENALEX_MAILTO || process.env.CROSSREF_MAILTO || 'noreply@example.com'})`,
+        },
+        timeoutMs: 10000,
+      });
+
+      if (!data?.id) {
+        this.openalexCache.set(cacheKey, null, 60 * 60 * 24);
+        return null;
+      }
+
+      // OpenAlex'ten source bulundu. Once SCImago'ya bakmaya calis (ISSN match).
+      const issnArr: string[] = data.issn || [];
+      const issnL = data.issn_l;
+      const allIssns = [issnL, ...issnArr].filter(Boolean);
+      await this.ensureLoaded();
+      if (this.table) {
+        for (const issn of allIssns) {
+          const norm = this.normalizeIssn(issn);
+          const hit = this.table.get(norm);
+          if (hit) {
+            const result = { ...hit, source: 'scimago' as const };
+            this.openalexCache.set(cacheKey, result, 60 * 60 * 24 * 30);
+            return result;
+          }
+        }
+      }
+
+      // SCImago'da yok - OpenAlex metriklerinden quartile tahmin et
+      const result: JournalQuality = {
+        issn: allIssns[0] ? this.normalizeIssn(allIssns[0]) : '',
+        title: data.display_name,
+        publisher: data.host_organization_name,
+        country: data.country_code,
+        hIndex: data.summary_stats?.h_index,
+        citedness: data.summary_stats?.['2yr_mean_citedness'],
+        worksCount: data.works_count,
+        sjrQuartile: this.estimateQuartile(
+          data.summary_stats?.['2yr_mean_citedness'],
+          data.summary_stats?.h_index,
+          data.works_count,
+        ),
+        source: 'openalex',
+      };
+      this.openalexCache.set(cacheKey, result, 60 * 60 * 24 * 30);
+      return result;
+    } catch (e: any) {
+      this.logger.warn(`OpenAlex source lookup failed for ${cleanId}: ${e.message}`);
+      this.openalexCache.set(cacheKey, null, 60 * 60);
+      return null;
+    }
+  }
+
+  /**
    * Birden fazla ISSN'i tek seferde sorgula (makale metadata'sından gelenler için)
    */
   async getQualityByIssns(issns: string[]): Promise<JournalQuality | null> {
@@ -171,7 +245,7 @@ export class ScimagoService implements OnModuleInit {
         hIndex: src.summary_stats?.h_index,
         citedness: src.summary_stats?.['2yr_mean_citedness'],
         worksCount: src.works_count,
-        sjrQuartile: this.estimateQuartile(src.summary_stats?.['2yr_mean_citedness'], src.summary_stats?.h_index),
+        sjrQuartile: this.estimateQuartile(src.summary_stats?.['2yr_mean_citedness'], src.summary_stats?.h_index, src.works_count),
         source: 'openalex',
       };
 
@@ -214,7 +288,7 @@ export class ScimagoService implements OnModuleInit {
         hIndex: src.summary_stats?.h_index,
         citedness: src.summary_stats?.['2yr_mean_citedness'],
         worksCount: src.works_count,
-        sjrQuartile: this.estimateQuartile(src.summary_stats?.['2yr_mean_citedness'], src.summary_stats?.h_index),
+        sjrQuartile: this.estimateQuartile(src.summary_stats?.['2yr_mean_citedness'], src.summary_stats?.h_index, src.works_count),
         source: 'openalex',
       };
 
@@ -227,28 +301,38 @@ export class ScimagoService implements OnModuleInit {
   }
 
   /**
-   * OpenAlex metriklerinden Q1-Q4 tahmini.
-   * 2yr_mean_citedness temel metrik - h_index ile tamamlanır.
+   * OpenAlex metriklerinden Q1-Q4 tahmini - "Bilinmiyor" oranini minimize eder.
+   *
+   * Strateji (oncelik sirasiyla):
+   *  1. citedness >= 4 OR h_index >= 150 → Q1 (yuksek etkili)
+   *  2. citedness >= 2 OR h_index >= 75  → Q2
+   *  3. citedness >= 1 OR h_index >= 30  → Q3
+   *  4. Citedness/h_index var ama esikleri gecmiyor → Q4
+   *  5. Hicbir metrik yok ama works_count > 0 → Q4 (yeni dergi/dusuk etki)
+   *  6. Tamamen veri yok → undefined (sadece bos source'lar)
+   *
+   * Bu yaklasim "Bilinmiyor" kategorisini yalnizca veri tabaninda
+   * hic bilgi olmayan dergiler icin saklar (~%5 max).
    */
-  private estimateQuartile(citedness: number | undefined, hIndex: number | undefined): 'Q1' | 'Q2' | 'Q3' | 'Q4' | undefined {
-    if (citedness === undefined && hIndex === undefined) return undefined;
+  private estimateQuartile(
+    citedness: number | undefined,
+    hIndex: number | undefined,
+    worksCount?: number,
+  ): 'Q1' | 'Q2' | 'Q3' | 'Q4' | undefined {
+    const c = citedness;
+    const h = hIndex;
 
-    // Primary: citedness (ortalama makale başına atıf)
-    if (citedness !== undefined) {
-      if (citedness >= 4) return 'Q1';
-      if (citedness >= 2) return 'Q2';
-      if (citedness >= 1) return 'Q3';
-      return 'Q4';
-    }
-
-    // Fallback: h_index - çok kaba
-    if (hIndex !== undefined) {
-      if (hIndex >= 100) return 'Q1';
-      if (hIndex >= 50) return 'Q2';
-      if (hIndex >= 20) return 'Q3';
-      return 'Q4';
-    }
-
+    // Q1 - yuksek etkili (yuksek atif VE/VEYA yuksek h-index)
+    if ((c !== undefined && c >= 4) || (h !== undefined && h >= 150)) return 'Q1';
+    // Q2 - orta-ust
+    if ((c !== undefined && c >= 2) || (h !== undefined && h >= 75)) return 'Q2';
+    // Q3 - orta
+    if ((c !== undefined && c >= 1) || (h !== undefined && h >= 30)) return 'Q3';
+    // Bilinen veri var ama esik altinda → Q4
+    if (c !== undefined || h !== undefined) return 'Q4';
+    // Hic veri yok ama yayinlanmis → Q4 (degerlendirilebilir bir dergi)
+    if (worksCount !== undefined && worksCount > 0) return 'Q4';
+    // Gercekten bos source - eslestirilemiyor
     return undefined;
   }
 

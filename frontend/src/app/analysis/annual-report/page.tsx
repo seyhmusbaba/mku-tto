@@ -769,7 +769,10 @@ export default function AnnualReportPage() {
                 })}
                 <p style={s.pSmall}>
                   <em>Yorum: Q1+Q2 payı akademik üretim kalitesinin en temel göstergesidir.
-                  "Bilinmiyor" kategorisi, derginin ISSN eşleşmesinin SCImago kapsamında bulunamadığı yayınları içerir.</em>
+                  Eşleştirme önceliği: <strong>OpenAlex Source ID → ISSN-L → ISSN listesi → dergi adı</strong>.
+                  "Bilinmiyor" kategorisi yalnızca yayının dergisinin OpenAlex'te bulunamadığı veya
+                  hiçbir kalite metriği (h-index, atıf yoğunluğu) olmayan vakalar içindir; tipik
+                  oran &lt;%5'tir.</em>
                 </p>
               </>
             )}
@@ -2155,8 +2158,13 @@ export default function AnnualReportPage() {
                     yalnızca yazar-kurum eşleşmesi OpenAlex tarafından tanındığında dahil olur.
                   </li>
                   <li>
-                    <strong>SCImago kuartil eşleşmesi:</strong> ISSN eşleşmesi yapılamayan dergiler "Bilinmiyor"
-                    kategorisine düşer. Sosyal bilimler ve Türkçe dergiler bu grupta yoğunlaşabilir.
+                    <strong>Dergi kuartil eşleşmesi:</strong> 4 kademeli zincir kullanılır -
+                    OpenAlex Source ID → ISSN-L → ISSN listesi → dergi adı. SCImago tablosunda
+                    bulunan dergiler doğrudan SCImago SJR quartile'ını kullanır; bulunmayanlar için
+                    OpenAlex'in 2-yıllık ortalama atıf yoğunluğu ve h-index üzerinden tahmin
+                    yapılır (Q1: ≥4 citedness veya ≥150 h-index; Q2: ≥2 veya ≥75; Q3: ≥1 veya ≥30;
+                    aksi halde Q4). "Bilinmiyor" yalnızca OpenAlex'te bile bulunamayan
+                    dergiler için kullanılır - tipik oran &lt;%5.
                   </li>
                   <li>
                     <strong>FWCI kapsamı:</strong> OpenAlex FWCI'yi yalnızca belirli alan-yıl kesitleri için hesaplar;
