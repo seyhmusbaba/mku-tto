@@ -98,23 +98,24 @@ export class AiController {
   async annualReportNarrative(@Body() body: {
     year: number;
     siteName: string;
+    bibliometricsEnabled?: boolean;
     totalProjects?: number;
     activeProjects?: number;
     completedProjects?: number;
     cancelledProjects?: number;
     successRate?: number;
     totalBudget?: number;
-    totalPublications?: number;
-    totalCitations?: number;
-    hIndex?: number;
+    totalPublications?: number | null;
+    totalCitations?: number | null;
+    hIndex?: number | null;
     avgFwci?: number | null;
-    top1PctCount?: number;
-    top10PctCount?: number;
-    openAccessRatio?: number;
-    q1Count?: number;
-    quartileTotal?: number;
+    top1PctCount?: number | null;
+    top10PctCount?: number | null;
+    openAccessRatio?: number | null;
+    q1Count?: number | null;
+    quartileTotal?: number | null;
     sdgCovered?: number;
-    internationalCoauthorRatio?: number;
+    internationalCoauthorRatio?: number | null;
     pubGrowthPct?: number | null;
     topFaculty?: string;
     peerRank?: { mkuWorks?: number; peerCount?: number; position?: number };
@@ -126,17 +127,19 @@ export class AiController {
       return { preface: this.fallbackNarrative(body), evaluation: '', outlook: '' };
     }
 
+    const bibOn = body.bibliometricsEnabled !== false;
     const dataSummary = `
 YIL: ${body.year}
 KURUM: ${body.siteName}
+BİBLİYOMETRİ DURUMU: ${bibOn ? 'AÇIK' : 'KAPALI (rapor yalnızca proje verisi içerir)'}
 
 PROJE PORTFÖYÜ:
 - Toplam proje: ${body.totalProjects || 0}
 - Aktif: ${body.activeProjects || 0}, Tamamlanan: ${body.completedProjects || 0}
 - Başarı oranı: %${body.successRate || 0}
 - Toplam bütçe: ${body.totalBudget ? (body.totalBudget / 1_000_000).toFixed(1) + 'M TL' : 'yok'}
-
-AKADEMİK ÇIKTI:
+${bibOn ? `
+AKADEMİK ÇIKTI (BİBLİYOMETRİ):
 - Yayın: ${body.totalPublications || 0}, Atıf: ${body.totalCitations || 0}
 - h-index: ${body.hIndex || 0}
 - Ortalama FWCI: ${body.avgFwci !== null && body.avgFwci !== undefined ? body.avgFwci : 'veri yok'}
@@ -148,14 +151,14 @@ AKADEMİK ÇIKTI:
 ULUSLARARASI:
 - Yurt dışı ortak yazarlı yayın: %${body.internationalCoauthorRatio || 0}
 - Yıllık yayın değişimi: ${body.pubGrowthPct === null || body.pubGrowthPct === undefined ? 'hesaplanamadı' : (body.pubGrowthPct >= 0 ? '+' : '') + body.pubGrowthPct + '%'}
-
+` : ''}
 KURUMSAL:
 - SDG kapsamı: ${body.sdgCovered || 0}/17
 - En başarılı fakülte: ${body.topFaculty || '-'}
-${body.peerRank?.peerCount ? `- Peer üniversiteler arasında yayın sırası: ${body.peerRank.position}/${body.peerRank.peerCount}` : ''}
+${bibOn && body.peerRank?.peerCount ? `- Peer üniversiteler arasında yayın sırası: ${body.peerRank.position}/${body.peerRank.peerCount}` : ''}
     `.trim();
 
-    const prompt = `Sen kurumsal bibliyometri raporu için kıdemli bir analist rolündesin - üniversite rektörlüğü ve senato seviyesinde okunacak bir belge yazıyorsun. Verilen kurumun ${body.year} yılına dair raporu için 3 bölümlük profesyonel metin üret.
+    const prompt = `Sen ${bibOn ? 'kurumsal bibliyometri raporu' : 'kurumsal yıllık faaliyet raporu'} için kıdemli bir analist rolündesin - üniversite rektörlüğü ve senato seviyesinde okunacak bir belge yazıyorsun. Verilen kurumun ${body.year} yılına dair raporu için 3 bölümlük profesyonel metin üret.
 
 GÖRÜNEN VERİ:
 ${dataSummary}
@@ -163,22 +166,24 @@ ${dataSummary}
 YAZIM KURALLARI:
 • Türkçe, resmi ama mekanik değil - akıcı bir analist tonu.
 • KESİNLİKLE "önemli bir yıl oldu", "büyük başarı" gibi klişe ifadeler yok.
-• Her iddiayı spesifik sayıyla destekle. ("FWCI 1.2 ile alan ortalamasının üstünde", "%${body.internationalCoauthorRatio} uluslararası ortaklık oranı" gibi).
+• Her iddiayı spesifik sayıyla destekle.
 • Güçlü yönlerle zayıf yönleri dengeli tut. Örtbas yapma - veri eksikse "şu metrik için yeterli veri yok" de.
-• FWCI 1.0 altındaysa, top 1% sıfırsa, uluslararası oran düşükse bunu açıkça yorumla ve neden olabileceğini tahmin et.
-• Spesifik karşılaştırma yap: peer üniversiteler var mı, var ise konumunu söyle.
-• Rakamları havada bırakma: "%72 başarı" değil "%72 - kararlaşan projelerin büyük çoğunluğu tamamlanıyor, ancak ${body.totalProjects ? Math.round(((body.cancelledProjects || 0) / body.totalProjects) * 100) : 0}% iptal oranı da mevcut".
+• Spesifik karşılaştırma yap${bibOn ? ': peer üniversiteler var mı, var ise konumunu söyle' : ' (yıl içi proje hareketleri, fakülte performans farklılıkları)'}.
+• Rakamları havada bırakma.
+${!bibOn ? '• ÖNEMLİ: Bibliyometri (yayın/atıf/h-index) verisi BU RAPORDA YOKTUR - sistem yöneticisi kapatmıştır. Bu metrikler hakkında konuşma; yalnızca proje/fakülte/bütçe/SKH veri setine odaklan.' : ''}
 
 3 BÖLÜMÜN İÇERİĞİ:
 
 1. PREFACE (önsöz): ~130 kelime, 2 paragraf. Kurumsal bakış açısıyla yılın özetini anlatan bir önsöz - TTO/rektörlük imzasından çıkmış gibi hissettirsin. İlk paragrafta yılın bağlamı (hangi büyüme alanı dikkat çekti), ikincide araştırma politikasına dair kısa bir mesaj.
 
 2. EVALUATION (analitik değerlendirme): ~200 kelime, 3 paragraf.
-   - 1. paragraf: Üretkenlik ve büyüme analizi (yayın sayısı, atıf birikimi, pubGrowthPct). Pozitif VEYA negatifse neden olabileceği.
+${bibOn ? `   - 1. paragraf: Üretkenlik ve büyüme analizi (yayın sayısı, atıf birikimi, pubGrowthPct). Pozitif VEYA negatifse neden olabileceği.
    - 2. paragraf: Kalite ve etki analizi (FWCI, Top 1%/10%, Q1 payı, OA oranı). Zayıf göstergeleri açıkça söyle.
-   - 3. paragraf: Uluslararasılaşma ve portföy çeşitliliği (intl ortaklık, ülke sayısı, SDG kapsamı). Peer karşılaştırma varsa yorumla.
+   - 3. paragraf: Uluslararasılaşma ve portföy çeşitliliği (intl ortaklık, ülke sayısı, SDG kapsamı). Peer karşılaştırma varsa yorumla.` : `   - 1. paragraf: Proje portföyü dinamiği (toplam, aktif, tamamlanan oranı, başarı oranı). Hangi büyüklükte bir kurum portföyü olduğunu konumla.
+   - 2. paragraf: Bütçe ve kaynak kullanımı, fakülte performans dağılımı, en başarılı fakülte.
+   - 3. paragraf: SKH kapsamı ve fakülteler arası işbirliği. Etik kurul ve fikri mülkiyet çıktıları varsa onları da yorumla.`}
 
-3. OUTLOOK (gelecek): ~90 kelime, 1 paragraf. Gerçekçi somut hedefler - "çok yayın yapalım" gibi değil, "FWCI'yi 1.X seviyesine çekmek için yüksek IF'li dergilerde 2-3 stratejik yayın hedeflenebilir" gibi. Mevcut zayıf noktaları telafi edecek öneriler.
+3. OUTLOOK (gelecek): ~90 kelime, 1 paragraf. Gerçekçi somut hedefler. Mevcut zayıf noktaları telafi edecek öneriler.
 
 TONU HATIRLA: Bu rapor dekan ve rektöre gidecek. Klişe veya reklam dili DEĞİL - kararlı analitik dil kullan.
 

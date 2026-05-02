@@ -485,4 +485,105 @@ export class AnalyticsService {
       tags: p.tags?.join(', ') || '', createdAt: p.createdAt,
     }));
   }
+
+  /**
+   * Yillik raporun ek detaylari: etik durum, IP portfoyu, demografi, ortak ozeti.
+   * Tek API cagrisi ile rapor zenginlesir, ekstra round-trip yok.
+   */
+  async getReportExtras(userId: string, roleName: string) {
+    const scope = await this.resolveScope(userId, roleName);
+
+    // Tum projeleri scope ile cek
+    const qb = this.projectRepo.createQueryBuilder('p').leftJoinAndSelect('p.partners', 'pr');
+    this.applyScope(qb, 'p', scope);
+    const projects = await qb.getMany();
+
+    // Etik durumu
+    const ethics = {
+      total: projects.length,
+      required: projects.filter(p => (p as any).ethicsRequired).length,
+      approved: projects.filter(p => (p as any).ethicsApproved).length,
+      pending: projects.filter(p => (p as any).ethicsRequired && !(p as any).ethicsApproved).length,
+      notRequired: projects.filter(p => !(p as any).ethicsRequired).length,
+    };
+
+    // Fikri Mulkiyet portfoyu
+    const ipByStatus: Record<string, number> = {};
+    const ipByType: Record<string, number> = {};
+    let totalIp = 0;
+    for (const p of projects) {
+      const status = (p as any).ipStatus || 'none';
+      if (status !== 'none') {
+        totalIp++;
+        ipByStatus[status] = (ipByStatus[status] || 0) + 1;
+        const type = (p as any).ipType || 'belirtilmemis';
+        ipByType[type] = (ipByType[type] || 0) + 1;
+      }
+    }
+    const ip = {
+      total: totalIp,
+      byStatus: Object.entries(ipByStatus).map(([k, v]) => ({ key: k, count: v })).sort((a, b) => b.count - a.count),
+      byType: Object.entries(ipByType).map(([k, v]) => ({ key: k, count: v })).sort((a, b) => b.count - a.count),
+    };
+
+    // Ortak (partner) ozeti
+    const partnerSet = new Map<string, { name: string; sector: string; projectCount: number }>();
+    for (const p of projects) {
+      for (const pr of (p.partners || [])) {
+        const key = (pr.name || '').trim().toLowerCase();
+        if (!key) continue;
+        const existing = partnerSet.get(key);
+        if (existing) existing.projectCount++;
+        else partnerSet.set(key, { name: pr.name, sector: (pr as any).sector || '-', projectCount: 1 });
+      }
+    }
+    const partnersList = Array.from(partnerSet.values()).sort((a, b) => b.projectCount - a.projectCount);
+    const partners = {
+      total: partnersList.length,
+      totalLinks: partnersList.reduce((s, p) => s + p.projectCount, 0),
+      bySector: Object.entries(partnersList.reduce((acc, p) => { acc[p.sector] = (acc[p.sector] || 0) + 1; return acc; }, {} as Record<string, number>))
+        .map(([k, v]) => ({ sector: k, count: v }))
+        .sort((a, b) => b.count - a.count),
+      top: partnersList.slice(0, 15),
+    };
+
+    // Demografi - akademisyenlerin unvan/rol dagilimi (scope'a uygun)
+    const userQb = this.userRepo.createQueryBuilder('u').leftJoinAndSelect('u.role', 'r').where('u.isActive = true');
+    if (scope.kind === 'faculty') userQb.andWhere('u.faculty = :f', { f: scope.faculty });
+    if (scope.kind === 'department') userQb.andWhere('u.department = :d', { d: scope.department });
+    const users = await userQb.getMany();
+    const titleCounts: Record<string, number> = {};
+    const roleCounts: Record<string, number> = {};
+    for (const u of users) {
+      const t = (u.title || 'Belirtilmemiş').trim() || 'Belirtilmemiş';
+      titleCounts[t] = (titleCounts[t] || 0) + 1;
+      const rn = u.role?.name || 'Akademisyen';
+      roleCounts[rn] = (roleCounts[rn] || 0) + 1;
+    }
+    const demographics = {
+      totalActive: users.length,
+      byTitle: Object.entries(titleCounts).map(([k, v]) => ({ title: k, count: v })).sort((a, b) => b.count - a.count),
+      byRole: Object.entries(roleCounts).map(([k, v]) => ({ role: k, count: v })).sort((a, b) => b.count - a.count),
+    };
+
+    // Bu yil tamamlanan projeler (yil-icinde-bitenler)
+    const currentYear = new Date().getFullYear();
+    const completedThisYear = projects
+      .filter(p => p.status === 'completed' && p.endDate && p.endDate.startsWith(String(currentYear)))
+      .map(p => ({
+        id: p.id, title: p.title, faculty: p.faculty, type: p.type,
+        budget: p.budget, endDate: p.endDate,
+      }))
+      .sort((a, b) => (b.budget || 0) - (a.budget || 0))
+      .slice(0, 20);
+
+    return {
+      ethics,
+      ip,
+      partners,
+      demographics,
+      completedThisYear,
+      scope: scope.kind,
+    };
+  }
 }

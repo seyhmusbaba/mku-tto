@@ -64,6 +64,10 @@ export default function AnnualReportPage() {
   const [funding, setFunding] = useState<any>(null);
   const [budget, setBudget] = useState<any>(null);
   const [peerBench, setPeerBench] = useState<any>(null);
+  const [reportExtras, setReportExtras] = useState<any>(null);
+  // ADMIN AYARI: Bibliyometri gosterimi sistem genelinde kapaliysa rapor da
+  // bibliyometri bolumlerini icermez. Varsayilan: acik.
+  const [bibliometricsEnabled, setBibliometricsEnabled] = useState<boolean>(true);
   const [narrative, setNarrative] = useState<{preface: string; evaluation: string; outlook: string}>({ preface: '', evaluation: '', outlook: '' });
   const [narrativeLoading, setNarrativeLoading] = useState(false);
   const [siteName, setSiteName] = useState('MKÜ TTO');
@@ -82,36 +86,61 @@ export default function AnnualReportPage() {
     if (!token) { setError('Oturum bulunamadı'); setLoading(false); return; }
     const headers = { Authorization: 'Bearer ' + token };
 
-    Promise.all([
-      axios.get(`${base}/analytics/overview`, { headers }).then(r => r.data).catch(() => null),
-      axios.get(`${base}/analytics/institutional/faculty-radar`, { headers }).then(r => r.data).catch(() => []),
-      axios.get(`${base}/analytics/institutional/collaboration-matrix`, { headers }).then(r => r.data).catch(() => null),
-      axios.get(`${base}/analytics/institutional/sdg-heatmap`, { headers }).then(r => r.data).catch(() => null),
-      axios.get(`${base}/analytics/researcher-productivity`, { headers, params: { limit: 25 } }).then(r => r.data).catch(() => []),
-      axios.get(`${base}/analytics/bibliometrics/institutional`, { headers }).then(r => r.data).catch(() => null),
-      axios.get(`${base}/integrations/cordis/organization`, { headers, params: { name: 'Mustafa Kemal University', limit: 20 } }).then(r => r.data).catch(() => []),
-      axios.get(`${base}/analytics/timeline`, { headers }).then(r => r.data).catch(() => []),
-      axios.get(`${base}/analytics/funding-success`, { headers }).then(r => r.data).catch(() => null),
-      axios.get(`${base}/analytics/budget-utilization`, { headers }).then(r => r.data).catch(() => null),
-      axios.get(`${base}/analytics/bibliometrics/peer-benchmark`, { headers }).then(r => r.data).catch(() => null),
-      axios.get(`${base}/settings`, { headers }).then(r => {
-        if (r.data?.site_name) setSiteName(r.data.site_name);
-        if (r.data?.institution_name) setInstitutionName(r.data.institution_name);
-        if (r.data?.rector_name) setRectorName(r.data.rector_name);
-      }).catch(() => {}),
-      axios.get(`${base}/users/me`, { headers }).then(r => {
-        const u = r.data;
-        if (u) {
-          const fullName = [u.title, u.firstName, u.lastName].filter(Boolean).join(' ').trim();
-          setCurrentUser({ name: fullName || u.email, title: u.title, role: u.role?.name });
-        }
-      }).catch(() => {}),
-    ])
-      .then(([ov, rad, col, sdg, res, inst, cord, tml, fnd, bud, peer]) => {
+    // Once ayarlari cek - bibliyometri gostermesi gerekiyor mu?
+    axios.get(`${base}/settings`, { headers })
+      .then(r => {
+        const settings = r.data || {};
+        if (settings.site_name) setSiteName(settings.site_name);
+        if (settings.institution_name) setInstitutionName(settings.institution_name);
+        if (settings.rector_name) setRectorName(settings.rector_name);
+        const showBib = settings.show_bibliometrics;
+        // 'false' string disinda her sey acik kabul edilir
+        const enabled = !(showBib === 'false' || showBib === false);
+        setBibliometricsEnabled(enabled);
+        return enabled;
+      })
+      .catch(() => true)
+      .then((enabled) => {
+        // Proje bazli endpointler her zaman cagrilir
+        const projectCalls: Promise<any>[] = [
+          axios.get(`${base}/analytics/overview`, { headers }).then(r => r.data).catch(() => null),
+          axios.get(`${base}/analytics/institutional/faculty-radar`, { headers }).then(r => r.data).catch(() => []),
+          axios.get(`${base}/analytics/institutional/collaboration-matrix`, { headers }).then(r => r.data).catch(() => null),
+          axios.get(`${base}/analytics/institutional/sdg-heatmap`, { headers }).then(r => r.data).catch(() => null),
+          axios.get(`${base}/analytics/researcher-productivity`, { headers, params: { limit: 25 } }).then(r => r.data).catch(() => []),
+          axios.get(`${base}/integrations/cordis/organization`, { headers, params: { name: 'Mustafa Kemal University', limit: 20 } }).then(r => r.data).catch(() => []),
+          axios.get(`${base}/analytics/timeline`, { headers }).then(r => r.data).catch(() => []),
+          axios.get(`${base}/analytics/funding-success`, { headers }).then(r => r.data).catch(() => null),
+          axios.get(`${base}/analytics/budget-utilization`, { headers }).then(r => r.data).catch(() => null),
+          // Yeni: rapor ekstralari (etik + IP + ortak + demografi + bu yil tamamlanan)
+          axios.get(`${base}/analytics/report-extras`, { headers }).then(r => r.data).catch(() => null),
+        ];
+        // Bibliyometri endpointleri sadece admin acmissa cagrilir
+        const bibCalls: Promise<any>[] = enabled
+          ? [
+              axios.get(`${base}/analytics/bibliometrics/institutional`, { headers }).then(r => r.data).catch(() => null),
+              axios.get(`${base}/analytics/bibliometrics/peer-benchmark`, { headers }).then(r => r.data).catch(() => null),
+            ]
+          : [Promise.resolve(null), Promise.resolve(null)];
+
+        // Kullanici bilgisi (paralel, sonucu beklenmez)
+        axios.get(`${base}/users/me`, { headers }).then(r => {
+          const u = r.data;
+          if (u) {
+            const fullName = [u.title, u.firstName, u.lastName].filter(Boolean).join(' ').trim();
+            setCurrentUser({ name: fullName || u.email, title: u.title, role: u.role?.name });
+          }
+        }).catch(() => {});
+
+        return Promise.all([...projectCalls, ...bibCalls]);
+      })
+      .then((all) => {
+        const [ov, rad, col, sdg, res, cord, tml, fnd, bud, extras, inst, peer] = all;
         setOverview(ov); setRadar(rad); setCollab(col); setSdgHeat(sdg);
-        setResearchers(res); setInstitutional(inst); setCordisProjects(cord || []);
+        setResearchers(res); setCordisProjects(cord || []);
         setTimeline(tml || []); setFunding(fnd); setBudget(bud);
-        setPeerBench(peer);
+        setReportExtras(extras);
+        setInstitutional(inst); setPeerBench(peer);
       })
       .catch(() => setError('Rapor hazırlanırken hata oluştu'))
       .finally(() => setLoading(false));
@@ -120,22 +149,28 @@ export default function AnnualReportPage() {
   // Ana veri geldiğinde AI narrative'ı iste (background, blocking değil)
   useEffect(() => {
     if (loading || error) return;
-    if (!institutional || !overview) return;
+    if (!overview) return;
     if (narrative.preface) return;
+    // Bibliyometri kapaliysa institutional veri yok - narrative yine cagrilabilir
+    // (proje verisine dayali). Bibliyometri varsa o veriyi de ekle.
+    const hasBib = bibliometricsEnabled && institutional;
+    if (bibliometricsEnabled && !institutional) return; // bekleniyor
 
     const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
     const token = localStorage.getItem('tto_token') || '';
     if (!token) return;
     const headers = { Authorization: 'Bearer ' + token };
 
-    const byYear: any[] = institutional?.byYear || [];
-    const lastYearPt = byYear[byYear.length - 1];
-    const prevYearPt = byYear[byYear.length - 2];
+    const byYear: any[] = (hasBib && institutional?.byYear) || [];
+    const lastYearPt = byYear.length >= 1 ? byYear[byYear.length - 1] : null;
+    const prevYearPt = byYear.length >= 2 ? byYear[byYear.length - 2] : null;
     const pubGrowth = lastYearPt && prevYearPt && prevYearPt.count > 0
       ? Math.round(((lastYearPt.count - prevYearPt.count) / prevYearPt.count) * 100)
       : null;
 
-    const qTotal = ['Q1','Q2','Q3','Q4','unknown'].reduce((x: number, k: string) => x + (institutional.quartileDistribution?.[k] || 0), 0);
+    const qTotal = hasBib
+      ? ['Q1','Q2','Q3','Q4','unknown'].reduce((x: number, k: string) => x + (institutional.quartileDistribution?.[k] || 0), 0)
+      : 0;
     const topFac = radar.length > 0 ? [...radar].sort((a: any, b: any) => b.successRate - a.successRate)[0]?.faculty : undefined;
     const mkuPeer = peerBench?.peers?.find((p: any) => p.isMku);
     const mkuRank = mkuPeer && peerBench?.peers
@@ -146,22 +181,23 @@ export default function AnnualReportPage() {
     axios.post(`${base}/ai/annual-report-narrative`, {
       year,
       siteName,
+      bibliometricsEnabled: hasBib,
       totalProjects: overview.total || 0,
       activeProjects: overview.activeProjects || 0,
       completedProjects: overview.completedProjects || 0,
       successRate: overview.successRate || 0,
       totalBudget: overview.totalBudget || 0,
-      totalPublications: institutional.total || 0,
-      totalCitations: institutional.totalCitations || 0,
-      hIndex: institutional.hIndex || 0,
-      avgFwci: institutional.avgFwci,
-      top1PctCount: institutional.top1PctCount || 0,
-      top10PctCount: institutional.top10PctCount || 0,
-      openAccessRatio: institutional.openAccessRatio || 0,
-      q1Count: institutional.quartileDistribution?.Q1 || 0,
-      quartileTotal: qTotal - (institutional.quartileDistribution?.unknown || 0),
+      totalPublications: hasBib ? (institutional.total || 0) : null,
+      totalCitations: hasBib ? (institutional.totalCitations || 0) : null,
+      hIndex: hasBib ? (institutional.hIndex || 0) : null,
+      avgFwci: hasBib ? institutional.avgFwci : null,
+      top1PctCount: hasBib ? (institutional.top1PctCount || 0) : null,
+      top10PctCount: hasBib ? (institutional.top10PctCount || 0) : null,
+      openAccessRatio: hasBib ? (institutional.openAccessRatio || 0) : null,
+      q1Count: hasBib ? (institutional.quartileDistribution?.Q1 || 0) : null,
+      quartileTotal: hasBib ? (qTotal - (institutional.quartileDistribution?.unknown || 0)) : null,
       sdgCovered: new Set((sdgHeat?.cells || []).map((c: any) => c.sdgCode)).size,
-      internationalCoauthorRatio: institutional.internationalCoauthorRatio || 0,
+      internationalCoauthorRatio: hasBib ? (institutional.internationalCoauthorRatio || 0) : null,
       pubGrowthPct: pubGrowth,
       topFaculty: topFac,
       peerRank: mkuPeer && peerBench?.peers ? { mkuWorks: mkuPeer.worksCount, peerCount: peerBench.peers.length, position: mkuRank } : undefined,
@@ -169,7 +205,7 @@ export default function AnnualReportPage() {
       .then(r => setNarrative(r.data))
       .catch(() => {})
       .finally(() => setNarrativeLoading(false));
-  }, [loading, error, institutional, overview, radar, sdgHeat, peerBench, siteName, year, narrative.preface]);
+  }, [loading, error, institutional, overview, radar, sdgHeat, peerBench, siteName, year, narrative.preface, bibliometricsEnabled]);
 
   useEffect(() => {
     // Narrative tamamlandıktan (veya 6sn sonra) print tetikle
@@ -200,11 +236,11 @@ export default function AnnualReportPage() {
   const quartileTotal = quartileData.reduce((x, q) => x + q.value, 0);
   const quartileKnown = quartileTotal - (institutional?.quartileDistribution?.unknown || 0);
 
-  // Yıllık büyüme hesabı
-  const byYear: any[] = institutional?.byYear || [];
+  // Yillik buyume hesabi - guvenli array erisim
+  const byYear: any[] = Array.isArray(institutional?.byYear) ? institutional.byYear : [];
   const latestYears = byYear.slice(-5);
-  const lastYear = byYear[byYear.length - 1];
-  const prevYear = byYear[byYear.length - 2];
+  const lastYear = byYear.length >= 1 ? byYear[byYear.length - 1] : null;
+  const prevYear = byYear.length >= 2 ? byYear[byYear.length - 2] : null;
   const pubGrowthPct = lastYear && prevYear && prevYear.count > 0
     ? Math.round(((lastYear.count - prevYear.count) / prevYear.count) * 100)
     : null;
@@ -298,30 +334,45 @@ export default function AnnualReportPage() {
             </div>
           </div>
           <div style={s.coverMid}>
-            <h1 style={s.coverTitle}>YILLIK KURUMSAL<br/>BİBLİYOMETRİ RAPORU</h1>
+            <h1 style={s.coverTitle}>
+              YILLIK KURUMSAL<br/>
+              {bibliometricsEnabled ? 'BİBLİYOMETRİ RAPORU' : 'FAALİYET RAPORU'}
+            </h1>
             <p style={s.coverYear}>{year}</p>
             <p style={s.coverSubtitle}>
-              Proje portföyü, araştırma çıktıları, kurumsal karşılaştırma ve
-              sürdürülebilir kalkınma katkısının çok kaynaklı değerlendirmesi
+              {bibliometricsEnabled
+                ? 'Proje portföyü, araştırma çıktıları, kurumsal karşılaştırma ve sürdürülebilir kalkınma katkısının çok kaynaklı değerlendirmesi'
+                : 'Proje portföyü, fakülte performansı, fonlama, fikri mülkiyet ve sürdürülebilir kalkınma hedeflerine kurumsal katkı'}
             </p>
-            <div style={s.coverFactBox}>
-              <div><p style={s.coverFactNum}>{formatNum(overview?.total || 0)}</p><p style={s.coverFactLbl}>Proje</p></div>
-              <div><p style={s.coverFactNum}>{formatNum(institutional?.total || 0)}</p><p style={s.coverFactLbl}>Yayın</p></div>
-              <div><p style={s.coverFactNum}>{formatNum(institutional?.totalCitations || 0)}</p><p style={s.coverFactLbl}>Atıf</p></div>
-              <div><p style={s.coverFactNum}>{institutional?.hIndex || 0}</p><p style={s.coverFactLbl}>h-index</p></div>
-              <div><p style={s.coverFactNum}>{institutional?.twoYearMeanCitedness !== undefined ? (+institutional.twoYearMeanCitedness).toFixed(2) : '-'}</p><p style={s.coverFactLbl}>2yr Mean Cit.</p></div>
-              <div><p style={s.coverFactNum}>{sdgsCovered}/17</p><p style={s.coverFactLbl}>SDG</p></div>
-            </div>
+            {bibliometricsEnabled ? (
+              <div style={s.coverFactBox}>
+                <div><p style={s.coverFactNum}>{formatNum(overview?.total || 0)}</p><p style={s.coverFactLbl}>Proje</p></div>
+                <div><p style={s.coverFactNum}>{formatNum(institutional?.total || 0)}</p><p style={s.coverFactLbl}>Yayın</p></div>
+                <div><p style={s.coverFactNum}>{formatNum(institutional?.totalCitations || 0)}</p><p style={s.coverFactLbl}>Atıf</p></div>
+                <div><p style={s.coverFactNum}>{institutional?.hIndex || 0}</p><p style={s.coverFactLbl}>h-index</p></div>
+                <div><p style={s.coverFactNum}>{institutional?.twoYearMeanCitedness !== undefined ? (+institutional.twoYearMeanCitedness).toFixed(2) : '-'}</p><p style={s.coverFactLbl}>2yr Atıf Ort.</p></div>
+                <div><p style={s.coverFactNum}>{sdgsCovered}/17</p><p style={s.coverFactLbl}>SKH</p></div>
+              </div>
+            ) : (
+              <div style={{ ...s.coverFactBox, gridTemplateColumns: 'repeat(5, 1fr)' }}>
+                <div><p style={s.coverFactNum}>{formatNum(overview?.total || 0)}</p><p style={s.coverFactLbl}>Proje</p></div>
+                <div><p style={s.coverFactNum}>{formatNum(overview?.activeProjects || 0)}</p><p style={s.coverFactLbl}>Aktif</p></div>
+                <div><p style={s.coverFactNum}>{formatNum(overview?.completedProjects || 0)}</p><p style={s.coverFactLbl}>Tamamlanan</p></div>
+                <div><p style={s.coverFactNum}>{reportExtras?.ip?.total || 0}</p><p style={s.coverFactLbl}>Fikri Mülkiyet</p></div>
+                <div><p style={s.coverFactNum}>{sdgsCovered}/17</p><p style={s.coverFactLbl}>SKH</p></div>
+              </div>
+            )}
           </div>
           <div style={s.coverBottom}>
             <p style={s.coverDataSrc}>
-              Veri kaynakları: Scopus · Web of Science · OpenAlex · Crossref ·
-              SCImago · Unpaywall · PubMed · arXiv · Semantic Scholar · CORDIS · EPO OPS
+              {bibliometricsEnabled
+                ? 'Veri kaynakları: Scopus · Web of Science · OpenAlex · Crossref · SCImago · Unpaywall · PubMed · arXiv · Semantic Scholar · CORDIS · EPO OPS'
+                : 'Veri kaynakları: Kurumsal proje veri tabanı · CORDIS (AB projeleri) · Sistem audit kayıtları'}
             </p>
           </div>
         </div>
 
-        {/* ═══ İÇİNDEKİLER ═══ */}
+        {/* ═══ İÇİNDEKİLER ═══ - bibliyometri durumuna gore dinamik */}
         <div style={s.section}>
           <h2 style={s.h2}>İÇİNDEKİLER</h2>
           <ol style={s.toc}>
@@ -329,22 +380,35 @@ export default function AnnualReportPage() {
             <li>Yönetici Özeti ve Ana Bulgular</li>
             <li>Proje Portföyü ve Durum Dağılımı</li>
             <li>Fakülte Performans Karşılaştırması</li>
-            <li>Bibliyometrik Göstergeler (FWCI, Top 1%, Q1-Q4)</li>
-            <li>Yıllara Göre Yayın ve Atıf Trendi</li>
-            <li>Peer Üniversite Karşılaştırması</li>
-            <li>Uluslararası İşbirliği (Ülke Bazlı)</li>
-            <li>En Çok Atıf Alan Yayınlar</li>
-            <li>Q1 Dergi Yayınları</li>
-            <li>En Çok Yayın Yapılan Dergiler</li>
+            {bibliometricsEnabled && <li>Bibliyometrik Göstergeler (FWCI, Top 1%, Q1-Q4)</li>}
+            {bibliometricsEnabled && <li>Yıllara Göre Yayın ve Atıf Trendi</li>}
+            {bibliometricsEnabled && <li>Peer Üniversite Karşılaştırması</li>}
+            {bibliometricsEnabled && <li>Uluslararası İşbirliği (Ülke Bazlı)</li>}
+            {bibliometricsEnabled && <li>En Çok Atıf Alan Yayınlar</li>}
+            {bibliometricsEnabled && <li>Q1 Dergi Yayınları</li>}
+            {bibliometricsEnabled && <li>En Çok Yayın Yapılan Dergiler</li>}
             <li>Sürdürülebilir Kalkınma Hedeflerine Katkı</li>
             <li>Fakülteler Arası İşbirlikleri</li>
-            <li>Uluslararası Fonlama (CORDIS)</li>
+            <li>Uluslararası Fonlama (CORDIS - AB Projeleri)</li>
             <li>Bütçe Kullanımı ve Fonlama Başarısı</li>
+            <li>Etik Kurul Süreçleri</li>
+            <li>Fikri Mülkiyet Portföyü</li>
+            <li>Sanayi ve Akademik Ortak Ağı</li>
+            <li>Akademik Personel Demografisi</li>
+            <li>Yıl İçinde Tamamlanan Önemli Projeler</li>
             <li>Proje Zaman Çizelgesi</li>
             <li>En Üretken Araştırmacılar</li>
             <li>Profesyonel Değerlendirme ve Gelecek Bakış</li>
             <li>Metodoloji ve Sınırlılıklar</li>
           </ol>
+          {!bibliometricsEnabled && (
+            <div style={{ marginTop: 10, padding: 8, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 4 }}>
+              <p style={{ ...s.pSmall, color: '#1e40af', margin: 0 }}>
+                <strong>Bilgi:</strong> Sistem yöneticisi tarafından bibliyometri (yayın/atıf/h-index/SCImago) gösterimi
+                kapatıldığı için bu rapor yalnızca proje, fakülte, fonlama ve sürdürülebilirlik göstergelerini içerir.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* ═══ 1. ÖNSÖZ ═══ */}
@@ -374,40 +438,75 @@ export default function AnnualReportPage() {
                 Kararlaşan projeler üzerinde <strong>%{overview?.successRate || 0}</strong> başarı oranı
                 elde edilmiştir.
               </li>
-              <li>
-                Kurumumuz toplam <strong>{formatNum(institutional?.total || 0)}</strong> yayın
-                ve <strong>{formatNum(institutional?.totalCitations || 0)}</strong> atıfa sahiptir.
-                Kurumsal h-index <strong>{institutional?.hIndex || 0}</strong>, i10-index <strong>{formatNum(institutional?.i10Index || 0)}</strong>'dir.
-                {institutional?.twoYearMeanCitedness !== undefined && (
-                  <> Son 2 yıllık ortalama atıf oranı <strong>{(+institutional.twoYearMeanCitedness).toFixed(2)}</strong>'dir
-                  - bu değer {(+institutional.twoYearMeanCitedness) >= 1.5 ? 'global ortalamanın belirgin üstünde' : (+institutional.twoYearMeanCitedness) >= 1.0 ? 'global ortalamayla uyumlu' : 'global ortalamanın altında'}.</>
-                )}
-              </li>
-              <li style={{ fontSize: 10, color: '#78350f' }}>
-                <em>Not: Raporun FWCI, Top 1%/10%, açık erişim ve dergi kalite göstergeleri
-                kurumun en çok atıf alan {institutional?.sampleSize || 500} yayını üzerinden
-                örneklem bazlı hesaplanmıştır - doğal olarak kurumsal ortalamanın üstündedir.</em>
-              </li>
-              {pubGrowthPct !== null && (
-                <li>
-                  Yayın üretimi bir önceki yıla göre <strong style={{ color: pubGrowthPct >= 0 ? '#059669' : '#dc2626' }}>
-                    {pubGrowthPct >= 0 ? '+' : ''}%{pubGrowthPct}
-                  </strong> değişim göstermiştir.
-                </li>
+
+              {/* Bibliyometrik buletler - sadece aciksa */}
+              {bibliometricsEnabled && institutional && (
+                <>
+                  <li>
+                    Kurumumuz toplam <strong>{formatNum(institutional?.total || 0)}</strong> yayın
+                    ve <strong>{formatNum(institutional?.totalCitations || 0)}</strong> atıfa sahiptir.
+                    Kurumsal h-index <strong>{institutional?.hIndex || 0}</strong>, i10-index <strong>{formatNum(institutional?.i10Index || 0)}</strong>'dir.
+                    {institutional?.twoYearMeanCitedness !== undefined && (
+                      <> Son 2 yıllık ortalama atıf oranı <strong>{(+institutional.twoYearMeanCitedness).toFixed(2)}</strong>'dir
+                      - bu değer {(+institutional.twoYearMeanCitedness) >= 1.5 ? 'global ortalamanın belirgin üstünde' : (+institutional.twoYearMeanCitedness) >= 1.0 ? 'global ortalamayla uyumlu' : 'global ortalamanın altında'}.</>
+                    )}
+                  </li>
+                  <li style={{ fontSize: 10, color: '#78350f' }}>
+                    <em>Not: Raporun FWCI, Top 1%/10%, açık erişim ve dergi kalite göstergeleri
+                    kurumun en çok atıf alan {institutional?.sampleSize || 500} yayını üzerinden
+                    örneklem bazlı hesaplanmıştır - doğal olarak kurumsal ortalamanın üstündedir.</em>
+                  </li>
+                  {pubGrowthPct !== null && (
+                    <li>
+                      Yayın üretimi bir önceki yıla göre <strong style={{ color: pubGrowthPct >= 0 ? '#059669' : '#dc2626' }}>
+                        {pubGrowthPct >= 0 ? '+' : ''}%{pubGrowthPct}
+                      </strong> değişim göstermiştir.
+                    </li>
+                  )}
+                  <li>
+                    Uluslararası ortak yazarlı yayın oranı <strong>%{institutional?.internationalCoauthorRatio || 0}</strong>
+                    - toplam <strong>{(institutional?.countryCollaboration?.length || 0)}</strong> farklı ülkeyle işbirliği kurulmuştur.
+                  </li>
+                </>
               )}
-              <li>
-                Uluslararası ortak yazarlı yayın oranı <strong>%{institutional?.internationalCoauthorRatio || 0}</strong>
-                - toplam <strong>{(institutional?.countryCollaboration?.length || 0)}</strong> farklı ülkeyle işbirliği kurulmuştur.
-              </li>
+
               <li>
                 Projeler <strong>{sdgsCovered}/17</strong> Sürdürülebilir Kalkınma Hedefi'ne değmekte;
-                <strong> {facultyTotalSdg}</strong> fakülte-SDG eşlemesi tespit edilmiştir.
+                <strong> {facultyTotalSdg}</strong> fakülte-SKH eşlemesi tespit edilmiştir.
               </li>
               <li>
                 Toplam bütçe <strong>{formatTry(overview?.totalBudget || 0)}</strong> olup
                 proje başına ortalama <strong>{formatTry(overview?.avgBudget || 0)}</strong>'dir.
                 {totalEuBudget > 0 && <> CORDIS kaynaklı AB fonlaması <strong>€{Number(totalEuBudget).toLocaleString('tr-TR')}</strong>'u bulmaktadır.</>}
               </li>
+
+              {/* Yeni: rapor extras tabanli buletler */}
+              {reportExtras?.ip?.total > 0 && (
+                <li>
+                  Kurum portföyünde <strong>{reportExtras.ip.total}</strong> projede fikri mülkiyet kaydı
+                  bulunmakta; bunların <strong>{(reportExtras.ip.byStatus?.find((s: any) => s.key === 'registered')?.count) || 0}</strong>'i tescilli
+                  durumdadır.
+                </li>
+              )}
+              {reportExtras?.partners?.total > 0 && (
+                <li>
+                  Toplam <strong>{reportExtras.partners.total}</strong> farklı sanayi/akademik ortakla
+                  <strong> {reportExtras.partners.totalLinks}</strong> proje düzeyinde işbirliği kurulmuştur.
+                </li>
+              )}
+              {reportExtras?.ethics?.required > 0 && (
+                <li>
+                  Etik kurul gerektiren <strong>{reportExtras.ethics.required}</strong> projeden
+                  <strong> {reportExtras.ethics.approved}</strong>'i onaylanmış,
+                  <strong> {reportExtras.ethics.pending}</strong>'i süreçtedir.
+                </li>
+              )}
+              {reportExtras?.completedThisYear?.length > 0 && (
+                <li>
+                  {year} yılı içinde <strong>{reportExtras.completedThisYear.length}</strong> proje
+                  başarıyla tamamlanmıştır.
+                </li>
+              )}
             </ul>
           </div>
 
@@ -425,7 +524,7 @@ export default function AnnualReportPage() {
             </>
           )}
 
-          {institutional && institutional.configured !== false && (
+          {bibliometricsEnabled && institutional && institutional.configured !== false && (
             <>
               <h3 style={s.h3}>Kurumsal Akademik Çıktı (OpenAlex kurum endpoint - TÜM yayınlar)</h3>
               <div style={s.kpiGrid}>
@@ -585,7 +684,7 @@ export default function AnnualReportPage() {
         )}
 
         {/* ═══ 5. BİBLİYOMETRİK GÖSTERGELER ═══ */}
-        {institutional && institutional.configured !== false && (
+        {bibliometricsEnabled && institutional && institutional.configured !== false && (
           <div style={s.section}>
             <h2 style={s.h2}>5. BİBLİYOMETRİK GÖSTERGELER (FWCI, TOP 1%, Q1-Q4)</h2>
             <p style={s.p}>
@@ -675,7 +774,7 @@ export default function AnnualReportPage() {
         )}
 
         {/* ═══ 6. YILLIK TREND ═══ */}
-        {byYear.length > 0 && (
+        {bibliometricsEnabled && byYear.length > 0 && (
           <div style={s.section}>
             <h2 style={s.h2}>6. YILLARA GÖRE YAYIN VE ATIF TRENDİ</h2>
             <p style={s.p}>
@@ -795,7 +894,7 @@ export default function AnnualReportPage() {
         )}
 
         {/* ═══ 7. PEER BENCHMARK ═══ */}
-        {peers.length > 0 && (
+        {bibliometricsEnabled && peers.length > 0 && (
           <div style={s.section}>
             <h2 style={s.h2}>7. PEER ÜNİVERSİTE KARŞILAŞTIRMASI</h2>
             <p style={s.p}>
@@ -842,7 +941,7 @@ export default function AnnualReportPage() {
         )}
 
         {/* ═══ 8. ULUSLARARASI İŞBİRLİĞİ ═══ */}
-        {topCountries.length > 0 && (
+        {bibliometricsEnabled && topCountries.length > 0 && (
           <div style={s.section}>
             <h2 style={s.h2}>8. ULUSLARARASI İŞBİRLİĞİ (ÜLKE BAZLI)</h2>
             <p style={s.p}>
@@ -921,7 +1020,7 @@ export default function AnnualReportPage() {
         )}
 
         {/* ═══ 9. EN ÇOK ATIF ALAN YAYINLAR ═══ */}
-        {topCited.length > 0 && (
+        {bibliometricsEnabled && topCited.length > 0 && (
           <div style={s.section}>
             <h2 style={s.h2}>9. EN ÇOK ATIF ALAN YAYINLAR (TOP {topCited.length})</h2>
             <p style={s.p}>
@@ -962,7 +1061,7 @@ export default function AnnualReportPage() {
         )}
 
         {/* ═══ 10. Q1 DERGİ YAYINLARI ═══ */}
-        {q1Pubs.length > 0 && (
+        {bibliometricsEnabled && q1Pubs.length > 0 && (
           <div style={s.section}>
             <h2 style={s.h2}>10. Q1 DERGİ YAYINLARI (İLK {q1Pubs.length})</h2>
             <p style={s.p}>
@@ -997,7 +1096,7 @@ export default function AnnualReportPage() {
         )}
 
         {/* ═══ 11. TOP DERGİLER ═══ */}
-        {topJournals.length > 0 && (
+        {bibliometricsEnabled && topJournals.length > 0 && (
           <div style={s.section}>
             <h2 style={s.h2}>11. EN ÇOK YAYIN YAPILAN DERGİLER (TOP {Math.min(topJournals.length, 15)})</h2>
             <p style={s.p}>
@@ -1027,13 +1126,14 @@ export default function AnnualReportPage() {
           </div>
         )}
 
-        {/* ═══ 12. SDG KATKISI ═══ */}
-        {((sdgHeat && sdgHeat.sdgs?.length > 0) || sdgDist.length > 0) && (
+        {/* ═══ 12. SKH KATKISI ═══ */}
+        {((sdgHeat && sdgHeat.sdgs?.length > 0) || (bibliometricsEnabled && sdgDist.length > 0)) && (
           <div style={s.section}>
             <h2 style={s.h2}>12. SÜRDÜRÜLEBİLİR KALKINMA HEDEFLERİNE KATKI</h2>
             <p style={s.p}>
-              BM'nin 17 SDG'sinden kurumumuz projeleri <strong>{sdgsCovered}/17</strong> hedefe değmektedir.
-              Ek olarak OpenAlex yayın tabanlı analiz, araştırmaların hangi SDG'lere yönelik olduğunu tespit eder.
+              BM'nin 17 Sürdürülebilir Kalkınma Hedefi'nden kurumumuz projeleri
+              <strong> {sdgsCovered}/17</strong> hedefe değmektedir.
+              {bibliometricsEnabled && ' Ek olarak OpenAlex yayın tabanlı analiz, araştırmaların hangi SKH\'lere yönelik olduğunu tespit eder.'}
             </p>
 
             {sdgHeat?.sdgs?.length > 0 && (
@@ -1059,9 +1159,9 @@ export default function AnnualReportPage() {
               </>
             )}
 
-            {sdgDist.length > 0 && (
+            {bibliometricsEnabled && sdgDist.length > 0 && (
               <>
-                <h3 style={s.h3}>Yayın Tabanlı SDG Katkısı (İlk 10)</h3>
+                <h3 style={s.h3}>Yayın Tabanlı SKH Katkısı (İlk 10)</h3>
                 <table style={s.table}>
                   <thead>
                     <tr>
@@ -1299,10 +1399,259 @@ export default function AnnualReportPage() {
           </div>
         )}
 
-        {/* ═══ 16. ZAMAN ÇİZELGESİ ═══ */}
+        {/* ═══ ETİK KURUL SÜREÇLERİ ═══ */}
+        {reportExtras?.ethics && reportExtras.ethics.total > 0 && (
+          <div style={s.section}>
+            <h2 style={s.h2}>16. ETİK KURUL SÜREÇLERİ</h2>
+            <p style={s.p}>
+              Kurum projelerinin etik kurul süreçlerine girip girmediği, onay durumu ve bekleyen başvuruların özeti.
+              Etik onay, özellikle insan ve hayvan denek içeren çalışmalar için kritik bir gereksinimdir.
+            </p>
+            <div style={s.kpiGrid}>
+              <Kpi label="Toplam Proje" value={formatNum(reportExtras.ethics.total)} color="#1a3a6b" />
+              <Kpi label="Etik Gerekli" value={formatNum(reportExtras.ethics.required)} color="#d97706" sub={`%${reportExtras.ethics.total > 0 ? Math.round((reportExtras.ethics.required / reportExtras.ethics.total) * 100) : 0}`} />
+              <Kpi label="Onaylanmış" value={formatNum(reportExtras.ethics.approved)} color="#059669" />
+              <Kpi label="Bekliyor" value={formatNum(reportExtras.ethics.pending)} color="#dc2626" />
+              <Kpi label="Etik Gerekmez" value={formatNum(reportExtras.ethics.notRequired)} color="#6b7280" />
+              <Kpi
+                label="Onay Oranı"
+                value={`%${reportExtras.ethics.required > 0 ? Math.round((reportExtras.ethics.approved / reportExtras.ethics.required) * 100) : 0}`}
+                color="#7c3aed"
+                sub="onay/gerekli"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ═══ FİKRİ MÜLKİYET PORTFÖYÜ ═══ */}
+        {reportExtras?.ip && reportExtras.ip.total > 0 && (
+          <div style={s.section}>
+            <h2 style={s.h2}>17. FİKRİ MÜLKİYET PORTFÖYÜ</h2>
+            <p style={s.p}>
+              Patent, faydalı model, marka, tasarım, telif hakkı ve ticari sır niteliğinde tescil edilen
+              veya başvurusu yapılan kurum çıktıları. Toplam <strong>{formatNum(reportExtras.ip.total)}</strong>
+              {' '}projede fikri mülkiyet kaydı bulunmaktadır.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              {reportExtras.ip.byStatus.length > 0 && (
+                <div>
+                  <h3 style={s.h3}>Tescil Durumu</h3>
+                  <table style={s.table}>
+                    <thead>
+                      <tr>
+                        <th style={s.th}>Durum</th>
+                        <th style={s.thR}>Adet</th>
+                        <th style={s.thR}>Pay</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportExtras.ip.byStatus.map((it: any) => {
+                        const labels: Record<string, string> = {
+                          pending: 'Başvuru Aşamasında', registered: 'Tescilli', published: 'Yayımlandı',
+                        };
+                        const pct = reportExtras.ip.total > 0 ? Math.round((it.count / reportExtras.ip.total) * 100) : 0;
+                        return (
+                          <tr key={it.key}>
+                            <td style={s.td}>{labels[it.key] || it.key}</td>
+                            <td style={{ ...s.tdR, fontWeight: 700 }}>{it.count}</td>
+                            <td style={s.tdR}>%{pct}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {reportExtras.ip.byType.length > 0 && (
+                <div>
+                  <h3 style={s.h3}>Mülkiyet Türü</h3>
+                  <table style={s.table}>
+                    <thead>
+                      <tr>
+                        <th style={s.th}>Tür</th>
+                        <th style={s.thR}>Adet</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportExtras.ip.byType.map((it: any) => {
+                        const labels: Record<string, string> = {
+                          patent: 'Patent', faydali_model: 'Faydalı Model',
+                          marka: 'Marka', tasarim: 'Tasarım', telif: 'Telif Hakkı',
+                          ticari_sir: 'Ticari Sır', belirtilmemis: 'Belirtilmemiş',
+                        };
+                        return (
+                          <tr key={it.key}>
+                            <td style={s.td}>{labels[it.key] || it.key}</td>
+                            <td style={{ ...s.tdR, fontWeight: 700 }}>{it.count}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ═══ ORTAK AĞI (PARTNERS) ═══ */}
+        {reportExtras?.partners && reportExtras.partners.total > 0 && (
+          <div style={s.section}>
+            <h2 style={s.h2}>18. SANAYİ VE AKADEMİK ORTAK AĞI</h2>
+            <p style={s.p}>
+              Kurum projelerinde ortak olarak yer alan sanayi, kamu ve akademik kuruluşların özeti.
+              Toplam <strong>{reportExtras.partners.total}</strong> farklı ortakla
+              <strong> {reportExtras.partners.totalLinks}</strong> proje düzeyinde işbirliği kurulmuştur.
+            </p>
+            {reportExtras.partners.bySector.length > 0 && (
+              <>
+                <h3 style={s.h3}>Sektöre Göre Dağılım</h3>
+                <table style={s.table}>
+                  <thead>
+                    <tr>
+                      <th style={s.th}>Sektör</th>
+                      <th style={s.thR}>Ortak Sayısı</th>
+                      <th style={s.thR}>Pay</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reportExtras.partners.bySector.map((s2: any) => {
+                      const pct = reportExtras.partners.total > 0
+                        ? Math.round((s2.count / reportExtras.partners.total) * 100) : 0;
+                      return (
+                        <tr key={s2.sector}>
+                          <td style={s.td}>{s2.sector === '-' ? 'Belirtilmemiş' : s2.sector}</td>
+                          <td style={{ ...s.tdR, fontWeight: 700 }}>{s2.count}</td>
+                          <td style={s.tdR}>%{pct}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </>
+            )}
+            {reportExtras.partners.top.length > 0 && (
+              <>
+                <h3 style={s.h3}>En Çok Proje Yürütülen Ortaklar</h3>
+                <table style={s.table}>
+                  <thead>
+                    <tr>
+                      <th style={s.th}>#</th>
+                      <th style={s.th}>Ortak</th>
+                      <th style={s.th}>Sektör</th>
+                      <th style={s.thR}>Proje Sayısı</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reportExtras.partners.top.map((p: any, i: number) => (
+                      <tr key={i}>
+                        <td style={s.td}>{i + 1}</td>
+                        <td style={{ ...s.td, fontWeight: i < 3 ? 700 : 400 }}>{p.name}</td>
+                        <td style={s.td}>{p.sector === '-' ? '-' : p.sector}</td>
+                        <td style={{ ...s.tdR, fontWeight: 700 }}>{p.projectCount}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ═══ DEMOGRAFİK DAĞILIM ═══ */}
+        {reportExtras?.demographics && reportExtras.demographics.totalActive > 0 && (
+          <div style={s.section}>
+            <h2 style={s.h2}>19. AKADEMİK PERSONEL DEMOGRAFİSİ</h2>
+            <p style={s.p}>
+              Sistemde aktif olan akademik personelin unvan ve rol dağılımı.
+              Toplam <strong>{reportExtras.demographics.totalActive}</strong> aktif kullanıcı.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              {reportExtras.demographics.byTitle.length > 0 && (
+                <div>
+                  <h3 style={s.h3}>Unvana Göre</h3>
+                  <table style={s.table}>
+                    <thead>
+                      <tr><th style={s.th}>Unvan</th><th style={s.thR}>Sayı</th><th style={s.thR}>Pay</th></tr>
+                    </thead>
+                    <tbody>
+                      {reportExtras.demographics.byTitle.slice(0, 10).map((it: any) => {
+                        const pct = reportExtras.demographics.totalActive > 0
+                          ? Math.round((it.count / reportExtras.demographics.totalActive) * 100) : 0;
+                        return (
+                          <tr key={it.title}>
+                            <td style={s.td}>{it.title}</td>
+                            <td style={{ ...s.tdR, fontWeight: 700 }}>{it.count}</td>
+                            <td style={s.tdR}>%{pct}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {reportExtras.demographics.byRole.length > 0 && (
+                <div>
+                  <h3 style={s.h3}>Sistem Rolüne Göre</h3>
+                  <table style={s.table}>
+                    <thead>
+                      <tr><th style={s.th}>Rol</th><th style={s.thR}>Sayı</th></tr>
+                    </thead>
+                    <tbody>
+                      {reportExtras.demographics.byRole.map((it: any) => (
+                        <tr key={it.role}>
+                          <td style={s.td}>{it.role}</td>
+                          <td style={{ ...s.tdR, fontWeight: 700 }}>{it.count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ═══ YIL İÇİNDE TAMAMLANAN ÖNEMLİ PROJELER ═══ */}
+        {reportExtras?.completedThisYear && reportExtras.completedThisYear.length > 0 && (
+          <div style={s.section}>
+            <h2 style={s.h2}>20. {year} YILINDA TAMAMLANAN ÖNEMLİ PROJELER</h2>
+            <p style={s.p}>
+              {year} yılı içerisinde tamamlanan
+              <strong> {reportExtras.completedThisYear.length}</strong> projenin bütçe büyüklüğüne göre listesi.
+              Bu liste, yıl içinde fiilen kapanan ve çıktı üretmiş kurumsal araştırmaları gösterir.
+            </p>
+            <table style={s.table}>
+              <thead>
+                <tr>
+                  <th style={s.th}>#</th>
+                  <th style={s.th}>Proje</th>
+                  <th style={s.th}>Fakülte</th>
+                  <th style={s.th}>Tür</th>
+                  <th style={s.thR}>Bütçe</th>
+                  <th style={s.thR}>Bitiş</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reportExtras.completedThisYear.map((p: any, i: number) => (
+                  <tr key={p.id}>
+                    <td style={s.td}>{i + 1}</td>
+                    <td style={{ ...s.tdSmall, fontWeight: i < 3 ? 700 : 400 }}>{p.title}</td>
+                    <td style={s.td}>{p.faculty || '-'}</td>
+                    <td style={s.td}>{p.type || '-'}</td>
+                    <td style={s.tdR}>{p.budget ? formatTry(p.budget) : '-'}</td>
+                    <td style={s.tdR}>{p.endDate ? new Date(p.endDate).toLocaleDateString('tr-TR') : '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* ═══ ZAMAN ÇİZELGESİ ═══ */}
         {timeline.length > 0 && (
           <div style={s.section}>
-            <h2 style={s.h2}>16. PROJE ZAMAN ÇİZELGESİ</h2>
+            <h2 style={s.h2}>21. PROJE ZAMAN ÇİZELGESİ</h2>
             <p style={s.p}>Son dönemlerde başlatılan ve tamamlanan proje hacminin seyri.</p>
             <table style={s.table}>
               <thead>
@@ -1330,7 +1679,7 @@ export default function AnnualReportPage() {
         {/* ═══ 17. EN ÜRETKEN ARAŞTIRMACILAR ═══ */}
         {researchers.length > 0 && (
           <div style={s.section}>
-            <h2 style={s.h2}>17. EN ÜRETKEN ARAŞTIRMACILAR</h2>
+            <h2 style={s.h2}>22. EN ÜRETKEN ARAŞTIRMACILAR</h2>
             <p style={s.p}>
               Proje sayısı ve tamamlanan proje oranına göre ilk {researchers.length} araştırmacı.
             </p>
@@ -1368,7 +1717,7 @@ export default function AnnualReportPage() {
         {/* ═══ 18. DEĞERLENDİRME + BAKIŞLAR ═══ */}
         {(narrative.evaluation || narrative.outlook) && (
           <div style={s.section}>
-            <h2 style={s.h2}>18. PROFESYONEL DEĞERLENDİRME VE GELECEK BAKIŞ</h2>
+            <h2 style={s.h2}>23. PROFESYONEL DEĞERLENDİRME VE GELECEK BAKIŞ</h2>
 
             {narrative.evaluation && (
               <>
@@ -1396,69 +1745,105 @@ export default function AnnualReportPage() {
 
         {/* ═══ 19. METODOLOJİ + SINIRLILIKLAR ═══ */}
         <div style={s.section}>
-          <h2 style={s.h2}>19. METODOLOJİ VE SINIRLILIKLAR</h2>
+          <h2 style={s.h2}>24. METODOLOJİ VE SINIRLILIKLAR</h2>
 
           <h3 style={s.h3}>Veri Birleştirme ve Metrik Hesaplama</h3>
-          <p style={s.p}>
-            <strong>Dedupe:</strong> Yayınlar DOI bazlı birleştirme ile her kaynaktan bir kez sayılır.
-            Atıf sayısında kaynaklar arasında en yüksek değer baz alınır.
-          </p>
-          <p style={s.p}>
-            <strong>FWCI:</strong> Field-Weighted Citation Impact - OpenAlex tarafından yayın alanı ve
-            yayın yılına göre normalize edilen atıf değeri. 1.00 dünya ortalamasıdır.
-          </p>
-          <p style={s.p}>
-            <strong>Top 1% / Top 10%:</strong> OpenAlex'in cited_by_percentile_year alanından -
-            yayının alan-yıl sıralamasında üst 1% / 10%'a girip girmediği.
-          </p>
-          <p style={s.p}>
-            <strong>Uluslararası işbirliği:</strong> Yayın yazarlarının en az birinin Türkiye dışı bir kuruma
-            bağlı olması. Authorships.institutions.country_code üzerinden hesaplanır.
-          </p>
+          {bibliometricsEnabled && (
+            <>
+              <p style={s.p}>
+                <strong>Dedupe:</strong> Yayınlar DOI bazlı birleştirme ile her kaynaktan bir kez sayılır.
+                Atıf sayısında kaynaklar arasında en yüksek değer baz alınır.
+              </p>
+              <p style={s.p}>
+                <strong>FWCI:</strong> Field-Weighted Citation Impact - OpenAlex tarafından yayın alanı ve
+                yayın yılına göre normalize edilen atıf değeri. 1.00 dünya ortalamasıdır.
+              </p>
+              <p style={s.p}>
+                <strong>Top %1 / Top %10:</strong> OpenAlex'in cited_by_percentile_year alanından -
+                yayının alan-yıl sıralamasında üst %1 / %10'a girip girmediği.
+              </p>
+              <p style={s.p}>
+                <strong>Uluslararası işbirliği:</strong> Yayın yazarlarının en az birinin Türkiye dışı bir kuruma
+                bağlı olması. Authorships.institutions.country_code üzerinden hesaplanır.
+              </p>
+              <p style={s.p}>
+                <strong>Peer benchmark:</strong> OpenAlex institution summary endpoint üzerinden -
+                kurumun toplam yayın, atıf, h-index ve 2 yıllık ortalama atıf metrikleri çekilir.
+                Karşılaştırılan üniversite seti PEER_OPENALEX_IDS env değişkeni ile özelleştirilebilir.
+              </p>
+            </>
+          )}
           <p style={s.p}>
             <strong>Başarı oranı:</strong> Sadece karara bağlanmış projeler (tamamlanan + iptal edilen)
             üzerinden hesaplanır; aktif projeler dahil edilmez.
           </p>
           <p style={s.p}>
-            <strong>Peer benchmark:</strong> OpenAlex institution summary endpoint'i üzerinden -
-            kurumun toplam yayın, atıf, h-index ve 2yr_mean_citedness metrikleri çekilir.
-            Peer set PEER_OPENALEX_IDS env ile özelleştirilebilir.
+            <strong>Etik onay oranı:</strong> Etik kurul gerektiren projeler arasında onay almış olanların
+            payı; etik kurul gerektirmeyen projeler hesaba katılmaz.
+          </p>
+          <p style={s.p}>
+            <strong>Tamamlanan projeler:</strong> Bitiş tarihi cari yıla denk düşen ve durumu
+            "tamamlandı" olarak işaretlenmiş projeler. Bütçe büyüklüğüne göre sıralanır.
+          </p>
+          <p style={s.p}>
+            <strong>Ortak listesi:</strong> Aynı isimli ortaklar tekleştirilir; bir ortak birden fazla projede
+            yer alıyorsa proje sayısı kümülatif sayılır.
           </p>
 
           <h3 style={s.h3}>Sınırlılıklar</h3>
           <div style={s.limitBox}>
             <ul style={s.limitList}>
-              <li>
-                <strong>Yayın havuzu sınırı:</strong> OpenAlex institution endpoint'inden en çok atıf alan
-                ilk 500 yayın çekilir. Uzun kuyruktaki düşük atıflı yayınlar istatistiklere dahil olur ama liste olarak gösterilmez.
-              </li>
-              <li>
-                <strong>ORCID kapsam boşluğu:</strong> ORCID kaydı olmayan araştırmacıların yayınları bu havuza
-                yalnızca yazar-kurum eşleşmesi OpenAlex tarafından tanındığında dahil olur.
-              </li>
-              <li>
-                <strong>SCImago kuartil eşleşmesi:</strong> ISSN eşleşmesi yapılamayan dergiler "Bilinmiyor"
-                kategorisine düşer. Sosyal bilimler ve Türkçe dergiler bu grupta yoğunlaşabilir.
-              </li>
-              <li>
-                <strong>FWCI kapsamı:</strong> OpenAlex FWCI'yi yalnızca belirli alan-yıl kesitleri için hesaplar;
-                raporda FWCI coverage sayısı kaç yayın için bu metriğin mevcut olduğunu gösterir.
-              </li>
+              {bibliometricsEnabled && (
+                <>
+                  <li>
+                    <strong>Yayın havuzu sınırı:</strong> OpenAlex institution endpoint'inden en çok atıf alan
+                    ilk 500 yayın çekilir. Uzun kuyruktaki düşük atıflı yayınlar istatistiklere dahil olur ama liste olarak gösterilmez.
+                  </li>
+                  <li>
+                    <strong>ORCID kapsam boşluğu:</strong> ORCID kaydı olmayan araştırmacıların yayınları bu havuza
+                    yalnızca yazar-kurum eşleşmesi OpenAlex tarafından tanındığında dahil olur.
+                  </li>
+                  <li>
+                    <strong>SCImago kuartil eşleşmesi:</strong> ISSN eşleşmesi yapılamayan dergiler "Bilinmiyor"
+                    kategorisine düşer. Sosyal bilimler ve Türkçe dergiler bu grupta yoğunlaşabilir.
+                  </li>
+                  <li>
+                    <strong>FWCI kapsamı:</strong> OpenAlex FWCI'yi yalnızca belirli alan-yıl kesitleri için hesaplar;
+                    raporda FWCI coverage sayısı kaç yayın için bu metriğin mevcut olduğunu gösterir.
+                  </li>
+                  <li>
+                    <strong>Peer seçimi:</strong> Varsayılan peer seti bölgesel ve ölçek benzerliğine göre seçilmiştir;
+                    farklı bir benchmark için PEER_OPENALEX_IDS env değişkeniyle özelleştirme mümkündür.
+                  </li>
+                </>
+              )}
+              {!bibliometricsEnabled && (
+                <li>
+                  <strong>Bibliyometri kapalı:</strong> Sistem yöneticisi yayın/atıf/h-index/SCImago
+                  göstergelerini kapatmış olduğundan bu rapor yalnızca dahili proje veri tabanına dayanır.
+                  Bibliyometri açıldığında 11 dış veri kaynağından (OpenAlex, Scopus, WoS, CORDIS, SCImago vb.)
+                  zenginleştirilmiş veri eklenir.
+                </li>
+              )}
               <li>
                 <strong>CORDIS kapsamı:</strong> "Mustafa Kemal University" tam eşleşmesiyle bulunan projeler listelenir.
                 İsim varyasyonlarından kaçan projeler olabilir.
               </li>
               <li>
-                <strong>Peer seçimi:</strong> Varsayılan peer seti bölgesel ve ölçek benzerliğine göre seçilmiştir;
-                farklı bir benchmark için PEER_OPENALEX_IDS env değişkeniyle özelleştirme mümkündür.
+                <strong>Etik kurul kayıtları:</strong> Sadece sisteme girilmiş etik kurul kararları sayılır;
+                eski projelerde alan boş olabilir.
               </li>
               <li>
-                <strong>AI narrative:</strong> Önsöz, değerlendirme ve gelecek bakış paragrafları Claude Sonnet ile
-                üretilir ve rapor verisini temel alır. Üretilen metin bir profesyonel edit geçmesi önerilir.
+                <strong>Fikri mülkiyet:</strong> Sadece sistemde "ipStatus" alanı doldurulan projeler dahil edilir;
+                tescil tarihinden bağımsız olarak tüm aktif kayıtlar sayılır.
               </li>
               <li>
-                <strong>Veri tazeliği:</strong> Veri kaynakları (OpenAlex, SCImago, CORDIS) farklı güncelleme
-                döngülerine sahiptir - raporun tarih damgası verinin çekildiği anı gösterir.
+                <strong>YZ değerlendirmesi:</strong> Önsöz, değerlendirme ve gelecek bakış paragrafları Claude
+                tarafından üretilir ve rapor verisini temel alır. Üretilen metnin profesyonel edit geçmesi önerilir.
+              </li>
+              <li>
+                <strong>Veri tazeliği:</strong> Dış veri kaynakları farklı güncelleme döngülerine sahiptir -
+                raporun tarih damgası verinin çekildiği anı gösterir.
               </li>
             </ul>
           </div>

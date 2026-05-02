@@ -45,6 +45,12 @@ export class AnalyticsController {
     return this.svc.getBudgetUtilization(req.user.userId, req.user.roleName);
   }
 
+  // Yillik raporun ek detaylari: etik durumu, IP portfoy, demografi, ortak ozeti
+  @Get('report-extras')
+  reportExtras(@Request() req: any) {
+    return this.svc.getReportExtras(req.user.userId, req.user.roleName);
+  }
+
   @Get('timeline')
   timeline(@Query() q: any, @Request() req: any) {
     return this.svc.getTimeline(q, req.user.userId, req.user.roleName);
