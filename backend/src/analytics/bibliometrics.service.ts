@@ -231,22 +231,57 @@ export class BibliometricsService {
       this.logger.log(`[Institutional] OpenAlex'ten ${instSummary.displayName}: ${instSummary.worksCount} yayın, ${instSummary.citedByCount} atıf, h=${instSummary.hIndex}`);
     }
 
-    // 2. KURUM GENELI AGREGAT METRIKLER - sample DEGIL (FIX #7)
+    // 2. KURUM GENELI AGREGAT METRIKLER - hicbiri sample DEGIL artik (FIX #7 v2)
     //    OA orani, Top%1/%10, uluslararasi ortaklik, tip dagilimi, ulke dagilimi,
     //    top dergiler artik tum kurum yayini uzerinden hesaplanir.
-    //    Quartile (Q1-Q4) ve FWCI dagilimi sample tabanli kalir cunku OpenAlex
-    //    bu alanlar icin group_by destegi yok - SCImago ISSN match gerekir.
+    //
+    //    YENI: Q1-Q4 quartile dagilimi ve FWCI ortalamasi da artik kurum geneli.
+    //    - Q dagilimi: getInstitutionAllJournals() ile tum dergilerin sourceId+count
+    //      cekilir, her source SCImago Q lookup'i ile etiketlenir, Σcount Q'lara dagitilir
+    //    - FWCI ortalamasi: getInstitutionFwciAggregate() ile tum yayinlar cursor ile
+    //      gezilir, sadece fwci field'i cekilir (payload kucuk), gercek ortalama hesaplanir
     const periodRange = (typeof yearOrRange === 'object' && yearOrRange)
       ? { fromYear: yearOrRange.from, toYear: yearOrRange.to }
       : (typeof yearOrRange === 'number' ? { fromYear: yearOrRange, toYear: yearOrRange } : undefined);
-    let aggregates = await this.openalex.getInstitutionAggregates(institutionId, periodRange).catch(() => null);
+
+    const [aggregates, allJournals, fwciAgg] = await Promise.all([
+      this.openalex.getInstitutionAggregates(institutionId, periodRange).catch(() => null),
+      this.openalex.getInstitutionAllJournals(institutionId, periodRange).catch(() => null),
+      this.openalex.getInstitutionFwciAggregate(institutionId, periodRange).catch(() => null),
+    ]);
+
     if (!aggregates) {
       this.logger.warn(`[Institutional] OpenAlex aggregates başarısız - sample tabanlı fallback'e düşülecek`);
     } else {
       this.logger.log(`[Institutional] Aggregates: %${aggregates.openAccessRatio} OA, ${aggregates.top1PctCount} Top1%, ${aggregates.internationalCount} intl`);
     }
 
-    // 3. SAMPLE - DETAY tablolar icin (yayin listesi, Q1-Q4 dagilimi, FWCI sample) - 1000 yayin yeterli
+    // 3. KURUM GENELI Q1-Q4 DAGILIMI - tum dergiler uzerinden SCImago Q lookup
+    let realQuartileDistribution: { Q1: number; Q2: number; Q3: number; Q4: number; unknown: number } | null = null;
+    if (allJournals && allJournals.length > 0) {
+      const dist = { Q1: 0, Q2: 0, Q3: 0, Q4: 0, unknown: 0 };
+      // Paralel SCImago lookup - max 20 paralel rate limit icin
+      const batchSize = 20;
+      for (let i = 0; i < allJournals.length; i += batchSize) {
+        const batch = allJournals.slice(i, i + batchSize);
+        const results = await Promise.all(
+          batch.map(j => this.scimago.getQualityBySourceId(j.sourceId).catch(() => null))
+        );
+        for (let k = 0; k < batch.length; k++) {
+          const j = batch[k];
+          const q = results[k];
+          if (q?.sjrQuartile) dist[q.sjrQuartile] += j.count;
+          else dist.unknown += j.count;
+        }
+      }
+      realQuartileDistribution = dist;
+      const total = dist.Q1 + dist.Q2 + dist.Q3 + dist.Q4 + dist.unknown;
+      const knownPct = total > 0 ? Math.round(((total - dist.unknown) / total) * 100) : 0;
+      this.logger.log(`[Institutional] Q-Distribution (kurum geneli): Q1=${dist.Q1}, Q2=${dist.Q2}, Q3=${dist.Q3}, Q4=${dist.Q4}, unknown=${dist.unknown} (eslesme: %${knownPct})`);
+    }
+
+    // 4. SAMPLE - sadece detay tablolar icin (En Cok Atif Alan Yayinlar listesi)
+    //    Yayin liste tablosu icin 1000 yayin yeterli - kurumsal Q ve FWCI artik gerek degil
     const pubs = await this.publications.getInstitutionPublications(institutionId, yearOrRange, 1000);
     const sampleSummary = this.publications.summarize(pubs);
 
@@ -328,9 +363,12 @@ export class BibliometricsService {
       twoYearMeanCitedness: instSummary?.twoYearMeanCitedness,
       byYear: byYearReal.length > 0 ? byYearReal : sampleSummary.byYear,
 
-      // SAMPLE BAZLI - net olarak 'sample' prefix ile
-      // Kalite dağılımı sample'dan - 500 top-cited içinde Q1-Q4 oranı
-      quartileDistribution: sampleSummary.quartileDistribution,
+      // ---------- KALITE DAGILIMI - KURUM GENELI ----------
+      // Q1-Q4 dagilimi artik tum kurum dergileri icin SCImago lookup ile hesaplanir
+      // (eskiden top 1000 yayin sample idi). Yoksa sample'a fallback.
+      quartileDistribution: realQuartileDistribution || sampleSummary.quartileDistribution,
+      quartileSource: realQuartileDistribution ? 'institutional-all-journals' : 'sample',
+      // SDG dagilimi sample'dan - OpenAlex group_by:sdgs.id yok
       sdgDistribution: sampleSummary.sdgDistribution,
 
       // ---------- KURUM GENELI METRIKLER (REAL - aggregates'ten, sample DEGIL) ----------
@@ -352,12 +390,12 @@ export class BibliometricsService {
       sampleOpenAccessCount: sampleSummary.openAccessCount,
       sampleOpenAccessRatio: sampleSummary.openAccessRatio,
 
-      // Top %1 / %10: KURUM GENELI (aggregates'ten); yoksa sample'a fallback
-      top1PctCount: aggregates ? aggregates.top1PctCount : sampleSummary.top1PctCount,
-      top10PctCount: aggregates ? aggregates.top10PctCount : sampleSummary.top10PctCount,
+      // Top %1 / %10: kurum geneli (FWCI cursor'dan veya aggregates'ten); yoksa sample
+      top1PctCount: fwciAgg ? fwciAgg.top1PctCount : aggregates ? aggregates.top1PctCount : sampleSummary.top1PctCount,
+      top10PctCount: fwciAgg ? fwciAgg.top10PctCount : aggregates ? aggregates.top10PctCount : sampleSummary.top10PctCount,
       top1PctRatio: aggregates ? aggregates.top1PctRatio : sampleSummary.top1PctRatio,
       top10PctRatio: aggregates ? aggregates.top10PctRatio : sampleSummary.top10PctRatio,
-      topPercentileSource: aggregates ? 'institutional-aggregate' : 'sample',
+      topPercentileSource: fwciAgg ? 'institutional-cursor' : aggregates ? 'institutional-aggregate' : 'sample',
 
       // Uluslararasi ortaklik: KURUM GENELI (aggregates'ten); yoksa sample
       internationalCoauthorCount: aggregates ? aggregates.internationalCount : sampleSummary.internationalCoauthorCount,
@@ -387,15 +425,21 @@ export class BibliometricsService {
         ? aggregates.topJournals.map(j => ({ name: j.name, count: j.count }))
         : sampleSummary.topJournals,
 
-      // ---------- SAMPLE BAZLI METRIKLER ----------
-      // FWCI ve Q1-Q4 SCImago - bunlar OpenAlex group_by destegi olmadigindan sample kalir
+      // ---------- FWCI - KURUM GENELI ----------
+      // FWCI ortalamasi artik tum kurum yayinlari icin cursor pagination ile hesaplanir
+      // (eskiden sample idi). Yoksa sample'a fallback.
+      avgFwci: fwciAgg ? fwciAgg.avgFwci : sampleSummary.avgFwci,
+      medianFwci: fwciAgg ? fwciAgg.medianFwci : sampleSummary.medianFwci,
+      fwciCoverage: fwciAgg ? fwciAgg.fwciCoverage : sampleSummary.fwciCoverage,
+      fwciSource: fwciAgg ? 'institutional-cursor' : 'sample',
+
+      // ---------- SAMPLE METADATA (sadece detay tablolar icin) ----------
       sampleSize: pubs.length,
-      sampleNote: aggregates
-        ? `FWCI ve dergi kalite (SCImago Q1-Q4) dağılımı kurumun en çok atıf alan ${pubs.length} yayını üzerinden hesaplanmıştır. Diğer metrikler (Toplam Yayın, Atıf, OA Oranı, Top %1/%10, Uluslararası Ortaklık, Ülke Dağılımı, Yayın Türleri) ${aggregates.total} yayınlık kurum genelidir.`
-        : `Tüm bibliyometri metrikleri kurumun en çok atıf alan ${pubs.length} yayını üzerinden hesaplanmıştır - kurum genel yayın havuzu için OpenAlex bağlantısı kurulamadı.`,
-      avgFwci: sampleSummary.avgFwci,
-      medianFwci: sampleSummary.medianFwci,
-      fwciCoverage: sampleSummary.fwciCoverage,
+      sampleNote: (realQuartileDistribution && fwciAgg && aggregates)
+        ? `Tüm metrikler (Toplam Yayın: ${aggregates.total}, OA, Top %1/%10, Q1-Q4, FWCI, Uluslararası Ortaklık, Türler, Ülkeler, Dergiler) kurum genelidir - örneklem değildir. Sadece "En Çok Atıf Alan Yayınlar" listesi top ${pubs.length} yayını gösterir (görüntüleme amaçlı).`
+        : aggregates
+        ? `Çoğu metrik kurum genelidir (${aggregates.total} yayın). Bazı dağılımlar (kalite, FWCI) en çok atıf alan ${pubs.length} yayın üzerinden hesaplanmıştır - OpenAlex erişim kısıtı.`
+        : `Bibliyometri metrikleri kurumun en çok atıf alan ${pubs.length} yayını üzerinden hesaplanmıştır - kurum genel yayın havuzu için OpenAlex bağlantısı kurulamadı.`,
       sampleTop1PctCount: sampleSummary.top1PctCount,
       sampleTop10PctCount: sampleSummary.top10PctCount,
       avgAuthorsPerPaper: sampleSummary.avgAuthorsPerPaper,

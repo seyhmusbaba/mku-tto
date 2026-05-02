@@ -476,11 +476,11 @@ export default function AnnualReportPage() {
                     )}
                   </li>
                   <li style={{ fontSize: 10, color: '#374151' }}>
-                    <em>Not: Açık Erişim oranı, Top %1, Top %10, Uluslararası Ortaklık ve Yayın Türü
-                    dağılımı OpenAlex agregat sorgusuyla <strong>kurumun {formatNum(institutional?.total || 0)} yayını</strong>
-                    {' '}üzerinden hesaplanır - örneklem değildir. SCImago Q1-Q4 dergi kalite dağılımı ve
-                    sample FWCI ise en çok atıf alan {institutional?.sampleSize || 1000} yayın üzerinden
-                    hesaplandığı için ayrıca etiketlenmiştir.</em>
+                    <em>Not: Bu raporun bibliyometrik metrikleri (Açık Erişim, Top %1/%10, Uluslararası
+                    Ortaklık, Yayın Türü, Q1-Q4 dağılımı, FWCI ortalaması) <strong>kurumun
+                    {formatNum(institutional?.total || 0)} yayınının tamamı</strong> üzerinden
+                    hesaplanmıştır - örneklem değildir. Sadece "En Çok Atıf Alan Yayınlar" listesi
+                    görüntüleme amacıyla top {institutional?.sampleSize || 1000} yayın gösterir.</em>
                   </li>
                   {pubGrowthPct !== null && (
                     <li>
@@ -592,22 +592,36 @@ export default function AnnualReportPage() {
                   sub={`${formatNum(institutional.internationalCoauthorCount || 0)} yayın · ${institutional.internationalSource === 'institutional-aggregate' ? 'kurum geneli' : 'sample'}`} />
               </div>
 
-              {/* Sample-bazli kalan metrikler ayri grup - dürüst */}
-              <div style={{ marginTop: 14, padding: 10, background: '#fffbeb', borderLeft: '4px solid #f59e0b', borderRadius: 4 }}>
-                <p style={{ ...s.pSmall, color: '#92400e', margin: 0 }}>
-                  <strong>⚠ Aşağıdaki 2 metrik örneklem bazlıdır.</strong> FWCI ve SCImago Q1-Q4 dergi
-                  kalite dağılımı için OpenAlex agregat desteği yoktur - kurumun en çok atıf alan
-                  <strong> {institutional.sampleSize || 1000}</strong> yayını üzerinden hesaplanmıştır.
-                  Bu yüzden gerçek kurumsal ortalamadan farklılaşabilir.
-                </p>
-              </div>
+              {/* Q1-Q4 ve FWCI artik kurum geneli - sample disclaimer kaldirildi */}
+              {(institutional.quartileSource === 'institutional-all-journals' || institutional.fwciSource === 'institutional-cursor') && (
+                <div style={{ marginTop: 14, padding: 10, background: '#f0fdf4', borderLeft: '4px solid #059669', borderRadius: 4 }}>
+                  <p style={{ ...s.pSmall, color: '#166534', margin: 0 }}>
+                    <strong>✓ Aşağıdaki kalite metrikleri kurum genelidir.</strong>
+                    {institutional.quartileSource === 'institutional-all-journals' && (
+                      <> Q1-Q4 dağılımı kurumun yayın yaptığı tüm dergiler için SCImago lookup ile
+                      hesaplandı (örneklem değil).</>
+                    )}
+                    {institutional.fwciSource === 'institutional-cursor' && (
+                      <> FWCI ortalaması <strong>{formatNum(institutional.fwciCoverage || 0)}</strong> yayın
+                      üzerinden cursor pagination ile çekildi (gerçek kurum ortalaması).</>
+                    )}
+                  </p>
+                </div>
+              )}
 
-              <h3 style={s.h3}>Örneklem Bazlı Göstergeler ({institutional.sampleSize || 1000} yayın)</h3>
+              <h3 style={s.h3}>Kalite Göstergeleri (Kurum Geneli)</h3>
               <div style={s.kpiGrid}>
-                <Kpi label="Q1 (sample)" value={formatNum(institutional.quartileDistribution?.Q1 || 0)} color="#059669" sub={`%${quartileKnown > 0 ? Math.round(((institutional.quartileDistribution?.Q1 || 0) / quartileKnown) * 100) : 0}`} />
-                <Kpi label="Sample Ort. FWCI"
+                <Kpi label="Q1 Yayın"
+                  value={formatNum(institutional.quartileDistribution?.Q1 || 0)}
+                  color="#059669"
+                  sub={`%${quartileKnown > 0 ? Math.round(((institutional.quartileDistribution?.Q1 || 0) / quartileKnown) * 100) : 0} (eşleşen)`} />
+                <Kpi label="Ort. FWCI"
                   value={institutional.avgFwci !== null && institutional.avgFwci !== undefined ? institutional.avgFwci : '-'}
-                  color="#7c3aed" sub="alan-yıl normalize" />
+                  color="#7c3aed"
+                  sub={institutional.fwciCoverage ? `${formatNum(institutional.fwciCoverage)} yayın` : 'alan-yıl normalize'} />
+                <Kpi label="Medyan FWCI"
+                  value={institutional.medianFwci !== null && institutional.medianFwci !== undefined ? institutional.medianFwci : '-'}
+                  color="#0891b2" sub="ortanca yayın" />
               </div>
             </>
           )}

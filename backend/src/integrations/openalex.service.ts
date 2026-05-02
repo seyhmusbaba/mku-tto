@@ -556,4 +556,133 @@ export class OpenAlexService {
     this.cache.clear(prefix);
     return before;
   }
+
+  /**
+   * KURUM GENELI tum dergi (source) listesi - cursor pagination ile sinirsiz.
+   *
+   * NEDEN: getInstitutionAggregates'in journalDist'i sadece top 30 dergi.
+   * SCImago Q1-Q4 dagilimi tum kurum yayinlarini kapsamak icin TUM dergiler
+   * gerekir. Cursor pagination ile (per_page=200) ~500 dergi 3-4 sayfada gelir.
+   *
+   * Cache: 24 saat (kurum dergi listesi gun icinde degismez).
+   * Tipik MKÜ çekimi: 2-4 sn.
+   */
+  async getInstitutionAllJournals(
+    institutionId: string,
+    opts?: { fromYear?: number; toYear?: number },
+  ): Promise<Array<{ sourceId: string; displayName: string; count: number }> | null> {
+    if (!institutionId) return null;
+    const cleanId = institutionId.replace(/^https?:\/\/openalex\.org\//, '');
+    const yearFilter = (opts?.fromYear || opts?.toYear)
+      ? `,publication_year:${opts.fromYear || 1900}-${opts.toYear || new Date().getFullYear()}`
+      : '';
+    const cacheKey = `inst-all-journals:${cleanId}:${yearFilter}`;
+    const cached = this.cache.get<any>(cacheKey);
+    if (cached !== undefined) return cached;
+
+    const baseFilter = `institutions.id:${cleanId}${yearFilter}`;
+    const headers = { 'User-Agent': this.userAgent() };
+    const all: Array<{ sourceId: string; displayName: string; count: number }> = [];
+    let cursor = '*';
+    const maxPages = 20; // ~10K source = guvenlik tavani
+
+    try {
+      for (let page = 0; page < maxPages; page++) {
+        await this.limiter.acquire();
+        const url = `${this.baseUrl}/works?filter=${baseFilter}&group_by=primary_location.source.id&per_page=200&cursor=${cursor}`;
+        const data = await fetchJson(url, { headers });
+        const groups = data?.group_by || [];
+        for (const g of groups) {
+          if (!g.key || !g.key_display_name) continue;
+          // sourceId URL'den temizle
+          const sourceId = String(g.key).replace(/^https?:\/\/openalex\.org\//, '');
+          all.push({ sourceId, displayName: g.key_display_name, count: g.count || 0 });
+        }
+        cursor = data?.group_by_next_cursor || data?.next_cursor || '';
+        if (!cursor || groups.length === 0) break;
+      }
+      this.cache.set(cacheKey, all, 60 * 60 * 24);
+      this.logger.log(`[InstAllJournals] ${cleanId}: ${all.length} dergi cekildi (cursor)`);
+      return all;
+    } catch (e: any) {
+      this.logger.warn(`OpenAlex all journals failed: ${e.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * KURUM GENELI tum yayin FWCI degerleri - kurum bazli ortalama hesabi icin.
+   *
+   * `select=fwci,id` ile sadece FWCI alani cekilir, payload kucuk olur.
+   * 11K yayinli kurum icin ~50 sayfa (per_page=200), ~30 saniye + cache.
+   *
+   * Doner: { count, sumFwci, avgFwci, fwciCoverage }
+   * Cache: 24 saat.
+   */
+  async getInstitutionFwciAggregate(
+    institutionId: string,
+    opts?: { fromYear?: number; toYear?: number },
+  ): Promise<{ count: number; avgFwci: number | null; medianFwci: number | null; fwciCoverage: number; top1PctCount: number; top10PctCount: number } | null> {
+    if (!institutionId) return null;
+    const cleanId = institutionId.replace(/^https?:\/\/openalex\.org\//, '');
+    const yearFilter = (opts?.fromYear || opts?.toYear)
+      ? `,publication_year:${opts.fromYear || 1900}-${opts.toYear || new Date().getFullYear()}`
+      : '';
+    const cacheKey = `inst-fwci:${cleanId}:${yearFilter}`;
+    const cached = this.cache.get<any>(cacheKey);
+    if (cached !== undefined) return cached;
+
+    const baseFilter = `institutions.id:${cleanId}${yearFilter}`;
+    const headers = { 'User-Agent': this.userAgent() };
+    const fwciValues: number[] = [];
+    let totalCount = 0;
+    let top1Pct = 0;
+    let top10Pct = 0;
+    let cursor = '*';
+    const maxPages = 75; // 200 * 75 = 15000 yayin tavani
+
+    try {
+      for (let page = 0; page < maxPages; page++) {
+        await this.limiter.acquire();
+        // select ile sadece fwci + percentile alanlari - payload minimal
+        const url = `${this.baseUrl}/works?filter=${baseFilter}&select=id,fwci,cited_by_percentile_year&per_page=200&cursor=${cursor}`;
+        const data = await fetchJson(url, { headers });
+        const results = data?.results || [];
+        if (page === 0) totalCount = data?.meta?.count || 0;
+        for (const w of results) {
+          if (typeof w.fwci === 'number') {
+            fwciValues.push(w.fwci);
+          }
+          const pctMin = w.cited_by_percentile_year?.min ?? 0;
+          if (pctMin >= 99) top1Pct++;
+          else if (pctMin >= 90) top10Pct++;
+        }
+        cursor = data?.meta?.next_cursor || '';
+        if (!cursor || results.length === 0) break;
+      }
+
+      const sorted = [...fwciValues].sort((a, b) => a - b);
+      const avgFwci = fwciValues.length > 0
+        ? Math.round((fwciValues.reduce((s, v) => s + v, 0) / fwciValues.length) * 100) / 100
+        : null;
+      const medianFwci = sorted.length > 0
+        ? Math.round(sorted[Math.floor(sorted.length / 2)] * 100) / 100
+        : null;
+
+      const result = {
+        count: totalCount,
+        avgFwci,
+        medianFwci,
+        fwciCoverage: fwciValues.length,
+        top1PctCount: top1Pct,
+        top10PctCount: top10Pct,
+      };
+      this.cache.set(cacheKey, result, 60 * 60 * 24);
+      this.logger.log(`[InstFwci] ${cleanId}: ${totalCount} yayin, FWCI cov=${fwciValues.length}, avg=${avgFwci}, top1%=${top1Pct}, top10%=${top10Pct}`);
+      return result;
+    } catch (e: any) {
+      this.logger.warn(`OpenAlex FWCI aggregate failed: ${e.message}`);
+      return null;
+    }
+  }
 }
