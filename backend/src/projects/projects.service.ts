@@ -55,7 +55,7 @@ export class ProjectsService {
   }
 
   async findAll(query: any, currentUser: any) {
-    const { search, type, faculty, department, status, sdg, budgetMin, budgetMax, dateFrom, dateTo, ownership, page = 1, limit = 20, sortBy = 'createdAt', sortDir = 'DESC' } = query || {};
+    const { search, type, faculty, department, status, sdg, budgetMin, budgetMax, dateFrom, dateTo, ownership, fundingSource, page = 1, limit = 20, sortBy = 'createdAt', sortDir = 'DESC' } = query || {};
     const qb = this.projectRepo.createQueryBuilder('project')
       .leftJoinAndSelect('project.owner', 'owner')
       .leftJoinAndSelect('owner.role', 'ownerRole')
@@ -104,6 +104,29 @@ export class ProjectsService {
     if (dateFrom) qb.andWhere('project.startDate >= :df', { df: dateFrom });
     if (dateTo) qb.andWhere('project.startDate <= :dt', { dt: dateTo });
     if (sdg) qb.andWhere('project.sdgGoalsJson ILIKE :sdg', { sdg: '%' + sdg + '%' });
+
+    // Fon kaynagi filtresi - drilldown'dan gelir.
+    // - "Belirtilmemis" özel deger: fundingSource bos veya null projeleri verir
+    // - Birlesik isim ("Rektörlük/BAP" gibi) varsa ayrı parçaları icin partial match
+    // - Tek isim ("TÜBİTAK") icin partial match (case insensitive)
+    if (fundingSource !== undefined && fundingSource !== '') {
+      if (fundingSource === 'Belirtilmemiş' || fundingSource === 'Belirtilmemis') {
+        qb.andWhere(`(project.fundingSource IS NULL OR project.fundingSource = '' OR TRIM(project.fundingSource) = '')`);
+      } else {
+        // Birlesik isimlerin parcalarini ayri OR ile dene + tam ismi de
+        const parts = String(fundingSource).split(/[\/,]/).map(s => s.trim()).filter(Boolean);
+        const conditions: string[] = [];
+        const params: Record<string, string> = {};
+        parts.forEach((p, i) => {
+          conditions.push(`LOWER(project.fundingSource) LIKE :fs${i}`);
+          params[`fs${i}`] = '%' + p.toLowerCase() + '%';
+        });
+        // Ayrica tam ismin tamamen icermesini de dene
+        conditions.push(`LOWER(project.fundingSource) = LOWER(:fsExact)`);
+        params['fsExact'] = String(fundingSource);
+        qb.andWhere('(' + conditions.join(' OR ') + ')', params);
+      }
+    }
 
     // Beyaz listeli sort - SQL injection riski yok
     const ALLOWED_SORT: Record<string, string> = {

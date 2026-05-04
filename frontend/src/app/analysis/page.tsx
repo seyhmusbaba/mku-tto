@@ -1473,23 +1473,17 @@ function DrilldownModal({ filter, title, onClose }: {
 
   useEffect(() => {
     setLoading(true);
-    const params: any = { limit: 100 };
-    // Backend projects/findAll bazı anahtarları anlıyor
+    const params: any = { limit: 200 };
     if (filter.type) params.type = filter.type;
     if (filter.status) params.status = filter.status;
     if (filter.faculty) params.faculty = filter.faculty;
-    // fundingSource için search'e düşeceğiz - projects endpoint'inde direkt filtre yok
+    if (filter.department) params.department = filter.department;
+    // fundingSource artik backend'de destekleniyor (projects.service.findAll)
+    if (filter.fundingSource) params.fundingSource = filter.fundingSource;
     api.get('/projects', { params }).then(r => {
-      let data = r.data?.data || [];
-      // fundingSource filtresi client-side normalleştir
-      if (filter.fundingSource && filter.fundingSource !== 'Belirtilmemiş') {
-        const want = filter.fundingSource.toLowerCase();
-        data = data.filter((p: any) => (p.fundingSource || '').toLowerCase().includes(want.split('/')[0].trim().toLowerCase()));
-      } else if (filter.fundingSource === 'Belirtilmemiş') {
-        data = data.filter((p: any) => !p.fundingSource || p.fundingSource.trim() === '');
-      }
+      const data = r.data?.data || [];
       setProjects(data);
-      setTotal(data.length);
+      setTotal(r.data?.total ?? data.length);
     }).catch(() => {}).finally(() => setLoading(false));
   }, [filter]);
 
