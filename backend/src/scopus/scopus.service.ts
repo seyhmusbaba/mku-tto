@@ -366,27 +366,153 @@ export class ScopusService {
     } catch { return []; }
   }
 
-  // ── FAKÜLTE SCOPUSMETRİKLERİ ──────────────────────────────────
-  // Bir fakültedeki akademisyenlerin Scopus metriklerini toplar
-  async getFacultyMetrics(scopusAuthorIds: string[]) {
-    if (!scopusAuthorIds.length) return { totalCitations: 0, totalDocuments: 0, avgHIndex: 0, topSubjects: [] };
+  // ── FAKÜLTE SCOPUS METRİKLERİ - ZENGİNLEŞTİRİLMİŞ ───────────────
+  /**
+   * Bir fakültedeki akademisyenlerin Scopus metriklerini toplar.
+   *
+   * Ek olarak şunları döner:
+   *  - topAuthors        : en üretken yazarlar (h-index, atıf, yayın)
+   *  - yearlyTrend       : son 10 yıl yayın+atıf trendi
+   *  - topPublications   : en çok atıf alan 15 yayın
+   *  - topJournals       : en sık yayın yapılan dergiler
+   *  - topInstitutions   : ortak çalışılan kurumlar
+   *  - subjectsExpanded  : konu kodu + yayın sayısı (yazar değil)
+   */
+  async getFacultyMetrics(
+    scopusAuthorIds: string[],
+    authorMap?: Map<string, { name: string; faculty?: string; department?: string }>,
+  ) {
+    if (!scopusAuthorIds.length) return { totalCitations: 0, totalDocuments: 0, avgHIndex: 0, topSubjects: [], authorCount: 0 };
 
+    // 1) Yazar profillerini cek (h-index, citation, document counts)
     const profiles = await Promise.all(
-      scopusAuthorIds.slice(0, 20).map(id => this.getAuthorProfile(id).catch(() => null))
+      scopusAuthorIds.slice(0, 50).map(id => this.getAuthorProfile(id).catch(() => null))
     );
     const valid = profiles.filter(Boolean) as any[];
 
     const totalCitations  = valid.reduce((s, p) => s + (p.citedByCount || 0), 0);
     const totalDocuments  = valid.reduce((s, p) => s + (p.documentCount || 0), 0);
     const avgHIndex       = valid.length > 0 ? Math.round(valid.reduce((s, p) => s + (p.hIndex || 0), 0) / valid.length) : 0;
+    const maxHIndex       = valid.length > 0 ? Math.max(...valid.map(p => p.hIndex || 0)) : 0;
+
+    // 2) Top Authors (en üretken)
+    const topAuthors = valid
+      .map(p => ({
+        scopusId: p.scopusId,
+        name: authorMap?.get(p.scopusId)?.name || `Yazar ${p.scopusId}`,
+        faculty: authorMap?.get(p.scopusId)?.faculty,
+        department: authorMap?.get(p.scopusId)?.department,
+        hIndex: p.hIndex || 0,
+        citations: p.citedByCount || 0,
+        documents: p.documentCount || 0,
+      }))
+      .sort((a, b) => b.hIndex - a.hIndex || b.citations - a.citations)
+      .slice(0, 15);
+
+    // 3) Top Publications + Yıllık Trend + Top Journals
+    //    Her yazardan max 25 yayın çek, hepsini birleştir
+    const pubsArrays = await Promise.all(
+      scopusAuthorIds.slice(0, 25).map(id => this.getAuthorPublications(id, 25).catch(() => []))
+    );
+    const allPubs: any[] = pubsArrays.flat();
+    // Dedupe by scopusId
+    const pubMap = new Map<string, any>();
+    for (const p of allPubs) {
+      if (p.scopusId && !pubMap.has(p.scopusId)) pubMap.set(p.scopusId, p);
+    }
+    const uniquePubs = Array.from(pubMap.values());
+
+    const topPublications = [...uniquePubs]
+      .sort((a, b) => (b.citedBy || 0) - (a.citedBy || 0))
+      .slice(0, 15);
+
+    // Yıllık Trend - son 10 yıl
+    const currentYear = new Date().getFullYear();
+    const yearMap: Record<number, { year: number; pubs: number; citations: number }> = {};
+    for (let y = currentYear - 9; y <= currentYear; y++) {
+      yearMap[y] = { year: y, pubs: 0, citations: 0 };
+    }
+    for (const p of uniquePubs) {
+      const y = +String(p.year || '').slice(0, 4);
+      if (yearMap[y]) {
+        yearMap[y].pubs++;
+        yearMap[y].citations += p.citedBy || 0;
+      }
+    }
+    const yearlyTrend = Object.values(yearMap);
+
+    // Top Journals
+    const journalMap: Record<string, { name: string; count: number; citations: number }> = {};
+    for (const p of uniquePubs) {
+      if (!p.journal) continue;
+      if (!journalMap[p.journal]) journalMap[p.journal] = { name: p.journal, count: 0, citations: 0 };
+      journalMap[p.journal].count++;
+      journalMap[p.journal].citations += p.citedBy || 0;
+    }
+    const topJournals = Object.values(journalMap)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    // Anahtar kelime/kavramlar
+    const keywordMap: Record<string, number> = {};
+    for (const p of uniquePubs) {
+      const kw = String(p.keywords || '').split(/[|;,]/).map(k => k.trim()).filter(Boolean);
+      for (const k of kw) keywordMap[k.toLowerCase()] = (keywordMap[k.toLowerCase()] || 0) + 1;
+    }
+    const topKeywords = Object.entries(keywordMap)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 25)
+      .map(([keyword, count]) => ({ keyword, count }));
+
+    // 4) Konu alanları - yazar bazli (eski)
     const subjectCounts: Record<string, number> = {};
     valid.forEach(p => (p.subjectAreas || []).forEach((a: string) => { subjectCounts[a] = (subjectCounts[a] || 0) + 1; }));
     const topSubjects = Object.entries(subjectCounts)
       .sort(([, a], [, b]) => b - a)
-      .slice(0, 5)
+      .slice(0, 8)
       .map(([code, count]) => ({ code, count, label: ASJC_LABELS[code] || code }));
 
-    return { totalCitations, totalDocuments, avgHIndex, topSubjects, authorCount: valid.length };
+    // 5) Departman karsilastirmasi (authorMap dolu ise)
+    const departmentBreakdown: Array<{ department: string; authorCount: number; totalCitations: number; totalDocuments: number; avgHIndex: number }> = [];
+    if (authorMap) {
+      const deptStats: Record<string, { authors: any[]; citations: number; documents: number; hIndexSum: number }> = {};
+      for (const p of valid) {
+        const d = authorMap.get(p.scopusId)?.department;
+        if (!d) continue;
+        if (!deptStats[d]) deptStats[d] = { authors: [], citations: 0, documents: 0, hIndexSum: 0 };
+        deptStats[d].authors.push(p);
+        deptStats[d].citations += p.citedByCount || 0;
+        deptStats[d].documents += p.documentCount || 0;
+        deptStats[d].hIndexSum += p.hIndex || 0;
+      }
+      for (const [department, s] of Object.entries(deptStats)) {
+        departmentBreakdown.push({
+          department,
+          authorCount: s.authors.length,
+          totalCitations: s.citations,
+          totalDocuments: s.documents,
+          avgHIndex: s.authors.length > 0 ? Math.round(s.hIndexSum / s.authors.length) : 0,
+        });
+      }
+      departmentBreakdown.sort((a, b) => b.totalCitations - a.totalCitations);
+    }
+
+    return {
+      // Ozet
+      totalCitations,
+      totalDocuments,
+      avgHIndex,
+      maxHIndex,
+      authorCount: valid.length,
+      // Liste/dagilim
+      topSubjects,
+      topAuthors,
+      topPublications,
+      topJournals,
+      topKeywords,
+      yearlyTrend,
+      departmentBreakdown,
+    };
   }
 }
 

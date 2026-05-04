@@ -363,13 +363,27 @@ export class ScopusController {
     if (department) where.department = department;
 
     const users = await this.userRepo.find({ where });
-    const scopusIds = users.map(u => (u as any).scopusAuthorId).filter(Boolean);
+    const usersWithScopus = users.filter(u => (u as any).scopusAuthorId);
+    const scopusIds = usersWithScopus.map(u => (u as any).scopusAuthorId).filter(Boolean);
 
     if (!scopusIds.length) {
       return { totalCitations: 0, totalDocuments: 0, avgHIndex: 0, topSubjects: [], authorCount: 0, noScopusIds: true };
     }
 
-    const metrics = await this.scopus.getFacultyMetrics(scopusIds);
+    // Yazar adi-fakulte-bolum eslemesi - panel'de gosterim icin
+    const authorMap = new Map<string, { name: string; faculty?: string; department?: string }>();
+    for (const u of usersWithScopus) {
+      const scopusId = (u as any).scopusAuthorId;
+      if (!scopusId) continue;
+      const fullName = [u.title, u.firstName, u.lastName].filter(Boolean).join(' ').trim();
+      authorMap.set(scopusId, {
+        name: fullName || u.email,
+        faculty: u.faculty,
+        department: u.department,
+      });
+    }
+
+    const metrics = await this.scopus.getFacultyMetrics(scopusIds, authorMap);
     return { ...metrics, faculty, department };
   }
 }

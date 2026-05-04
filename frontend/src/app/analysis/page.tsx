@@ -14,9 +14,13 @@ import { useAuth } from '@/lib/auth-context';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
 
 /* ─── Icon helper ───────────────────────────────────── */
-type AIconName = 'folder' | 'dollar' | 'check' | 'chart' | 'beaker' | 'target' | 'lock' | 'alert' | 'download' | 'globe' | 'search' | 'info' | 'link' | 'document' | 'user' | 'inbox';
+type AIconName = 'folder' | 'dollar' | 'check' | 'chart' | 'beaker' | 'target' | 'lock' | 'alert' | 'download' | 'globe' | 'search' | 'info' | 'link' | 'document' | 'user' | 'inbox' | 'book' | 'tag' | 'building' | 'award';
 const A_I: Record<AIconName, string> = {
   folder:   'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z',
+  book:     'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253',
+  tag:      'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z',
+  building: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+  award:    'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z',
   dollar:   'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
   check:    'M5 13l4 4L19 7',
   chart:    'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
@@ -871,7 +875,7 @@ function ScopusAnalyticsTab() {
         </p>
       </div>
 
-      {/* Sonuçlar */}
+      {/* Sonuçlar - zenginlestirilmis goruntu */}
       {searched && !loading && metrics && (
         <>
           {metrics.noScopusIds ? (
@@ -888,15 +892,16 @@ function ScopusAnalyticsTab() {
             </div>
           ) : (
             <>
-              {/* Ana metrik kartları */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {/* Ana KPI kartlari - 5 sutun */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 {([
-                  { label: 'Toplam Atıf',     value: metrics.totalCitations?.toLocaleString('tr-TR'),  icon: 'link' as AIconName,    color: '#059669' },
-                  { label: 'Toplam Yayın',    value: metrics.totalDocuments?.toLocaleString('tr-TR'),  icon: 'document' as AIconName,color: '#1a3a6b' },
-                  { label: 'Ort. h-index',    value: metrics.avgHIndex,                                icon: 'chart' as AIconName,   color: '#7c3aed' },
-                  { label: 'Scopus Yazar',    value: metrics.authorCount,                              icon: 'user' as AIconName,    color: '#d97706' },
+                  { label: 'Toplam Atıf',     value: metrics.totalCitations?.toLocaleString('tr-TR'), icon: 'link' as AIconName,    color: '#059669' },
+                  { label: 'Toplam Yayın',    value: metrics.totalDocuments?.toLocaleString('tr-TR'), icon: 'document' as AIconName,color: '#1a3a6b' },
+                  { label: 'Ortalama h-index',value: metrics.avgHIndex,                               icon: 'chart' as AIconName,   color: '#7c3aed' },
+                  { label: 'En Yüksek h-index',value: metrics.maxHIndex || '-',                       icon: 'award' as AIconName,   color: '#c8a45a' },
+                  { label: 'Scopus Yazar',    value: metrics.authorCount,                             icon: 'user' as AIconName,    color: '#d97706' },
                 ]).map(m => (
-                  <div key={m.label} className="card py-5 text-center">
+                  <div key={m.label} className="card py-4 text-center">
                     <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl mb-1"
                       style={{ background: m.color + '18', color: m.color }}>
                       <AIcon name={m.icon} className="w-5 h-5" />
@@ -909,64 +914,215 @@ function ScopusAnalyticsTab() {
                 ))}
               </div>
 
-              {/* Konu alanları */}
-              {metrics.topSubjects?.length > 0 && (
+              {/* Yıllık Trend - son 10 yil yayin + atif */}
+              {metrics.yearlyTrend?.some((y: any) => y.pubs > 0 || y.citations > 0) && (
                 <div className="card p-5">
                   <h3 className="font-display text-sm font-semibold text-navy mb-4 inline-flex items-center gap-2">
-                    <AIcon name="target" className="w-4 h-4 text-navy" />
-                    Öne Çıkan Araştırma Alanları
-                    <span className="font-normal text-xs text-muted ml-2">
-                      {selected || 'Tüm fakülteler'}
-                      {dept ? ` › ${dept}` : ''}
-                    </span>
+                    <AIcon name="chart" className="w-4 h-4 text-navy" />
+                    Son 10 Yıl - Yayın ve Atıf Trendi
                   </h3>
-                  <div className="space-y-3">
-                    {metrics.topSubjects.map((s: any, i: number) => {
-                      const maxCount = metrics.topSubjects[0]?.count || 1;
-                      const pct = Math.round((s.count / maxCount) * 100);
-                      return (
-                        <div key={s.code} className="flex items-center gap-3">
-                          <span className="text-xs font-bold w-5 text-muted text-right flex-shrink-0">{i + 1}</span>
-                          <div className="flex-1">
-                            <div className="flex justify-between text-xs mb-1">
-                              <span className="font-semibold text-navy">{s.label}</span>
-                              <span className="text-muted">{s.count} yazar</span>
-                            </div>
-                            <div className="h-2 rounded-full overflow-hidden" style={{ background: '#f0ede8' }}>
-                              <div className="h-2 rounded-full transition-all duration-500"
-                                style={{ width: `${pct}%`, background: METRIC_COLORS[i % METRIC_COLORS.length] }} />
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                  <ResponsiveContainer width="100%" height={240}>
+                    <BarChart data={metrics.yearlyTrend} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0ede8" />
+                      <XAxis dataKey="year" tick={{ fontSize: 11, fill: '#6b7280' }} />
+                      <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#1a3a6b' }} />
+                      <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: '#059669' }} />
+                      <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e8e4dc', fontSize: 12 }} />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                      <Bar yAxisId="left" dataKey="pubs" name="Yayın" fill="#1a3a6b" radius={[4, 4, 0, 0]} />
+                      <Bar yAxisId="right" dataKey="citations" name="Toplam Atıf" fill="#059669" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              {/* En Üretken Yazarlar - tablo */}
+              {metrics.topAuthors?.length > 0 && (
+                <div className="card p-5">
+                  <h3 className="font-display text-sm font-semibold text-navy mb-4 inline-flex items-center gap-2">
+                    <AIcon name="user" className="w-4 h-4 text-navy" />
+                    En Üretken Yazarlar (Top {Math.min(metrics.topAuthors.length, 15)})
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b" style={{ borderColor: '#e8e4dc' }}>
+                          <th className="text-left py-2 px-2 text-xs font-semibold text-muted">#</th>
+                          <th className="text-left py-2 px-2 text-xs font-semibold text-muted">Yazar</th>
+                          <th className="text-left py-2 px-2 text-xs font-semibold text-muted">Bölüm</th>
+                          <th className="text-right py-2 px-2 text-xs font-semibold text-muted">h-index</th>
+                          <th className="text-right py-2 px-2 text-xs font-semibold text-muted">Atıf</th>
+                          <th className="text-right py-2 px-2 text-xs font-semibold text-muted">Yayın</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {metrics.topAuthors.map((a: any, i: number) => (
+                          <tr key={a.scopusId} className="border-b hover:bg-[#faf8f4]" style={{ borderColor: '#f0ede8' }}>
+                            <td className="py-2 px-2 text-xs text-muted">{i + 1}</td>
+                            <td className="py-2 px-2 text-sm font-semibold text-navy">{a.name}</td>
+                            <td className="py-2 px-2 text-xs text-muted">{a.department || '-'}</td>
+                            <td className="py-2 px-2 text-right font-bold text-navy">{a.hIndex || 0}</td>
+                            <td className="py-2 px-2 text-right text-sm">{a.citations?.toLocaleString('tr-TR') || 0}</td>
+                            <td className="py-2 px-2 text-right text-sm">{a.documents || 0}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
 
-              {/* Recharts - konu dağılımı */}
-              {metrics.topSubjects?.length > 0 && (
+              {/* En Çok Atıf Alan Yayınlar */}
+              {metrics.topPublications?.length > 0 && (
                 <div className="card p-5">
                   <h3 className="font-display text-sm font-semibold text-navy mb-4 inline-flex items-center gap-2">
-                    <AIcon name="chart" className="w-4 h-4 text-navy" />
-                    Alan Dağılımı
+                    <AIcon name="document" className="w-4 h-4 text-navy" />
+                    En Çok Atıf Alan Yayınlar (Top {metrics.topPublications.length})
                   </h3>
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={metrics.topSubjects} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0ede8" />
-                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#6b7280' }} />
-                      <YAxis tick={{ fontSize: 10, fill: '#6b7280' }} />
-                      <Tooltip
-                        contentStyle={{ borderRadius: 12, border: '1px solid #e8e4dc', fontSize: 12 }}
-                        formatter={(v: any) => [v + ' yazar', 'Yazar Sayısı']}
-                      />
-                      <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                        {metrics.topSubjects.map((_: any, i: number) => (
-                          <Cell key={i} fill={METRIC_COLORS[i % METRIC_COLORS.length]} />
+                  <div className="space-y-2">
+                    {metrics.topPublications.map((p: any, i: number) => (
+                      <div key={p.scopusId || i} className="flex items-start gap-3 p-3 rounded-xl hover:bg-[#faf8f4]" style={{ background: '#fcfaf6', border: '1px solid #f0ede8' }}>
+                        <span className="text-xs font-bold w-6 text-muted text-right flex-shrink-0 mt-1">{i + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-navy leading-snug">{p.title}</p>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-muted flex-wrap">
+                            {p.journal && <span>📖 {p.journal}</span>}
+                            {p.year && <span>📅 {p.year}</span>}
+                            {p.doi && (
+                              <a href={`https://doi.org/${p.doi}`} target="_blank" rel="noopener noreferrer"
+                                className="font-medium hover:underline" style={{ color: '#1a3a6b' }}>
+                                DOI ↗
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                        <span className="text-sm font-bold flex-shrink-0 px-3 py-1 rounded-full"
+                          style={{ background: '#059669' + '18', color: '#059669' }}>
+                          {p.citedBy?.toLocaleString('tr-TR') || 0} atıf
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 2 sütunlu: Top Dergiler + Konu Alanları */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Top Dergiler */}
+                {metrics.topJournals?.length > 0 && (
+                  <div className="card p-5">
+                    <h3 className="font-display text-sm font-semibold text-navy mb-4 inline-flex items-center gap-2">
+                      <AIcon name="book" className="w-4 h-4 text-navy" />
+                      En Sık Yayın Yapılan Dergiler
+                    </h3>
+                    <div className="space-y-2">
+                      {metrics.topJournals.slice(0, 10).map((j: any, i: number) => {
+                        const maxCount = metrics.topJournals[0]?.count || 1;
+                        const pct = Math.round((j.count / maxCount) * 100);
+                        return (
+                          <div key={i} className="text-xs">
+                            <div className="flex justify-between mb-1">
+                              <span className="font-semibold text-navy line-clamp-1 flex-1 min-w-0 mr-2" title={j.name}>{j.name}</span>
+                              <span className="text-muted flex-shrink-0">{j.count} yayın · {j.citations} atıf</span>
+                            </div>
+                            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: '#f0ede8' }}>
+                              <div className="h-1.5 rounded-full"
+                                style={{ width: `${pct}%`, background: '#7c3aed' }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Konu Alanları */}
+                {metrics.topSubjects?.length > 0 && (
+                  <div className="card p-5">
+                    <h3 className="font-display text-sm font-semibold text-navy mb-4 inline-flex items-center gap-2">
+                      <AIcon name="target" className="w-4 h-4 text-navy" />
+                      Araştırma Alan Dağılımı
+                    </h3>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart data={metrics.topSubjects} layout="vertical" margin={{ top: 0, right: 20, left: 80, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0ede8" />
+                        <XAxis type="number" tick={{ fontSize: 10, fill: '#6b7280' }} />
+                        <YAxis type="category" dataKey="label" tick={{ fontSize: 10, fill: '#374151' }} width={75} />
+                        <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e8e4dc', fontSize: 12 }}
+                          formatter={(v: any) => [v + ' yazar', 'Yazar Sayısı']} />
+                        <Bar dataKey="count" radius={[0, 6, 6, 0]}>
+                          {metrics.topSubjects.map((_: any, i: number) => (
+                            <Cell key={i} fill={METRIC_COLORS[i % METRIC_COLORS.length]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+
+              {/* Bölüm Karşılaştırması (sadece fakülte modunda + birden fazla bölüm varsa) */}
+              {metrics.departmentBreakdown?.length > 1 && (
+                <div className="card p-5">
+                  <h3 className="font-display text-sm font-semibold text-navy mb-4 inline-flex items-center gap-2">
+                    <AIcon name="building" className="w-4 h-4 text-navy" />
+                    Bölüm Karşılaştırması
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b" style={{ borderColor: '#e8e4dc' }}>
+                          <th className="text-left py-2 px-2 text-xs font-semibold text-muted">Bölüm</th>
+                          <th className="text-right py-2 px-2 text-xs font-semibold text-muted">Yazar</th>
+                          <th className="text-right py-2 px-2 text-xs font-semibold text-muted">Atıf</th>
+                          <th className="text-right py-2 px-2 text-xs font-semibold text-muted">Yayın</th>
+                          <th className="text-right py-2 px-2 text-xs font-semibold text-muted">Ort. h-index</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {metrics.departmentBreakdown.map((d: any, i: number) => (
+                          <tr key={d.department} className="border-b hover:bg-[#faf8f4]" style={{ borderColor: '#f0ede8' }}>
+                            <td className="py-2 px-2 text-sm font-semibold text-navy">{d.department}</td>
+                            <td className="py-2 px-2 text-right text-sm">{d.authorCount}</td>
+                            <td className="py-2 px-2 text-right text-sm font-semibold" style={{ color: '#059669' }}>{d.totalCitations.toLocaleString('tr-TR')}</td>
+                            <td className="py-2 px-2 text-right text-sm">{d.totalDocuments.toLocaleString('tr-TR')}</td>
+                            <td className="py-2 px-2 text-right font-bold text-navy">{d.avgHIndex}</td>
+                          </tr>
                         ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Anahtar Kelime Bulutu */}
+              {metrics.topKeywords?.length > 0 && (
+                <div className="card p-5">
+                  <h3 className="font-display text-sm font-semibold text-navy mb-4 inline-flex items-center gap-2">
+                    <AIcon name="tag" className="w-4 h-4 text-navy" />
+                    En Sık Kullanılan Anahtar Kelimeler
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {metrics.topKeywords.map((k: any, i: number) => {
+                      const max = metrics.topKeywords[0]?.count || 1;
+                      const ratio = k.count / max;
+                      const fontSize = 10 + Math.round(ratio * 8); // 10-18px
+                      const color = METRIC_COLORS[i % METRIC_COLORS.length];
+                      return (
+                        <span key={k.keyword}
+                          className="inline-flex items-center gap-1 px-3 py-1 rounded-full font-medium"
+                          style={{
+                            fontSize: `${fontSize}px`,
+                            background: color + '15',
+                            color,
+                            border: `1px solid ${color}33`,
+                          }}>
+                          {k.keyword}
+                          <span className="text-[10px] opacity-70 font-bold">{k.count}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </>
